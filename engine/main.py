@@ -38,6 +38,8 @@ def _runtime_from_environment() -> ControlTowerService:
     model = os.getenv("OPENAI_MODEL", "").strip()
     if not model:
         raise RuntimeError("audited_openai mode requires OPENAI_MODEL")
+    if not os.getenv("OPENAI_API_KEY", "").strip():
+        raise RuntimeError("audited_openai mode requires OPENAI_API_KEY")
     auditor_model = os.getenv("OPENAI_AUDITOR_MODEL", "").strip() or model
     raw_timeout = os.getenv(
         "OPENAI_REQUEST_TIMEOUT_SECONDS",

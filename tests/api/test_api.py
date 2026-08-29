@@ -215,6 +215,7 @@ def test_audited_openai_mode_is_explicit_and_requires_a_model(
         )
 
     monkeypatch.setattr("engine.main.run_audited_openai_investigation", fake_audited_run)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
     monkeypatch.setenv("OPENAI_MODEL", "mock-investigator")
     monkeypatch.setenv("OPENAI_AUDITOR_MODEL", "mock-auditor")
     monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "7.5")
@@ -240,10 +241,41 @@ def test_audited_openai_mode_is_explicit_and_requires_a_model(
     }
 
 
+@pytest.mark.parametrize("configured_key", [None, "   "], ids=["missing", "empty"])
+def test_audited_openai_mode_requires_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+    configured_key: str | None,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    if configured_key is None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", configured_key)
+
+    with pytest.raises(RuntimeError, match="requires OPENAI_API_KEY") as exc_info:
+        create_app(start_background=False)
+
+    assert str(exc_info.value) == "audited_openai mode requires OPENAI_API_KEY"
+
+
+def test_deterministic_mode_does_not_require_openai_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "deterministic")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    app = create_app(start_background=False)
+
+    assert app.state.control_tower.audited_investigator is None
+
+
 def test_audited_openai_mode_rejects_invalid_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
     monkeypatch.setenv("OPENAI_MODEL", "mock-model")
     monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "0")
 
