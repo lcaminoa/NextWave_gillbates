@@ -1,0 +1,64 @@
+---
+title: Control Tower — Arquitectura end-to-end
+config:
+  theme: base
+  flowchart:
+    curve: linear
+    nodeSpacing: 40
+    rankSpacing: 55
+---
+flowchart TB
+    subgraph Product["Producto"]
+        direction LR
+        Chaos["Consola de caos<br/>Inyecta un incidente manual<br/>o uno desconocido"]
+        Dashboard["Dashboard<br/>Muestra pagos, incidentes,<br/>causas y evidencia"]
+    end
+
+    API["Backend API<br/>Recibe comandos y transmite<br/>pagos e incidentes por REST/SSE"]
+
+    subgraph Stream["Stream de pagos"]
+        direction LR
+        Simulator["Simulador de pagos<br/>Genera tráfico normal y degrada<br/>solo el segmento afectado"]
+        Pipeline["Pipeline por ventanas<br/>Agrupa pagos cada minuto y<br/>produce diagnósticos confirmados"]
+    end
+
+    subgraph Diagnosis["Detección y diagnóstico"]
+        direction LR
+        Detection["Detector estadístico<br/>Compara contra el baseline y exige<br/>volumen, EWMA y persistencia"]
+        RCA["Análisis de causa raíz<br/>Encuentra el segmento, impacto,<br/>controles sanos y evidencia"]
+    end
+
+    Investigator["Investigador OpenAI<br/>Lee evidencia con tools de solo lectura<br/>y redacta conclusiones citadas"]
+    Report["Reporte de incidente<br/>Qué pasó · dónde · costo<br/>y recomendación humana"]
+
+    Chaos -->|"solicita inject, random o reveal"| API
+    API -->|"guarda el ChaosSpec internamente"| Simulator
+    Simulator -->|"emite cada Transaction"| Pipeline
+    Pipeline -->|"cierra una ventana de pagos"| Detection
+    Detection -->|"anomalías confirmadas"| RCA
+    RCA -->|"anomalía + candidatos + evidencia"| Investigator
+    Investigator -->|"reporte con claims citados"| Report
+    Report -->|"publica el incidente"| API
+    API -->|"actualizaciones en vivo"| Dashboard
+
+    Secret["Protección random_unknown<br/>Las dimensiones reales viven solo<br/>en el simulador hasta reveal"]
+    Secret -.-> Chaos
+    Secret -.-> Simulator
+    Secret -.-> Pipeline
+    Secret -.-> Investigator
+
+    classDef product fill:#E8F0FE,stroke:#2563EB,color:#172554,stroke-width:2px;
+    classDef backend fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E,stroke-width:2px;
+    classDef simulation fill:#F3E8FF,stroke:#9333EA,color:#581C87,stroke-width:2px;
+    classDef detection fill:#FFF7ED,stroke:#EA580C,color:#7C2D12,stroke-width:2px;
+    classDef investigator fill:#ECFDF5,stroke:#059669,color:#064E3B,stroke-width:2px;
+    classDef report fill:#FEF2F2,stroke:#DC2626,color:#7F1D1D,stroke-width:2px;
+    classDef note fill:#F8FAFC,stroke:#64748B,color:#334155,stroke-dasharray: 5 5;
+
+    class Chaos,Dashboard product;
+    class API backend;
+    class Simulator simulation;
+    class Pipeline,Detection,RCA detection;
+    class Investigator investigator;
+    class Report report;
+    class Secret note;
