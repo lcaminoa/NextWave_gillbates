@@ -146,3 +146,19 @@ y confirmar que detecta en un tiempo aceptable, no solo que la demo sintetica pa
 
 Verificado con: `uv run python -m engine.detection.demo` -- vuelve a detectar el incidente
 inyectado (provider=nova_pay, country=BR) con el mismo rca_score que antes de este merge.
+
+## D007 — Nombrar el `source` del contrafactual por dimension (no siempre "counterfactual_provider")
+
+Contexto: Valentin (Stream C) pidio confirmar como se van a llamar los `source` de los controles
+contrafactuales antes de integrar. Al revisar, el codigo generaba SIEMPRE `source="counterfactual_provider"`
+para cualquier control, aunque el control fuera de `country` o `payment_method` -- resabio de
+cuando el contrafactual solo existia para `provider` (antes de D005).
+
+Decision: nombrar cada `source` dinamicamente como `counterfactual_<dimension>` (ej.
+`counterfactual_provider`, `counterfactual_country`). Cada Evidence de control ya estaba (y sigue
+estando) incluida en `candidate.evidence_ids`, eso no cambio -- solo el nombre del `source`.
+
+Verificado con: script standalone que corre `generate_candidates` sobre el chaos de la demo y
+confirma que para el candidato ganador `{provider: nova_pay, country: BR}` aparecen
+`counterfactual_provider` y `counterfactual_country`, ambos con su evidence_id dentro de
+`candidate.evidence_ids`.

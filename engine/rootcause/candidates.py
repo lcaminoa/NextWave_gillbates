@@ -198,10 +198,10 @@ def generate_candidates(
                 # un control por cada dimension del candidato (ver docstring de la funcion)
                 counterfactual_checks = _counterfactual_checks(current_window, dims, config)
                 counterfactual_texts = []
-                for _dim_name, text in counterfactual_checks:
+                for dim_name, text in counterfactual_checks:
                     cf_ev = Evidence(
                         evidence_id=f"ev_{uuid.uuid4().hex[:8]}",
-                        source="counterfactual_provider",
+                        source=f"counterfactual_{dim_name}",
                         summary=text,
                         dimension_key=dimension_key(dims),
                     )
