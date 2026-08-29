@@ -25,7 +25,7 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Área | Estado | Qué existe hoy | Qué falta para considerarlo terminado |
 |---|---|---|---|
 | Contratos compartidos | ✅ | Ocho entidades en `contracts/types.ts` y `contracts/schemas.py`; endpoints definidos. | Fixtures compartidos y validación cruzada TS/Python. |
-| Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`. | Verificar recuperacion del detector al vencer `duration_minutes` (test de integracion, ver seccion 2). |
+| Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`, incluida la recuperacion al vencer el chaos. | -- |
 | Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos. | Integrarlo al servicio/API real. |
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`. | Estacionalidad efectiva, fallback jerárquico y calibración con stream continuo. |
 | Mix shift | 🟡 | `mix_shift.py` descompone mezcla vs. performance; hay test. | Usarlo como filtro real antes de abrir un incidente. |
@@ -64,9 +64,10 @@ correcto con evidencia; un mix shift puro no crea incidente.
 - [x] Implementar `ChaosSpec` manual: dimensiones, severidad, inicio y duración.
 - [x] Implementar `random_unknown`: selecciona dimensiones al azar (1-3 dims) y las oculta hasta `reveal()`.
 - [x] Implementar reveal de la verdad inyectada al finalizar.
-- [ ] Verificar que un incidente termina al vencer `duration_minutes` y que el detector se recupera
-  (el simulador ya deja de aplicar el chaos solo -- falta el test de integracion end-to-end que
-  confirme que `DetectionPipeline` deja de reportar la anomalia despues).
+- [x] Verificado que un incidente termina al vencer `duration_minutes` y que el detector se
+  recupera solo (`tests/detection/test_pipeline.py::ChaosRecoveryTests`, con el simulador real
+  de Pancho conectado al pipeline de deteccion: se confirma en la ventana 3, y ya no aparece en
+  las ventanas 5-6 tras vencer el chaos).
 
 **Criterio de aceptación:** un juez puede cambiar una combinación no ensayada sin editar código;
 el pipeline solo recibe las transacciones, nunca el `ChaosSpec` oculto.

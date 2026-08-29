@@ -127,3 +127,50 @@ class ProductionDefaultsLongStreamTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChaosRecoveryTests(unittest.TestCase):
+    def test_detector_stops_alerting_once_injected_chaos_expires(self) -> None:
+        """Cierra el ultimo pendiente de TODO.md seccion 2: cuando un ChaosSpec tiene
+        duration_minutes y se vence, el trafico vuelve a la normalidad -- el detector
+        tiene que dejar de reportar la anomalia SOLO, sin que nadie reinicie nada."""
+        from datetime import timezone as _timezone
+        from contracts.schemas import Dimensions
+        from simulator import PaymentSimulator
+
+        start = datetime(2026, 8, 29, 14, 0, tzinfo=_timezone.utc)
+        history = PaymentSimulator(seed=100).generate(
+            start - timedelta(hours=1), count=1500, interval_seconds=0.2,
+        )
+
+        live = PaymentSimulator(seed=200)
+        live.chaos.inject_manual(
+            Dimensions(provider="nova_pay", country="BR"),
+            severity_pp=35, started_at=start, duration_minutes=3,
+        )
+        # 6 minutos = 6 ventanas reales: los primeros 3 con chaos activo, los ultimos 3 sanos
+        stream = live.generate(start, count=3600, interval_seconds=0.1)
+
+        pipeline = DetectionPipeline(history=history)
+        results = []
+        for txn in stream:
+            results.extend(pipeline.ingest(txn))
+        last = pipeline.flush()
+        if last:
+            results.append(last)
+
+        self.assertEqual(len(results), 6)
+        flagged_windows = [
+            index for index, r in enumerate(results, start=1)
+            if any(d.anomaly.dimension_key == "country=BR|provider=nova_pay" for d in r.diagnoses)
+        ]
+        self.assertTrue(flagged_windows, "el incidente inyectado nunca se confirmo")
+
+        # ninguna de las ultimas 2 ventanas (bien despues de que vencio el chaos) puede
+        # seguir reportando la anomalia -- si sigue ahi, el detector no se esta recuperando
+        recovered_windows = {5, 6}
+        self.assertFalse(
+            recovered_windows & set(flagged_windows),
+            f"el detector siguio alertando en ventanas {sorted(recovered_windows & set(flagged_windows))} "
+            "mucho despues de que el chaos vencio -- no se esta recuperando solo",
+        )
