@@ -471,6 +471,60 @@ def test_hierarchical_episode_survives_a_single_symptom_window() -> None:
     assert calls == ["anom_provider_first"]
 
 
+def test_provisional_episode_is_replaced_when_unique_direct_anchor_arrives() -> None:
+    country_before_anchor = _diagnosis_with_candidates(
+        "country_before_anchor",
+        dimension_key="country=BR",
+        candidate_specs=[
+            (Dimensions(provider="nova_pay", country="BR"), 0.9, 20_000),
+            (Dimensions(country="BR"), 0.4, 8_000),
+        ],
+    )
+    provider_anchor = _diagnosis_with_candidates(
+        "provider_anchor_later",
+        dimension_key="provider=nova_pay",
+        candidate_specs=[
+            (Dimensions(provider="nova_pay"), 0.9, 30_000),
+            (Dimensions(provider="nova_pay", country="BR"), 0.5, 20_000),
+        ],
+    )
+    country_satellite = _diagnosis_with_candidates(
+        "country_satellite_later",
+        dimension_key="country=BR",
+        candidate_specs=[
+            (Dimensions(provider="nova_pay", country="BR"), 0.9, 20_000),
+            (Dimensions(country="BR"), 0.4, 8_000),
+        ],
+    )
+    calls: list[str] = []
+
+    def investigator(anomaly_id, candidates, evidence):
+        calls.append(anomaly_id)
+        return run_investigation(anomaly_id, tuple(candidates), tuple(evidence))
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline(
+            [
+                _window(country_before_anchor),
+                _window(provider_anchor, country_satellite),
+            ]
+        ),
+        investigator=investigator,
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction(0))
+    [provisional] = service.list_reports()
+    assert provisional.anomaly_id == "anom_country_before_anchor"
+
+    service.process_transaction(_transaction(1))
+
+    [promoted] = service.list_reports()
+    assert promoted.anomaly_id == "anom_provider_anchor_later"
+    assert calls == ["anom_country_before_anchor", "anom_provider_anchor_later"]
+
+
 def test_cross_candidate_does_not_merge_two_direct_incidents() -> None:
     provider = _diagnosis_with_candidates(
         "direct_provider",

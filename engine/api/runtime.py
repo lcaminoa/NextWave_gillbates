@@ -75,6 +75,16 @@ class DiagnosisGroup:
     direct: bool
 
 
+@dataclass(frozen=True)
+class InvestigationSelection:
+    fingerprint: str
+    match_fingerprint: str
+    direct: bool
+    diagnosis: AnomalyDiagnosis
+    existing_id: str | None
+    promotes_provisional: bool = False
+
+
 class TransactionBroker:
     """Non-blocking SSE fan-out with a small replay buffer for new clients."""
 
@@ -398,14 +408,14 @@ class ControlTowerService:
 
         self._incidents: dict[str, StoredIncident] = {}
         self._active_episodes: dict[str, str] = {}
+        self._episode_match_fingerprints: dict[str, str] = {}
+        self._episode_direct: dict[str, bool] = {}
         self._episode_misses: dict[str, int] = {}
         self._pending_episodes: set[str] = set()
         self._api_chaos_ids: set[str] = set()
         self._producer_task: asyncio.Task[None] | None = None
         self._investigator_task: asyncio.Task[None] | None = None
-        self._investigation_queue: asyncio.Queue[
-            tuple[str, AnomalyDiagnosis, str | None]
-        ] | None = None
+        self._investigation_queue: asyncio.Queue[InvestigationSelection] | None = None
         self._producer_error: str | None = None
         self._investigator_error: str | None = None
         self._producer_stop = threading.Event()
@@ -438,6 +448,17 @@ class ControlTowerService:
             fingerprint: incident_id
             for fingerprint, incident_id in self._active_episodes.items()
             if incident_id
+        }
+        self._episode_match_fingerprints = {
+            fingerprint: self._episode_match_fingerprints.get(
+                fingerprint,
+                fingerprint,
+            )
+            for fingerprint in self._active_episodes
+        }
+        self._episode_direct = {
+            fingerprint: self._episode_direct.get(fingerprint, False)
+            for fingerprint in self._active_episodes
         }
         self._investigation_queue = asyncio.Queue()
         self._investigator_task = asyncio.create_task(
@@ -515,19 +536,20 @@ class ControlTowerService:
             return
         try:
             while True:
-                fingerprint, diagnosis, existing_id = await queue.get()
+                selection = await queue.get()
                 try:
-                    stored = await asyncio.to_thread(self._investigate, diagnosis)
-                    still_active = fingerprint in self._active_episodes
+                    stored = await asyncio.to_thread(
+                        self._investigate,
+                        selection.diagnosis,
+                    )
+                    still_active = selection.fingerprint in self._active_episodes
                     self._store_investigation(
-                        fingerprint,
-                        diagnosis,
+                        selection,
                         stored,
-                        existing_id=existing_id,
                         activate=still_active,
                     )
                 finally:
-                    self._pending_episodes.discard(fingerprint)
+                    self._pending_episodes.discard(selection.fingerprint)
                     queue.task_done()
         except asyncio.CancelledError:
             raise
@@ -542,15 +564,11 @@ class ControlTowerService:
         return results
 
     def process_window(self, result: WindowResult) -> None:
-        for fingerprint, diagnosis, existing_id in self._select_diagnoses(
-            result, reserve=False
-        ):
-            stored = self._investigate(diagnosis)
+        for selection in self._select_diagnoses(result, reserve=False):
+            stored = self._investigate(selection.diagnosis)
             self._store_investigation(
-                fingerprint,
-                diagnosis,
+                selection,
                 stored,
-                existing_id=existing_id,
                 activate=True,
             )
 
@@ -558,19 +576,25 @@ class ControlTowerService:
         queue = self._investigation_queue
         if queue is None:
             raise RuntimeError("investigator worker is not running")
-        for fingerprint, diagnosis, existing_id in self._select_diagnoses(
-            result, reserve=True
-        ):
-            queue.put_nowait((fingerprint, diagnosis, existing_id))
+        for selection in self._select_diagnoses(result, reserve=True):
+            queue.put_nowait(selection)
 
     def _select_diagnoses(
         self,
         result: WindowResult,
         *,
         reserve: bool,
-    ) -> list[tuple[str, AnomalyDiagnosis, str | None]]:
+    ) -> list[InvestigationSelection]:
         groups = _cluster_diagnoses(result.diagnoses)
-        current_fingerprints = {group.fingerprint for group in groups}
+        current_match_fingerprints = {
+            group.match_fingerprint for group in groups
+        }
+
+        def active_identity(fingerprint: str) -> str:
+            return self._episode_match_fingerprints.get(
+                fingerprint,
+                fingerprint,
+            )
 
         def compatible_active(group: DiagnosisGroup) -> list[str]:
             return [
@@ -578,21 +602,27 @@ class ControlTowerService:
                 for active_fingerprint in self._active_episodes
                 if _fingerprints_are_nested(
                     group.match_fingerprint,
-                    active_fingerprint,
+                    active_identity(active_fingerprint),
                 )
             ]
 
-        diagnosed_fingerprints: set[str] = {
-            group.fingerprint
-            for group in groups
-            if group.fingerprint in self._active_episodes
-        }
+        def exact_active(group: DiagnosisGroup) -> list[str]:
+            return [
+                active_fingerprint
+                for active_fingerprint in self._active_episodes
+                if group.match_fingerprint == active_identity(active_fingerprint)
+            ]
+
+        diagnosed_fingerprints: set[str] = set()
         for group in groups:
-            if group.direct or group.fingerprint in self._active_episodes:
+            exact_matches = exact_active(group)
+            if len(exact_matches) == 1:
+                diagnosed_fingerprints.add(exact_matches[0])
                 continue
-            matches = compatible_active(group)
-            if len(matches) == 1:
-                diagnosed_fingerprints.add(matches[0])
+            if not group.direct:
+                matches = compatible_active(group)
+                if len(matches) == 1:
+                    diagnosed_fingerprints.add(matches[0])
 
         for fingerprint in tuple(self._active_episodes):
             if fingerprint in diagnosed_fingerprints:
@@ -601,70 +631,120 @@ class ControlTowerService:
             misses = self._episode_misses.get(fingerprint, 0) + 1
             if misses >= self.episode_grace_windows:
                 self._active_episodes.pop(fingerprint, None)
+                self._episode_match_fingerprints.pop(fingerprint, None)
+                self._episode_direct.pop(fingerprint, None)
                 self._episode_misses.pop(fingerprint, None)
             else:
                 self._episode_misses[fingerprint] = misses
 
-        resolved_groups: dict[str, DiagnosisGroup] = {}
+        resolved_groups: dict[
+            str,
+            tuple[DiagnosisGroup, bool],
+        ] = {}
         for group in groups:
-            fingerprint = group.fingerprint
-            if fingerprint in self._active_episodes:
-                resolved_fingerprint = fingerprint
+            promotes_provisional = False
+            exact_matches = exact_active(group)
+            if len(exact_matches) > 1:
+                continue
+            if len(exact_matches) == 1:
+                resolved_fingerprint = exact_matches[0]
+                promotes_provisional = (
+                    group.direct
+                    and not self._episode_direct.get(resolved_fingerprint, False)
+                )
             else:
                 matches = compatible_active(group)
                 if group.direct:
                     if len(matches) > 1:
                         continue
                     if len(matches) == 1:
-                        active_is_explicitly_present = matches[0] in current_fingerprints
-                        if not active_is_explicitly_present:
-                            continue
-                    resolved_fingerprint = fingerprint
+                        active_fingerprint = matches[0]
+                        if not self._episode_direct.get(active_fingerprint, False):
+                            resolved_fingerprint = active_fingerprint
+                            promotes_provisional = True
+                        else:
+                            active_is_explicitly_present = (
+                                active_identity(active_fingerprint)
+                                in current_match_fingerprints
+                            )
+                            if not active_is_explicitly_present:
+                                continue
+                            resolved_fingerprint = group.fingerprint
+                    else:
+                        resolved_fingerprint = group.fingerprint
                 else:
                     if len(matches) > 1:
                         continue
-                    resolved_fingerprint = matches[0] if matches else fingerprint
+                    resolved_fingerprint = (
+                        matches[0] if matches else group.fingerprint
+                    )
 
             previous = resolved_groups.get(resolved_fingerprint)
             if previous is None or _representative_score(
                 group.representative
-            ) > _representative_score(previous.representative):
-                resolved_groups[resolved_fingerprint] = group
+            ) > _representative_score(previous[0].representative):
+                resolved_groups[resolved_fingerprint] = (
+                    group,
+                    promotes_provisional,
+                )
 
-        selected: list[tuple[str, AnomalyDiagnosis, str | None]] = []
-        for fingerprint, group in resolved_groups.items():
+        selected: list[InvestigationSelection] = []
+        for fingerprint, (group, promotes_provisional) in resolved_groups.items():
             diagnosis = group.representative
             if fingerprint in self._pending_episodes:
                 continue
             existing_id = self._active_episodes.get(fingerprint)
             if existing_id is not None:
                 existing = self._incidents.get(existing_id)
-                if existing is None or not existing.retryable:
+                if existing is None:
                     continue
-            selected.append((fingerprint, diagnosis, existing_id))
+                if not existing.retryable and not promotes_provisional:
+                    continue
+            selected.append(
+                InvestigationSelection(
+                    fingerprint=fingerprint,
+                    match_fingerprint=group.match_fingerprint,
+                    direct=group.direct,
+                    diagnosis=diagnosis,
+                    existing_id=existing_id,
+                    promotes_provisional=promotes_provisional,
+                )
+            )
             if reserve:
                 self._pending_episodes.add(fingerprint)
-                self._active_episodes.setdefault(fingerprint, "")
+                if fingerprint not in self._active_episodes:
+                    self._active_episodes[fingerprint] = ""
+                    self._episode_match_fingerprints[fingerprint] = (
+                        group.match_fingerprint
+                    )
+                    self._episode_direct[fingerprint] = group.direct
                 self._episode_misses[fingerprint] = 0
         return selected
 
     def _store_investigation(
         self,
-        fingerprint: str,
-        diagnosis: AnomalyDiagnosis,
+        selection: InvestigationSelection,
         stored: StoredIncident,
         *,
-        existing_id: str | None,
         activate: bool,
     ) -> None:
-        if existing_id and stored.retryable:
+        if selection.existing_id and stored.retryable:
             return
-        if existing_id:
-            self._incidents.pop(existing_id, None)
+        if selection.existing_id:
+            self._incidents.pop(selection.existing_id, None)
         incident_id = stored.investigation.report.incident_id
         self._incidents[incident_id] = stored
         if activate:
+            fingerprint = selection.fingerprint
             self._active_episodes[fingerprint] = incident_id
+            if selection.direct or fingerprint not in self._episode_match_fingerprints:
+                self._episode_match_fingerprints[fingerprint] = (
+                    selection.match_fingerprint
+                )
+            self._episode_direct[fingerprint] = (
+                self._episode_direct.get(fingerprint, False)
+                or selection.direct
+            )
             self._episode_misses[fingerprint] = 0
 
     def _investigate(self, diagnosis: AnomalyDiagnosis) -> StoredIncident:
