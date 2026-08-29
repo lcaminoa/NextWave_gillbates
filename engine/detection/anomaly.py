@@ -1,5 +1,4 @@
-"""
-Deteccion secuencial de anomalias sobre el baseline (DECISIONS.md D001; master plan Sec 9.2).
+"""Deteccion secuencial de anomalias sobre el baseline (DECISIONS.md D001; master plan Sec 9.2).
 
 Compara la aprobacion observada en una ventana reciente contra el baseline esperado del mismo
 segmento, y solo levanta una Anomaly si la caida es real y se sostiene varias ventanas seguidas
@@ -17,13 +16,14 @@ from datetime import datetime
 from contracts.schemas import Anomaly, Severity, Transaction
 from engine.detection.baseline import compute_baseline, dimension_key, group_by_segment
 
-MIN_VOLUME = 20  # no alarmar sobre segmentos con muy pocos intentos
-PERSISTENCE_REQUIRED = 2  # ventanas consecutivas sostenidas antes de confirmar
+MIN_VOLUME = 20  # segmentos con menos intentos que esto ni se evaluan (muy poco dato)
+PERSISTENCE_REQUIRED = 2  # ventanas consecutivas sostenidas antes de confirmar (evita ruido)
 SEGMENT_DIMENSIONS = ["provider", "country", "payment_method", "issuing_bank", "merchant"]
 
 
 def _severity_from_gap(observed: float, lower_bound: float) -> Severity:
-    gap = lower_bound - observed  # cuanto por debajo del limite "normal" cayo
+    """Que tan grave es la caida, segun cuanto por debajo del piso "normal" quedo lo observado."""
+    gap = lower_bound - observed
     if gap >= 0.30:
         return Severity.critical
     if gap >= 0.15:
@@ -41,6 +41,8 @@ def _check_segment(
     window_end: datetime,
     persistence_state: dict[str, int],
 ) -> Anomaly | None:
+    """Chequea UN segmento (o el agregado global si `dims` es {}). Devuelve una Anomaly si esta
+    mal, tiene volumen suficiente y ya se sostuvo PERSISTENCE_REQUIRED ventanas seguidas."""
     segment_current = [t for t in current_window if all(getattr(t, k, None) == v for k, v in dims.items())]
     if len(segment_current) < MIN_VOLUME:
         return None
@@ -80,8 +82,7 @@ def detect(
     window_end: datetime,
     persistence_state: dict[str, int] | None = None,
 ) -> list[Anomaly]:
-    """
-    Corre la deteccion a nivel global y por cada valor de cada dimension monitoreada.
+    """Corre la deteccion a nivel global y por cada valor de cada dimension monitoreada.
 
     `persistence_state` se pasa entre llamadas sucesivas (una por ventana de tiempo) para
     contar cuantas ventanas seguidas un segmento viene mal -- inicializalo una vez afuera del

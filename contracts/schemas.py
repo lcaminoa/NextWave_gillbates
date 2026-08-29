@@ -1,9 +1,7 @@
-"""
-Contratos compartidos — Control Tower.
-Las formas de los datos
+"""Contratos compartidos — Control Tower.
 
 Fuente de verdad: NEXTWAVE_CH2_CONTROL_TOWER_MASTER_PLAN_ES.md, secciones 12, 19 y 20.
-Espejo de types.ts. Si se cambia algo acá, cambiarlo también allá. Ver CONTRACTS.md.
+Espejo de types.ts. Si cambiás algo acá, cambialo también allá. Ver CONTRACTS.md.
 
 Pipeline: Transaction (Stream A) -> BaselinePoint + Anomaly (Stream B) -> IncidentCandidate
           + Evidence (Stream B) -> InvestigationStep + IncidentReport (Stream C)
@@ -18,7 +16,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-# Los Enums (que no pueden tomar otro valor)
+
+# --- Enums: estos campos solo pueden valer una de las opciones listadas ---
 
 class Severity(str, Enum):
     low = "low"
@@ -30,18 +29,18 @@ class Severity(str, Enum):
 class ReportStatus(str, Enum):
     confirmed = "confirmed"
     probable = "probable"
-    inconclusive = "inconclusive"
+    inconclusive = "inconclusive"  # respuesta valida, no un error (Sec 9.9)
 
 
 class ChaosMode(str, Enum):
-    manual = "manual"
-    random_unknown = "random_unknown"
+    manual = "manual"  # el juez elige a mano que romper
+    random_unknown = "random_unknown"  # se rompe algo al azar y queda oculto hasta el reveal
 
 
 class Dimensions(BaseModel):
-    """
-    Se usa para decir "el problema está en ESTA combinación"
-    """
+    """Combo de hasta 6 campos, todos opcionales. Se usa para decir "el problema esta en ESTA
+    combinacion", ej. Dimensions(provider="nova_pay", country="BR")."""
+
     merchant: Optional[str] = None
     provider: Optional[str] = None
     payment_method: Optional[str] = None
@@ -51,47 +50,43 @@ class Dimensions(BaseModel):
 
 
 class Transaction(BaseModel):
-    """
-    Un pago individual del stream simulado
-    """
+    """Un pago individual del stream simulado (Stream A). MUST."""
 
-    transaction_id: str # un id único, texto. Obligatorio
-    timestamp: datetime # cuándo pasó el pago
-    merchant: str # el comercio
-    provider: str # quién procesó el pago
-    payment_method: str  # "cómo pagó, tarjeta/pix/etc.
-    country: str  # país del pago, ej. "BR"
-    issuing_bank: str # el banco que emitió la tarjeta/cuenta del que paga
-    approved: bool # si el pago se aprobó o no
-    amount: float # el monto
-    currency: str  # en qué moneda
+    transaction_id: str  # id unico
+    timestamp: datetime
+    merchant: str
+    provider: str
+    payment_method: str  # "card" | "pix" | "pse" | "wallet"
+    country: str  # ISO 3166-1 alpha-2, ej. "BR"
+    issuing_bank: str
+    approved: bool
+    amount: float
+    currency: str  # ISO 4217, ej. "USD"
 
     # Los 3 siguientes solo estan presentes si approved is False:
-    raw_provider_code: Optional[str] = None  # ej. "05"
+    raw_provider_code: Optional[str] = None  # codigo crudo tal cual lo manda el proveedor, ej. "05"
     raw_provider_message: Optional[str] = None  # ej. "DO NOT HONOR"
-    canonical_decline_code: Optional[str] = None  # versión "traducida" de raw_provider_code, ver CONTRACTS.md
-    latency_ms: int # cuánto tardó el pago en procesarse, en milisegundos
+    canonical_decline_code: Optional[str] = None  # normalizado, ver lista en CONTRACTS.md
+    latency_ms: int
 
 
 class BaselinePoint(BaseModel):
-    """
-    El baseline esperado para un segmento en una ventana.
+    """El baseline esperado para un segmento en una ventana (Stream B). MUST.
 
-    Modelo Beta-Binomial: la aprobacion es una proporcion, no un valor puntual.
+    Modelo Beta-Binomial: la aprobacion es una proporcion, no un valor puntual -- por eso lleva
+    intervalo de credibilidad, no solo un numero.
     """
 
-    dimension_key: str # ej. "provider=nova_pay|country=BR|payment_method=card"
+    dimension_key: str  # ej. "provider=nova_pay|country=BR|payment_method=card"
     window_start: datetime
     window_end: datetime
     expected_approval_rate: float = Field(ge=0, le=1)
     credible_interval: tuple[float, float]  # ej. (0.90, 0.96)
-    volume: int # intentos usados para estimar el baseline
+    volume: int  # intentos usados para estimar el baseline
 
 
 class Anomaly(BaseModel):
-    """
-    Señal estadistica cruda de que algo cambio.
-    Esto es lo que produce el detector cuando algo se ve raro.
+    """Señal estadistica cruda de que algo cambio (Stream B). MUST.
 
     A proposito no dice todavia la causa -- eso lo arma IncidentCandidate.
     """
@@ -103,7 +98,7 @@ class Anomaly(BaseModel):
     window_end: datetime
     observed_approval_rate: float = Field(ge=0, le=1)
     expected_approval_rate: float = Field(ge=0, le=1)
-    persistence_windows: int  # ventanas consecutivas sostenidas
+    persistence_windows: int  # ventanas consecutivas sostenidas (evita alarmar por 1 pago suelto)
     volume: int
     severity: Severity
     # SHOULD -- descomposicion de mezcla de trafico (master plan Sec 9.3)
@@ -112,34 +107,31 @@ class Anomaly(BaseModel):
 
 
 class Evidence(BaseModel):
-    """
-    Un dato concreto citable
-    """
+    """Un dato concreto citable (Stream B/C). MUST."""
 
     evidence_id: str
-    source: str # ej. "baseline_comparison" | "counterfactual_provider" | "decline_code_distribution"
-    summary: str # en lenguaje humano
+    source: str  # ej. "baseline_comparison" | "counterfactual_provider" | "decline_code_distribution"
+    summary: str  # en lenguaje humano
     value: Optional[float] = None
     dimension_key: Optional[str] = None
 
 
 class IncidentCandidate(BaseModel):
-    """
-    Una hipotesis sobre que segmento explica una Anomaly.
+    """Una hipotesis sobre que segmento explica una Anomaly (Stream B). MUST.
 
     Puede haber varias por Anomaly -- el investigador (Stream C) elige la ganadora.
     """
 
     candidate_id: str
     anomaly_id: str
-    dimensions: Dimensions
+    dimensions: Dimensions  # ej. {provider: "nova_pay", country: "BR"}
     confidence: float = Field(ge=0, le=1)
     affected_count: int
     baseline_decline_rate: float = Field(ge=0, le=1)
     current_decline_rate: float = Field(ge=0, le=1)
     dominant_decline_code: Optional[str] = None
     estimated_revenue_loss_usd_per_hour: float
-    # impacto_de_negocio x confianza_estadistica x cobertura x especificidad - penalizacion (Sec 9.4)
+    # confianza x cobertura x impacto_de_negocio x especificidad (Sec 9.4)
     rca_score: float
     evidence_ids: list[str]
     # SHOULD -- control contrafactico entre proveedores/emisores (Sec 9.5)
@@ -147,9 +139,7 @@ class IncidentCandidate(BaseModel):
 
 
 class InvestigationStep(BaseModel):
-    """
-    Un paso del agente investigador trabajando (Stream C). MUST -- se muestra en vivo.
-    """
+    """Un paso del agente investigador trabajando (Stream C). MUST -- se muestra en vivo."""
 
     step_id: str
     candidate_id: str  # o anomaly_id si el paso es exploratorio
@@ -159,11 +149,7 @@ class InvestigationStep(BaseModel):
 
 
 class Claim(BaseModel):
-    """
-    Una afirmacion del reporte, siempre atada a evidencia (Sec 9.8).
-    Es el error traducido a lenguaje humano pero incluyendo
-    la evidencia de donde viene.
-    """
+    """Una afirmacion del reporte, siempre atada a evidencia -- nunca una frase suelta (Sec 9.8)."""
 
     claim: str
     evidence_ids: list[str]
@@ -171,8 +157,7 @@ class Claim(BaseModel):
 
 
 class IncidentReport(BaseModel):
-    """
-    El resultado final (Stream C). MUST.
+    """El resultado final (Stream C). MUST.
 
     Nunca ejecuta recommended_action, solo la sugiere. status tiene 3 valores a proposito
     (Sec 9.9) -- "inconclusive" es una respuesta valida, no un error.
@@ -193,10 +178,8 @@ class IncidentReport(BaseModel):
 
 
 class ChaosSpec(BaseModel):
-    """
-    Lo que maneja el Chaos Injector / judge console cuando quiere romper algo a propósito.
-    (Stream D <-> Stream A). MUST.
-    """
+    """Lo que maneja el Chaos Injector / judge console cuando quiere romper algo a proposito
+    (Stream D <-> Stream A). MUST."""
 
     chaos_id: str
     mode: ChaosMode
