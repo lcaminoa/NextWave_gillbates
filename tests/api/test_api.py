@@ -196,10 +196,59 @@ def test_audited_openai_mode_is_explicit_and_requires_a_model(
     with pytest.raises(RuntimeError, match="requires OPENAI_MODEL"):
         create_app(start_background=False)
 
-    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    captured: dict[str, object] = {}
+
+    def fake_audited_run(anomaly, candidates, evidence, **kwargs):
+        captured.update(kwargs)
+        investigation = run_investigation(
+            anomaly.anomaly_id,
+            tuple(candidates),
+            tuple(evidence),
+        )
+        return AuditedInvestigationResult(
+            investigation=investigation,
+            audit=EvidenceAudit(
+                approved=True,
+                summary="Reporte aprobado por el mock.",
+                issues=[],
+            ),
+        )
+
+    monkeypatch.setattr("engine.main.run_audited_openai_investigation", fake_audited_run)
+    monkeypatch.setenv("OPENAI_MODEL", "mock-investigator")
+    monkeypatch.setenv("OPENAI_AUDITOR_MODEL", "mock-auditor")
+    monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "7.5")
     app = create_app(start_background=False)
+    diagnosis = _diagnosis(
+        "configured_audit",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+
+    audited = app.state.control_tower.audited_investigator(
+        diagnosis.anomaly,
+        diagnosis.candidates,
+        diagnosis.evidence,
+    )
 
     assert app.state.control_tower.audited_investigator is not None
+    assert audited.audit.approved is True
+    assert captured == {
+        "model": "mock-investigator",
+        "auditor_model": "mock-auditor",
+        "request_timeout_seconds": 7.5,
+    }
+
+
+def test_audited_openai_mode_rejects_invalid_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "0")
+
+    with pytest.raises(RuntimeError, match="must be a positive number"):
+        create_app(start_background=False)
 
 
 def test_random_chaos_is_opaque_until_reveal() -> None:
@@ -755,7 +804,14 @@ def test_audited_runtime_rejection_fails_closed_and_retries_without_duplicate() 
     assert recovered.status is ReportStatus.confirmed
 
 
-def test_audited_runtime_error_never_publishes_an_unaudited_winner() -> None:
+@pytest.mark.parametrize(
+    "error_type",
+    [EvidenceAuditError, TimeoutError],
+    ids=["audit_error", "audit_timeout"],
+)
+def test_audited_runtime_error_never_publishes_an_unaudited_winner(
+    error_type: type[Exception],
+) -> None:
     diagnosis = _diagnosis(
         "audit_failure",
         dimensions=Dimensions(provider="nova_pay"),
@@ -763,7 +819,7 @@ def test_audited_runtime_error_never_publishes_an_unaudited_winner() -> None:
     )
 
     def failing_auditor(anomaly, candidates, evidence):
-        raise EvidenceAuditError("synthetic audit failure")
+        raise error_type("synthetic audit failure")
 
     service = ControlTowerService(
         simulator=PaymentSimulator(seed=42),
@@ -917,7 +973,10 @@ def test_health_degrades_if_the_single_producer_stops_unexpectedly() -> None:
     assert response.json() == {"status": "degraded"}
 
 
-def test_slow_investigator_runs_off_the_stream_event_loop() -> None:
+@pytest.mark.parametrize("audited_mode", [False, True], ids=["deterministic", "audited"])
+def test_slow_investigator_runs_off_the_stream_event_loop(
+    audited_mode: bool,
+) -> None:
     diagnosis = _diagnosis(
         "slow_worker",
         dimensions=Dimensions(provider="nova_pay", country="BR"),
@@ -932,12 +991,29 @@ def test_slow_investigator_runs_off_the_stream_event_loop() -> None:
             raise TimeoutError("test did not release investigator")
         return run_investigation(anomaly_id, tuple(candidates), tuple(evidence))
 
+    def slow_audited_investigator(anomaly, candidates, evidence):
+        investigation = slow_investigator(anomaly.anomaly_id, candidates, evidence)
+        return AuditedInvestigationResult(
+            investigation=investigation,
+            audit=EvidenceAudit(
+                approved=True,
+                summary="El mock aprobo el reporte.",
+                issues=[],
+            ),
+        )
+
+    investigator_config = (
+        {"audited_investigator": slow_audited_investigator}
+        if audited_mode
+        else {"investigator": slow_investigator}
+    )
+
     service = ControlTowerService(
         simulator=PaymentSimulator(seed=42),
         pipeline=FakePipeline([_window(diagnosis)]),
-        investigator=slow_investigator,
         start_at=START,
         emit_delay_seconds=0.001,
+        **investigator_config,
     )
 
     async def exercise() -> None:

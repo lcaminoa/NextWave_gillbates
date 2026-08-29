@@ -79,6 +79,7 @@ def test_evidence_auditor_approves_supported_report() -> None:
     assert audit.approved is True
     assert responses.parse_requests[0]["text_format"] is EvidenceAudit
     assert responses.parse_requests[0]["store"] is False
+    assert responses.parse_requests[0]["timeout"] == 30.0
     assert "tools" not in responses.parse_requests[0]
     packet = json.loads(responses.parse_requests[0]["input"][0]["content"])
     consulted_ids = {item["evidence_id"] for item in packet["consulted_evidence"]}
@@ -270,6 +271,25 @@ def test_evidence_auditor_fails_closed_when_openai_call_fails() -> None:
 
     assert isinstance(exc_info.value.__cause__, TimeoutError)
     assert responses.parse_requests
+
+
+def test_evidence_auditor_uses_configured_timeout() -> None:
+    case = clear_provider_country_case()
+    investigation = run_investigation(case.anomaly_id, case.candidates, case.evidence)
+    responses = FakeAuditResponses(error=TimeoutError("upstream timeout"))
+
+    with pytest.raises(EvidenceAuditError, match="must not be published"):
+        run_evidence_audit(
+            case.anomaly,
+            investigation,
+            case.candidates,
+            case.evidence,
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+            request_timeout_seconds=4.5,
+        )
+
+    assert responses.parse_requests[0]["timeout"] == 4.5
 
 
 def test_deterministic_validator_runs_before_auditor_call() -> None:

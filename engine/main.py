@@ -20,6 +20,10 @@ from engine.api import (
 )
 from engine.api.models import HealthResponse
 from engine.investigator import run_audited_openai_investigation
+from engine.investigator.openai_config import (
+    DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
+    validate_request_timeout,
+)
 
 
 def _runtime_from_environment() -> ControlTowerService:
@@ -35,6 +39,16 @@ def _runtime_from_environment() -> ControlTowerService:
     if not model:
         raise RuntimeError("audited_openai mode requires OPENAI_MODEL")
     auditor_model = os.getenv("OPENAI_AUDITOR_MODEL", "").strip() or model
+    raw_timeout = os.getenv(
+        "OPENAI_REQUEST_TIMEOUT_SECONDS",
+        str(DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS),
+    )
+    try:
+        request_timeout_seconds = validate_request_timeout(float(raw_timeout))
+    except ValueError as exc:
+        raise RuntimeError(
+            "OPENAI_REQUEST_TIMEOUT_SECONDS must be a positive number"
+        ) from exc
 
     def audited_investigator(anomaly, candidates, evidence):
         return run_audited_openai_investigation(
@@ -43,6 +57,7 @@ def _runtime_from_environment() -> ControlTowerService:
             tuple(evidence),
             model=model,
             auditor_model=auditor_model,
+            request_timeout_seconds=request_timeout_seconds,
         )
 
     return ControlTowerService(audited_investigator=audited_investigator)

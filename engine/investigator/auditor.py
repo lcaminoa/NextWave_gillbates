@@ -14,6 +14,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from contracts.schemas import Anomaly, Evidence, IncidentCandidate
+from engine.investigator.openai_config import (
+    DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
+    validate_request_timeout,
+)
 from engine.investigator.runner import InvestigationResult
 from engine.investigator.specificity import relevant_audit_candidates
 from engine.investigator.validation import ReportValidationError, validate_report
@@ -166,10 +170,12 @@ def run_evidence_audit(
     *,
     model: str,
     client: Any | None = None,
+    request_timeout_seconds: float = DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
 ) -> EvidenceAudit:
     """Review one completed investigation with a separate structured model call."""
     if not model.strip():
         raise ValueError("model must be an explicit non-empty model ID")
+    request_timeout_seconds = validate_request_timeout(request_timeout_seconds)
 
     if anomaly.anomaly_id != result.report.anomaly_id:
         raise ReportValidationError("audit anomaly does not match the incident report")
@@ -185,7 +191,7 @@ def run_evidence_audit(
     if client is None:
         from openai import OpenAI
 
-        client = OpenAI()
+        client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
 
     packet = _audit_packet(anomaly, result, candidates, evidence)
     packet_evidence_ids = {
@@ -203,6 +209,7 @@ def run_evidence_audit(
             ],
             text_format=EvidenceAudit,
             store=False,
+            timeout=request_timeout_seconds,
         )
     except Exception as exc:
         raise EvidenceAuditError(
@@ -225,9 +232,16 @@ def run_audited_openai_investigation(
     model: str,
     auditor_model: str | None = None,
     client: Any | None = None,
+    request_timeout_seconds: float = DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
 ) -> AuditedInvestigationResult:
     """Run the investigator and then its independent Evidence Auditor."""
     from engine.investigator.openai_runner import run_openai_investigation
+
+    request_timeout_seconds = validate_request_timeout(request_timeout_seconds)
+    if client is None:
+        from openai import OpenAI
+
+        client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
 
     investigation = run_openai_investigation(
         anomaly.anomaly_id,
@@ -235,6 +249,7 @@ def run_audited_openai_investigation(
         evidence,
         model=model,
         client=client,
+        request_timeout_seconds=request_timeout_seconds,
     )
     audit = run_evidence_audit(
         anomaly,
@@ -243,5 +258,6 @@ def run_audited_openai_investigation(
         evidence,
         model=auditor_model or model,
         client=client,
+        request_timeout_seconds=request_timeout_seconds,
     )
     return AuditedInvestigationResult(investigation=investigation, audit=audit)

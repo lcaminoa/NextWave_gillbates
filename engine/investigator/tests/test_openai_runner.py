@@ -109,6 +109,8 @@ def test_openai_runner_uses_tools_then_validates_structured_report() -> None:
     assert len(responses.create_requests) == 7
     assert len(responses.parse_requests) == 1
     assert all(request["store"] is False for request in responses.create_requests)
+    assert all(request["timeout"] == 30.0 for request in responses.create_requests)
+    assert responses.parse_requests[0]["timeout"] == 30.0
     assert responses.parse_requests[0]["text_format"] is AgentReportDraft
 
 

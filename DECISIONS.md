@@ -485,6 +485,11 @@ publicacion. Un rechazo, una salida invalida o una falla de la llamada produce u
 `inconclusive`, conserva revision humana y deja el episodio habilitado para retry sin duplicarlo.
 El modo deterministico sigue siendo el default y no realiza llamadas externas.
 
+Cada request del Investigator y del Auditor tiene un timeout explicito configurable con
+`OPENAI_REQUEST_TIMEOUT_SECONDS` (30 segundos por default). Los reintentos internos del SDK se
+desactivan: ante timeout el runtime falla cerrado y el retry controlado ocurre recien en una nueva
+ventana del mismo episodio, sin bloquear SSE ni multiplicar llamadas fuera de nuestra politica.
+
 El paquete del Auditor contiene la `Anomaly`, ganador, alternativas propias mas simples y principal
 competidora con `confidence`, `rca_score`, impacto, `evidence_ids` y `counterfactual_check`; la
 evidencia sigue limitada a IDs efectivamente consultados. Nunca recibe `ChaosSpec`, dimensiones

@@ -20,6 +20,10 @@ from contracts.schemas import (
     InvestigationStep,
     ReportStatus,
 )
+from engine.investigator.openai_config import (
+    DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
+    validate_request_timeout,
+)
 from engine.investigator.runner import (
     MIN_CONFIRMED_CONFIDENCE,
     MIN_CONFIRMED_MARGIN,
@@ -483,14 +487,16 @@ def run_openai_investigation(
     *,
     model: str,
     client: Any | None = None,
+    request_timeout_seconds: float = DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
 ) -> InvestigationResult:
     """Run the agent using Responses API; no request is made until this function is called."""
     if not model.strip():
         raise ValueError("model must be an explicit non-empty model ID")
+    request_timeout_seconds = validate_request_timeout(request_timeout_seconds)
     if client is None:
         from openai import OpenAI
 
-        client = OpenAI()
+        client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
 
     eligible_candidates = filter_specificity_supported_candidates(candidates, evidence)
     read_tools = ReadOnlyInvestigationTools(anomaly_id, eligible_candidates, evidence)
@@ -515,6 +521,7 @@ def run_openai_investigation(
             tool_choice="required",
             parallel_tool_calls=False,
             store=False,
+            timeout=request_timeout_seconds,
         )
         input_items.extend(response.output)
         calls = [item for item in response.output if item.type == "function_call"]
@@ -592,6 +599,7 @@ def run_openai_investigation(
             input=report_input,
             text_format=AgentReportDraft,
             store=False,
+            timeout=request_timeout_seconds,
         )
         draft = structured_response.output_parsed
         if draft is None:
