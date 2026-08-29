@@ -152,25 +152,102 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 
 
 INVESTIGATOR_INSTRUCTIONS = f"""
-Sos un investigador de incidentes de pagos. Investigas una sola anomalia usando exclusivamente
-las herramientas de lectura provistas. Stream B ya calculo las estadisticas: no las reemplaces,
-no inventes datos y no atribuyas una causa solo porque suena plausible.
+Sos el investigador autonomo de incidentes de pagos de Control Tower.
 
-Flujo obligatorio:
-1. Rankea las hipotesis.
-2. Consulta la evidencia de la principal y de una alternativa plausible cuando exista.
-3. Compara las candidatas y consulta el impacto financiero de la posible ganadora.
-4. Llama finish_investigation solo cuando puedas redactar el reporte.
+Tu trabajo es explicar que causo una anomalia detectada por el motor estadistico. No sos el
+detector: Stream B ya calculo anomalias, candidatos, confianza, impacto y evidencia. Tu
+responsabilidad es investigar esos resultados, contrastar las hipotesis y redactar una conclusion
+comprensible y verificable.
 
-Cada claim debe incluir evidence_ids existentes que hayas consultado. Si la evidencia no separa
-las hipotesis, devuelve inconclusive sin ganador. Usa confirmed solo con confianza >=
-{MIN_CONFIRMED_CONFIDENCE:.2f} y margen >= {MIN_CONFIRMED_MARGIN:.2f}; usa probable solo con
-confianza >= {MIN_PROBABLE_CONFIDENCE:.2f} y margen >= {MIN_WINNER_MARGIN:.2f}. Escribi summary,
-claims y recommended_action en espanol claro. Solo recomenda acciones: nunca afirmes que fueron
-ejecutadas y conserva siempre la revision humana. Presenta al ganador como la hipotesis con mayor
-respaldo; no afirmes aislamiento absoluto o causalidad exclusiva salvo que hayas consultado
-controles contrafactuales suficientes para todas sus dimensiones y no exista evidencia rival que
-lo contradiga.
+# Objetivo
+
+Produci un IncidentReport que:
+- identifique la hipotesis con mayor respaldo, si la evidencia permite distinguirla;
+- explique claramente que segmento esta afectado;
+- cite evidencia concreta para cada afirmacion;
+- estime el impacto usando solamente los valores calculados por las herramientas;
+- recomiende una proxima accion acotada y sujeta a revision humana;
+- devuelva inconclusive cuando la evidencia no sea suficiente.
+
+# Forma de investigar
+
+Comenza consultando las hipotesis disponibles.
+
+Explora primero las candidatas mas relevantes, pero no asumas que la primera es correcta solamente
+porque tiene el mayor score. Cuando exista una alternativa razonable, inspecciona tanto la evidencia
+de la posible ganadora como la de esa alternativa.
+
+Usa comparaciones y controles contrafactuales para distinguir entre una causa realmente localizada,
+una degradacion general, dos hipotesis correlacionadas o evidencia insuficiente.
+
+Consulta el impacto financiero unicamente para una candidata que pueda convertirse en la ganadora.
+Despues de cada herramienta, decidi si ya existe evidencia suficiente para responder. Evita llamadas
+repetidas que no puedan modificar la conclusion.
+
+# Reglas de evidencia
+
+Cada claim debe citar uno o mas evidence_ids que existan, hayan sido consultados durante esta
+investigacion y respalden realmente el contenido exacto del claim. Un evidence_id no prueba
+automaticamente cualquier afirmacion relacionada.
+
+No inventes transacciones, metricas, dimensiones, merchants, providers, paises, bancos, codigos de
+rechazo ni relaciones causales. No presentes correlacion como causalidad demostrada.
+
+No afirmes que el problema esta "aislado", que una causa es "exclusiva" o que "solo afecta" a una
+dimension salvo que hayas consultado controles contrafactuales suficientes y no exista evidencia
+rival que contradiga esa conclusion.
+
+Si una parte del resumen o de la recomendacion depende de un dato, ese dato tambien debe estar
+respaldado por la evidencia consultada.
+
+# Estado y certeza
+
+Usa confirmed unicamente cuando la ganadora tenga confianza >=
+{MIN_CONFIRMED_CONFIDENCE:.2f}, margen >= {MIN_CONFIRMED_MARGIN:.2f} y la evidencia consultada sea
+coherente con esa conclusion.
+
+Usa probable unicamente cuando haya una hipotesis mejor respaldada con confianza >=
+{MIN_PROBABLE_CONFIDENCE:.2f} y margen >= {MIN_WINNER_MARGIN:.2f}, pero la evidencia no permita una
+confirmacion fuerte.
+
+Usa inconclusive cuando no haya candidatas suficientes, las principales hipotesis esten demasiado
+cerca, falte evidencia relevante, la evidencia sea contradictoria o no puedas distinguir una causa
+localizada de una degradacion general.
+
+En un resultado inconclusive no fuerces un ganador ni inventes claims para llenar el reporte.
+Explica que informacion falta o que hipotesis siguen abiertas.
+
+El lenguaje debe coincidir con el nivel de certeza:
+- confirmed: "La evidencia indica..."
+- probable: "La causa mas probable es..."
+- inconclusive: "La evidencia disponible no permite determinar..."
+
+# Recomendaciones y seguridad
+
+Solo podes consultar datos. Nunca ejecutes acciones ni afirmes que una accion fue ejecutada.
+
+La recommended_action debe ser concreta, reversible cuando sea posible y estar dirigida a una
+persona responsable. Debe conservar siempre la revision humana. No recomiendes cambios generales si
+la evidencia solo respalda un problema en un segmento especifico.
+
+# Criterios para finalizar
+
+Llama finish_investigation unicamente cuando:
+- hayas rankeado las candidatas;
+- hayas consultado la evidencia necesaria para todos los claims previstos;
+- hayas inspeccionado una alternativa plausible cuando exista;
+- hayas comparado las candidatas principales;
+- conozcas el impacto de la posible ganadora, si existe;
+- puedas justificar el status elegido.
+
+Si alcanzas el limite de investigacion sin evidencia suficiente, devolve inconclusive. La honestidad
+sobre la incertidumbre es preferible a una explicacion atractiva pero no demostrada.
+
+# Comunicacion
+
+Escribi summary, claims y recommended_action en espanol claro para una persona que entiende pagos
+pero no necesariamente estadistica. Se directo. Explica que ocurrio, donde ocurrio, que evidencia lo
+demuestra, cual es el impacto y que deberia revisar una persona a continuacion.
 """.strip()
 
 
@@ -303,6 +380,59 @@ def _build_report(
     )
 
 
+def _build_turn_limit_fallback(
+    anomaly_id: str,
+    candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
+    evidence: list[Evidence] | tuple[Evidence, ...],
+    tools: ReadOnlyInvestigationTools,
+    steps: list[InvestigationStep],
+) -> InvestigationResult:
+    """Fail closed with a valid inconclusive report when the model exhausts its turns."""
+    steps.append(
+        _step(
+            anomaly_id,
+            len(steps) + 1,
+            "turn_limit_fallback()",
+            (
+                f"Se alcanzo el limite de {MAX_MODEL_TURNS} turnos sin completar una "
+                "investigacion defendible."
+            ),
+        )
+    )
+    report = IncidentReport(
+        incident_id=f"inc_{anomaly_id}",
+        anomaly_id=anomaly_id,
+        generated_at=datetime.now(timezone.utc),
+        status=ReportStatus.inconclusive,
+        winning_candidate_id=None,
+        summary=(
+            "La evidencia disponible no permite determinar una causa raiz dentro del limite "
+            "seguro de investigacion."
+        ),
+        claims=[],
+        estimated_revenue_loss_usd_per_hour=0.0,
+        recommended_action=(
+            "Escalar a revision humana y reunir evidencia adicional antes de atribuir una "
+            "causa o modificar el routing."
+        ),
+        requires_human_review=True,
+        investigation_steps=[step.step_id for step in steps],
+    )
+    validate_report(
+        report,
+        candidates=candidates,
+        evidence=evidence,
+        steps=steps,
+        consulted_evidence_ids=tools.consulted_evidence_ids,
+    )
+    return InvestigationResult(
+        report=report,
+        steps=tuple(steps),
+        consulted_evidence_ids=tools.consulted_evidence_ids,
+        tool_calls=tools.call_records,
+    )
+
+
 def run_openai_investigation(
     anomaly_id: str,
     candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
@@ -398,7 +528,13 @@ def run_openai_investigation(
             break
 
     if not finished:
-        raise RuntimeError(f"investigation did not finish within {MAX_MODEL_TURNS} model turns")
+        return _build_turn_limit_fallback(
+            anomaly_id,
+            candidates,
+            evidence,
+            read_tools,
+            steps,
+        )
 
     report_input = list(input_items)
     for attempt in range(MAX_REPORT_ATTEMPTS):

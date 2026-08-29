@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+import engine.investigator.openai_runner as openai_runner
 from contracts.schemas import ReportStatus
 from engine.investigator.mock_data import clear_provider_country_case
 from engine.investigator.openai_runner import (
@@ -171,6 +172,38 @@ def test_openai_runner_rejects_finishing_without_an_investigation() -> None:
             model="test-model",
             client=SimpleNamespace(responses=responses),
         )
+
+
+def test_openai_runner_returns_safe_inconclusive_report_at_turn_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = clear_provider_country_case()
+    monkeypatch.setattr(openai_runner, "MAX_MODEL_TURNS", 2)
+    responses = FakeResponses(
+        [
+            _call(1, "rank_candidates", limit=5),
+            _call(2, "rank_candidates", limit=5),
+        ],
+        _confirmed_draft(["ev_clear_baseline"]),
+    )
+
+    result = run_openai_investigation(
+        case.anomaly_id,
+        case.candidates,
+        case.evidence,
+        model="test-model",
+        client=SimpleNamespace(responses=responses),
+    )
+
+    assert result.report.status == ReportStatus.inconclusive
+    assert result.report.winning_candidate_id is None
+    assert result.report.claims == []
+    assert result.report.estimated_revenue_loss_usd_per_hour == 0.0
+    assert result.report.requires_human_review is True
+    assert result.steps[-1].action == "turn_limit_fallback()"
+    assert result.report.investigation_steps == [step.step_id for step in result.steps]
+    assert len(responses.create_requests) == 2
+    assert responses.parse_requests == []
 
 
 def test_tool_definitions_are_strict_and_read_only() -> None:
