@@ -69,3 +69,22 @@ negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
+
+## D004 — Construir el investigador contra mocks y guardrails antes de conectar OpenAI
+
+Alternativas:
+1. integrar la API primero y validar los reportes despues
+2. congelar primero tools de solo lectura, casos mock, timeline, evidencia consultada y validacion
+   determinista; luego reemplazar solamente la politica de investigacion por el agente real
+
+Decision: 2
+
+Por qué:
+- permite avanzar Stream C sin API key ni bloquearse por disponibilidad de un modelo
+- prueba el limite Stream B -> Stream C usando los contratos reales
+- obliga a que cada claim cite evidencia existente y realmente consultada
+- entrega un fallback determinista si la API falla durante la demo
+- deja tools, timeline y `IncidentReport` iguales cuando se conecte Agents SDK o Responses API
+
+Tradeoff: el runner inicial usa una politica simple por confianza y margen; sirve como harness y
+fallback, pero no reemplaza la exploracion adaptativa del futuro investigador OpenAI.
