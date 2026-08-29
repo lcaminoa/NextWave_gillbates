@@ -87,6 +87,78 @@ export const candidates: IncidentCandidate[] = [
     rca_score: 0.49,
     evidence_ids: ["ev-mx-baseline"],
   },
+  {
+    candidate_id: "candidate-br-issuer-only",
+    anomaly_id: "anomaly-br-novapay",
+    dimensions: {
+      country: "BR",
+      payment_method: "card",
+      issuing_bank: "Itaú",
+      canonical_decline_code: "do_not_honor",
+    },
+    confidence: 0.63,
+    affected_count: 1267,
+    baseline_decline_rate: 0.061,
+    current_decline_rate: 0.318,
+    dominant_decline_code: "do_not_honor",
+    estimated_revenue_loss_usd_per_hour: 7240,
+    rca_score: 0.52,
+    evidence_ids: ["ev-br-baseline", "ev-br-declines"],
+    counterfactual_check:
+      "The same issuer mix stayed within baseline on AuroraPay, so issuer-only evidence is weaker.",
+  },
+  {
+    candidate_id: "candidate-br-country-card",
+    anomaly_id: "anomaly-br-novapay",
+    dimensions: {
+      country: "BR",
+      payment_method: "card",
+    },
+    confidence: 0.38,
+    affected_count: 1842,
+    baseline_decline_rate: 0.061,
+    current_decline_rate: 0.315,
+    estimated_revenue_loss_usd_per_hour: 11220,
+    rca_score: 0.31,
+    evidence_ids: ["ev-br-baseline"],
+    counterfactual_check:
+      "Baseline confirms country concentration, but no citable evidence establishes a country-wide card issue.",
+  },
+  {
+    candidate_id: "candidate-mx-provider-country",
+    anomaly_id: "anomaly-mx-issuer",
+    dimensions: {
+      provider: "NovaPay",
+      country: "MX",
+      payment_method: "card",
+    },
+    confidence: 0.54,
+    affected_count: 614,
+    baseline_decline_rate: 0.075,
+    current_decline_rate: 0.184,
+    estimated_revenue_loss_usd_per_hour: 2370,
+    rca_score: 0.47,
+    evidence_ids: ["ev-mx-baseline"],
+    counterfactual_check:
+      "The provider-country hypothesis remains close, but the current evidence is only a baseline comparison.",
+  },
+  {
+    candidate_id: "candidate-mx-country-card",
+    anomaly_id: "anomaly-mx-issuer",
+    dimensions: {
+      country: "MX",
+      payment_method: "card",
+    },
+    confidence: 0.42,
+    affected_count: 614,
+    baseline_decline_rate: 0.075,
+    current_decline_rate: 0.188,
+    estimated_revenue_loss_usd_per_hour: 2370,
+    rca_score: 0.34,
+    evidence_ids: ["ev-mx-baseline"],
+    counterfactual_check:
+      "A broader Mexico card effect cannot be separated from issuer and provider explanations yet.",
+  },
 ];
 
 export const evidence: Evidence[] = [

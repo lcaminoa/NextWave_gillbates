@@ -91,4 +91,26 @@ Tradeoff: suma una dependencia visual y carga de render. Se usa como pieza princ
 orientación geográfica, con una card de detalle por marcador; aun así no reemplaza el approval
 chart ni la evidencia citable, y no incluye arcos decorativos ni telemetría inventada.
 
+## D005 — Detail de incidente como workspace de evidencia
+
+Alternativas:
+1. una grilla de muchos KPIs y mini-cards
+2. un chat o resumen generado como pantalla principal
+3. un hero narrativo seguido por un workspace 68/32: evidencia y diagnóstico a la izquierda,
+   timeline de investigación sticky a la derecha
+
+Decisión: 3
+
+Por qué:
+- el producto debe defender qué ocurrió y por qué, no solo listar métricas
+- los tres bloques de evidencia conservan legibilidad y permiten citar baseline, control de
+  proveedor y cambio de decline code sin diluirlos en widgets pequeños
+- la timeline muestra únicamente Anomaly e InvestigationStep; construye una historia verificable
+  sin exponer razonamiento interno
+- el estado inconclusive puede mantener el mismo flujo con hipótesis cercanas y evidencia no
+  establecida, sin fingir una causa raíz
+
+Tradeoff: la pantalla es más larga que un resumen de una vista. La jerarquía del hero, el panel
+sticky y la recomendación final mantienen el recorrido claro y la acción sigue siendo humana.
+
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
