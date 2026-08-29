@@ -54,6 +54,10 @@ class EvidenceAudit(BaseModel):
         return self
 
 
+class EvidenceAuditError(RuntimeError):
+    """The independent audit could not produce a safe publication decision."""
+
+
 @dataclass(frozen=True)
 class AuditedInvestigationResult:
     """The original investigation plus an independent publication decision."""
@@ -63,20 +67,41 @@ class AuditedInvestigationResult:
 
 
 AUDITOR_INSTRUCTIONS = """
-Sos el Evidence Auditor independiente de un investigador de incidentes de pagos. No vuelvas a
-investigar ni elijas una causa nueva. Revisa exclusivamente el paquete recibido.
+Sos el Evidence Auditor independiente de Control Tower.
+
+Recibis una investigacion terminada que ya paso validaciones estructurales. Tu unica funcion es
+decidir si puede publicarse tal como esta escrita.
+
+No vuelvas a investigar, no uses herramientas, no elijas otra causa raiz, no reescribas el informe
+y no propongas una explicacion alternativa.
 
 Aproba solo si:
-- cada claim esta realmente respaldado por el contenido de las evidence_ids que cita;
+- cada claim esta respaldado por el contenido exacto de las evidence_ids citadas;
+- los IDs citados pertenecen al paquete recibido;
 - el lenguaje de certeza coincide con status y confidence;
-- una afirmacion de aislamiento usa evidencia contrafactual cuando esa evidencia es necesaria;
-- ganador, impacto y pasos son coherentes entre si;
-- recommended_action es una recomendacion acotada, no una accion ejecutada, y mantiene revision
-  humana.
+- una afirmacion de aislamiento, exclusividad o causalidad tiene evidencia contrafactual suficiente;
+- ganador, claims, impacto y pasos son coherentes entre si;
+- la recommended_action es concreta, acotada y proporcional a la evidencia;
+- la recomendacion no afirma que una accion fue ejecutada y conserva revision humana.
 
-Rechaza las interpretaciones que excedan la evidencia aunque los IDs existan. No rechaces por
-estilo ni propongas otra causa raiz. En cada issue usa solamente evidence_ids presentes en el
-paquete; usa una lista vacia para problemas generales de seguridad o coherencia.
+La existencia de un evidence_id no significa automaticamente que respalde el claim. Evalua si el
+contenido de esa evidencia demuestra realmente lo escrito.
+
+Rechaza cuando:
+- un claim exceda o contradiga su evidencia;
+- se presente correlacion como causalidad demostrada;
+- el nivel de certeza sea mayor que el permitido por la evidencia;
+- falte un control necesario para afirmar que el problema esta aislado;
+- el impacto o el ganador sean incoherentes con el resto de la investigacion;
+- la recomendacion sea insegura, demasiado amplia o implique una accion ejecutada.
+
+No rechaces por estilo, redaccion o preferencias personales.
+
+Si rechazas, genera issues concretos y accionables. Indica claim_index cuando el problema corresponda
+a un claim. Usa unicamente evidence_ids presentes en el paquete; para problemas generales de
+seguridad o coherencia, usa una lista vacia.
+
+Aproba solo cuando no exista ningun issue. Nunca conviertas incertidumbre en aprobacion.
 """.strip()
 
 
@@ -89,7 +114,10 @@ def _audit_packet(
     return {
         "report": result.report.model_dump(mode="json"),
         "ranked_candidates": [
-            candidate.model_dump(mode="json")
+            candidate.model_dump(
+                mode="json",
+                exclude={"evidence_ids", "counterfactual_check"},
+            )
             for candidate in sorted(candidates, key=lambda item: item.rca_score, reverse=True)
         ],
         "consulted_evidence": [
@@ -104,13 +132,13 @@ def _audit_packet(
 def _validate_audit(
     audit: EvidenceAudit,
     result: InvestigationResult,
+    packet_evidence_ids: set[str],
 ) -> EvidenceAudit:
-    known_evidence_ids = result.consulted_evidence_ids
     claim_count = len(result.report.claims)
     errors: list[str] = []
 
     for index, issue in enumerate(audit.issues):
-        unknown_ids = set(issue.evidence_ids) - known_evidence_ids
+        unknown_ids = set(issue.evidence_ids) - packet_evidence_ids
         if unknown_ids:
             errors.append(
                 f"audit issue[{index}] references unknown evidence: "
@@ -149,25 +177,34 @@ def run_evidence_audit(
 
         client = OpenAI()
 
-    response = client.responses.parse(
-        model=model,
-        instructions=AUDITOR_INSTRUCTIONS,
-        input=[
-            {
-                "role": "user",
-                "content": json.dumps(
-                    _audit_packet(result, candidates, evidence),
-                    ensure_ascii=False,
-                ),
-            }
-        ],
-        text_format=EvidenceAudit,
-        store=False,
-    )
-    audit = response.output_parsed
+    packet = _audit_packet(result, candidates, evidence)
+    packet_evidence_ids = {
+        str(item["evidence_id"]) for item in packet["consulted_evidence"]
+    }
+    try:
+        response = client.responses.parse(
+            model=model,
+            instructions=AUDITOR_INSTRUCTIONS,
+            input=[
+                {
+                    "role": "user",
+                    "content": json.dumps(packet, ensure_ascii=False),
+                }
+            ],
+            text_format=EvidenceAudit,
+            store=False,
+        )
+    except Exception as exc:
+        raise EvidenceAuditError(
+            "evidence audit failed; the incident report must not be published"
+        ) from exc
+
+    audit = getattr(response, "output_parsed", None)
     if audit is None:
-        raise RuntimeError("model did not produce a parsed evidence audit")
-    return _validate_audit(audit, result)
+        raise EvidenceAuditError(
+            "evidence audit returned no decision; the incident report must not be published"
+        )
+    return _validate_audit(audit, result, packet_evidence_ids)
 
 
 def run_audited_openai_investigation(

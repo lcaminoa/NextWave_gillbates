@@ -3,6 +3,7 @@
 from engine.investigator.auditor import (
     AuditedInvestigationResult,
     EvidenceAudit,
+    EvidenceAuditError,
     run_audited_openai_investigation,
     run_evidence_audit,
 )
@@ -13,6 +14,7 @@ from engine.investigator.validation import ReportValidationError, validate_repor
 __all__ = [
     "AuditedInvestigationResult",
     "EvidenceAudit",
+    "EvidenceAuditError",
     "InvestigationResult",
     "ReportValidationError",
     "run_audited_openai_investigation",
