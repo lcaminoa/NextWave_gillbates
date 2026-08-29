@@ -30,11 +30,11 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`; defaults calibrados contra stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
 | Mix shift | 🟡 | El pipeline calcula `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una dimensión. | Usarlo como filtro real antes de abrir un incidente; hoy informa, pero no bloquea alertas. |
 | RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y contrafácticos; D011 separa candidatos/evidencia por anomalía concurrente. | Priorización global en UI y casos de cobertura residual más complejos. |
-| Tests | 🟡 | 65 tests: Stream A/B/C, API, caos oculto, simultáneos, recuperación, dedupe, abstención y fallos seguros. | Completar los escenarios P1 que siguen abiertos y la evaluación con OpenAI real. |
-| Investigador OpenAI | 🟡 | Runner determinista y runner OpenAI con tools de solo lectura, Structured Outputs, validadores, fallback, Evidence Auditor y worker que no bloquea SSE; tests con mocks. | Elegir el modo de runtime y hacer el primer smoke real auditado. |
-| API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store y deduplicación; tests API y flujo real. | Conectar el modo OpenAI auditado cuando UI defina cómo muestra el audit. |
-| Dashboard / Chaos Console | ❌ | Especificación y mocks. | Next.js, `/chaos`, flujo en vivo, detalle de incidente y reveal. |
-| Demo / deploy | ❌ | Demo local de Stream B y REPL. | Una demo end-to-end que arranque desde cero y un despliegue estable. |
+| Tests | 🟡 | 80 tests: Stream A/B/C, API, caos oculto, dedupe, abstención, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`), completar P1 y evaluar OpenAI auditado con key real. |
+| Investigador OpenAI | 🟡 | Modo `deterministic` por defecto y modo `audited_openai` con tools de solo lectura, Structured Outputs, validadores, Evidence Auditor y fallback seguro. | Configurar key/modelo solo en el entorno del engine y hacer el primer smoke auditado real. |
+| API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store, deduplicación y CORS con allowlist explícita. | -- |
+| Dashboard / Chaos Console | ✅ | PHAROS en Next.js: landing, Control Room, cola, detalle, SSE, estados `unavailable` y Chaos manual/aleatorio/reveal contra el runtime real. | La API aún no expone `Anomaly`/`BaselinePoint`; no se debe inventar ese gráfico hasta que exista el contrato. |
+| Demo / deploy | 🟡 | Smoke local completo desde UI: `random_unknown` → reveal → reporte → evidencia y pasos reales. | Runbook de un comando y despliegue estable. |
 
 Leyenda: ✅ implementado y verificado; 🟡 parcial o aislado; ❌ aún no implementado.
 
@@ -99,12 +99,13 @@ legible que no inventa métricas ni referencias.
 
 ### 5. Construir las tres pantallas de demo
 
-- [ ] Inicializar `apps/web/` con Next.js, TypeScript y conexión SSE.
-- [ ] Control Tower: tasa actual, banda esperada, volumen, fuga e incidentes activos.
-- [ ] Incident Detail: causa, baseline vs. observado, evidencia, controles sanos y acción.
-- [ ] Timeline: mostrar `InvestigationStep[]` en tiempo real.
-- [ ] `/chaos`: controles de inyección, botón `random_unknown` y reveal al final.
-- [ ] Mostrar explícitamente `inconclusive` en vez de forzar una causa.
+- [x] Inicializar `apps/web/` con Next.js, TypeScript y conexión SSE.
+- [x] Control Tower: stream observado, investigaciones reales, contador live y estado explícito si el runtime no está disponible.
+  - La banda esperada no se renderiza todavía: la API de incidente no expone `Anomaly` ni `BaselinePoint`, y la UI no fabrica telemetría.
+- [x] Incident Detail: candidatos, evidencia citable, controles, timeline real y acción humana recomendada.
+- [x] Timeline: mostrar `InvestigationStep[]` registrados por el runtime, sin chain-of-thought.
+- [x] `/chaos`: inyección manual y `random_unknown`, reveal autorizado y comparación que no afirma correlación automática `chaos_id ↔ incident_id`.
+- [x] Mostrar explícitamente `inconclusive` en vez de forzar una causa.
 
 **Criterio de aceptación:** una persona que no conoce el código entiende en diez segundos qué
 pasó, dónde y por qué el sistema lo cree.
@@ -129,7 +130,8 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
     candidatos/evidencia. Falta definir y mostrar una priorización global en UI.
 - [x] Incidente que termina: recuperación sin incidente duplicado.
 - [x] Evidencia insuficiente: estado `inconclusive` con explicación de qué falta.
-- [ ] Incidente inyectado al azar: coincidencia contra la verdad revelada.
+- [ ] Incidente inyectado al azar: score automático contra la verdad revelada.
+  - El reveal y la comparación manual ya funcionan; el contrato actual no expone relación `chaos_id ↔ incident_id`, por lo que no se puede afirmar un match automático todavía.
 
 ## P2 — Pre-flight de hackathon
 
@@ -141,11 +143,12 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
   y datos bootstrap sin tocar el teclado durante el incidente.
 - [ ] **Diagrama de arquitectura en PDF/PNG.** Existe `docs/ARCHITECTURE.md`; falta el artefacto
   visual exportable para repo/deck.
-- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D017.
+- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D029.
 - [ ] **Casos feos manejados explícitamente.** Ruido, bajo volumen, incertidumbre,
   `inconclusive`, recuperación y doble incidente están cubiertos; falta usar mix-shift como gate.
-- [ ] **Trial by fire ensayado.** La API ya pasó un smoke a ciegas con `random_unknown`; falta
-  conectar la Chaos Console, activar el modo OpenAI auditado y repetir la corrida en el producto.
+- [ ] **Trial by fire ensayado.** La Chaos Console ya pasó un smoke a ciegas desde la UI con
+  `random_unknown`, reveal, reporte y detalle live. Falta activar el modo OpenAI auditado con
+  credenciales de entorno y repetir la corrida.
 - [ ] **Slides públicas + pitch cronometrado.** Crear deck, probar link sin login y ensayar.
 
 ## P3 — Ambiciones, solo después del núcleo
@@ -175,17 +178,17 @@ No duplicar endpoints ni crear otra consola de caos. Trabajo paralelo útil:
 
 - [x] Publicar el primer flujo FastAPI contra simulador, pipeline e investigador determinista.
 - [x] Implementar el Investigator OpenAI y el Evidence Auditor con tests mockeados.
-- [ ] Conectar dashboard y Chaos Console a los siete endpoints congelados.
+- [x] Conectar dashboard y Chaos Console a los siete endpoints congelados.
 - [ ] Crear el diagrama de arquitectura exportable (PNG/PDF) para la checklist y el deck.
 - [ ] Dejar un runbook de demo: stream sano, inyección, espera de persistencia, RCA, reveal y
   recuperación usando SSE y los endpoints reales.
 
 ## Orden recomendado de trabajo inmediato
 
-1. Franco conecta dashboard y Chaos Console a SSE/API, sin lógica estadística en frontend.
-2. Definir cómo muestra la UI el audit y activar Investigator OpenAI + Evidence Auditor en runtime.
-3. Completar mix-shift como gate y la priorización global de incidentes.
-4. Ejecutar un smoke real auditado y repetir el trial a ciegas desde la UI.
+1. Configurar el entorno del engine para `audited_openai` y definir cómo mostrar el resultado del audit en UI.
+2. Completar mix-shift como gate y la priorización global de incidentes.
+3. Ejecutar un smoke real auditado y repetir el trial a ciegas desde la UI.
+4. Agregar una suite frontend real para que `pnpm test` sea una validación útil.
 5. Terminar README, runbook, diagrama exportable, slides, deploy y ensayo del pitch.
 
 ## Regla para cortar alcance
