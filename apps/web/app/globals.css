@@ -3357,3 +3357,445 @@ a {
     animation: none !important;
   }
 }
+
+/* PHAROS incident-trajectory hero: scoped replacement for the original four-beat scene. */
+.landing-hero {
+  height: 740vh;
+}
+
+.landing-hero.landing-hero-reduced {
+  height: auto;
+  min-height: 100svh;
+}
+
+.landing-hero.landing-hero-reduced .landing-hero-stage {
+  position: relative;
+  min-height: 100svh;
+}
+
+.landing-nav-brand {
+  gap: 10px;
+}
+
+.landing-nav-brand strong {
+  color: #fbf8fc;
+  font-size: 12px;
+  font-weight: 790;
+  letter-spacing: 0.12em;
+}
+
+.landing-nav-brand span {
+  display: inline;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  color: #aaa0b1;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  text-transform: none;
+}
+
+.landing-stage-watermark {
+  position: absolute;
+  z-index: 1;
+  right: clamp(28px, 5vw, 96px);
+  bottom: clamp(40px, 8vh, 96px);
+  pointer-events: none;
+}
+
+.landing-stage-watermark span {
+  color: rgba(236, 228, 244, 0.043);
+  font-size: clamp(3.2rem, 8.2vw, 9.8rem);
+  font-weight: 680;
+  letter-spacing: -0.1em;
+  line-height: 0.76;
+}
+
+.landing-scene-wrap {
+  z-index: 2;
+}
+
+.landing-trajectory {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.landing-trajectory svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-trajectory-expected-band {
+  fill: none;
+  stroke: rgba(185, 200, 233, 0.09);
+  stroke-linecap: round;
+  stroke-width: 28;
+  transition: stroke 280ms ease;
+}
+
+.landing-trajectory-expected-rail {
+  fill: none;
+  stroke: rgba(196, 207, 236, 0.32);
+  stroke-dasharray: 2 10;
+  stroke-linecap: round;
+  stroke-width: 1.1;
+}
+
+.landing-trajectory-observed {
+  fill: none;
+  stroke: #bdc9ea;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+  filter: drop-shadow(0 0 7px rgba(188, 202, 235, 0.3));
+  transition: stroke 280ms ease, filter 280ms ease;
+}
+
+.landing-trajectory-deviation .landing-trajectory-observed {
+  stroke: #e4aa61;
+  filter: drop-shadow(0 0 8px rgba(228, 170, 97, 0.34));
+}
+
+.landing-trajectory-evidence .landing-trajectory-observed {
+  stroke: #dd7a99;
+  filter: drop-shadow(0 0 9px rgba(221, 122, 153, 0.38));
+}
+
+.landing-trajectory-checkpoint {
+  transform-origin: center;
+  transition: opacity 170ms linear;
+}
+
+.landing-trajectory-node-halo {
+  fill: rgba(190, 202, 235, 0.07);
+  stroke: rgba(192, 202, 235, 0.21);
+  stroke-width: 0.8;
+  transition: fill 240ms ease, stroke 240ms ease, r 240ms ease;
+}
+
+.landing-trajectory-node {
+  fill: #0e0b12;
+  stroke: #c9d2ed;
+  stroke-width: 1.65;
+  transition: stroke 240ms ease, fill 240ms ease;
+}
+
+.landing-trajectory-checkpoint text {
+  fill: #ede8f1;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 5.6px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.landing-trajectory-connector {
+  fill: none;
+  stroke: rgba(220, 213, 229, 0.3);
+  stroke-dasharray: 2.5 7;
+  stroke-linecap: round;
+  stroke-width: 1;
+  transition: stroke-dashoffset 260ms ease, stroke 220ms ease;
+}
+
+.landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+  fill: rgba(200, 212, 242, 0.13);
+  stroke: rgba(211, 220, 244, 0.58);
+}
+
+.landing-trajectory-checkpoint-active .landing-trajectory-node {
+  fill: #e4e9f8;
+  stroke: #f7f3ff;
+}
+
+.landing-trajectory-checkpoint-active .landing-trajectory-connector {
+  stroke: rgba(232, 224, 240, 0.72);
+}
+
+.landing-trajectory-deviation .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+  fill: rgba(228, 170, 97, 0.15);
+  stroke: rgba(239, 187, 111, 0.66);
+}
+
+.landing-trajectory-deviation .landing-trajectory-checkpoint-active .landing-trajectory-node {
+  fill: #f7c984;
+  stroke: #ffe1b1;
+}
+
+.landing-trajectory-evidence .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+  fill: rgba(221, 122, 153, 0.16);
+  stroke: rgba(238, 156, 183, 0.68);
+}
+
+.landing-trajectory-evidence .landing-trajectory-checkpoint-active .landing-trajectory-node {
+  fill: #ef9ab5;
+  stroke: #ffd7e4;
+}
+
+.landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+  animation: landing-trajectory-pulse 2.15s ease-in-out infinite;
+}
+
+@keyframes landing-trajectory-pulse {
+  0%,
+  100% {
+    opacity: 0.46;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.landing-hero-intro {
+  z-index: 5;
+  top: clamp(135px, 24vh, 290px);
+  width: min(560px, 36vw);
+  transition: opacity 150ms linear, transform 190ms ease, visibility 0s linear 150ms;
+}
+
+.landing-hero-intro h1 {
+  max-width: 580px;
+  font-size: clamp(3.45rem, 5.1vw, 6.4rem);
+}
+
+.landing-hero-actions-mask {
+  margin-top: 26px;
+}
+
+.landing-hero-actions {
+  width: fit-content;
+}
+
+.landing-checkpoint-caption {
+  position: absolute;
+  z-index: 5;
+  width: min(350px, 23vw);
+  pointer-events: none;
+  transition: opacity 150ms linear, transform 190ms ease, visibility 0s linear 150ms;
+}
+
+.landing-checkpoint-caption-left {
+  left: clamp(26px, 7.2vw, 132px);
+  text-align: left;
+}
+
+.landing-checkpoint-caption-right {
+  right: clamp(26px, 7.2vw, 132px);
+  text-align: right;
+}
+
+.landing-checkpoint-caption-right p,
+.landing-checkpoint-caption-right .landing-mask-line {
+  margin-left: auto;
+}
+
+.landing-checkpoint-caption-baseline {
+  top: 60vh;
+}
+
+.landing-checkpoint-caption-deviation {
+  top: 21vh;
+}
+
+.landing-checkpoint-caption-scope {
+  top: 25vh;
+}
+
+.landing-checkpoint-caption-counterfactual {
+  top: 61vh;
+}
+
+.landing-checkpoint-caption-decline {
+  top: 60vh;
+}
+
+.landing-checkpoint-caption-evidence {
+  top: 25vh;
+}
+
+.landing-checkpoint-eyebrow {
+  color: #bcb2c5;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.landing-checkpoint-caption strong {
+  display: block;
+  margin-top: 8px;
+  color: #f7f2f8;
+  font-size: clamp(1.8rem, 2.6vw, 3.45rem);
+  font-weight: 570;
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+}
+
+.landing-checkpoint-caption p {
+  max-width: 350px;
+  margin-top: 11px;
+  color: #bcb2c3;
+  font-size: 13px;
+  line-height: 1.48;
+}
+
+.landing-checkpoint-caption-evidence strong {
+  color: #f1dce5;
+}
+
+.landing-checkpoint-caption-evidence p {
+  color: #e9a9bd;
+  font-weight: 660;
+}
+
+.landing-signal-fallback-stable .landing-signal-band-fallback,
+.landing-signal-fallback-stable .landing-signal-led-fallback {
+  background: #b8c9ea;
+  box-shadow: 0 0 15px rgba(184, 201, 234, 0.68);
+}
+
+.landing-signal-fallback-object {
+  transition: box-shadow 240ms ease;
+}
+
+.landing-signal-fallback-stable {
+  box-shadow:
+    12px 19px 36px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(184, 201, 234, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.17),
+    inset -12px -12px 25px rgba(0, 0, 0, 0.32);
+}
+
+.landing-signal-fallback-deviation {
+  box-shadow:
+    12px 19px 36px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(228, 170, 97, 0.14),
+    inset 0 1px 1px rgba(255, 255, 255, 0.17),
+    inset -12px -12px 25px rgba(0, 0, 0, 0.32);
+}
+
+.landing-signal-fallback-evidence {
+  box-shadow:
+    12px 19px 36px rgba(0, 0, 0, 0.5),
+    0 0 32px rgba(221, 122, 153, 0.16),
+    inset 0 1px 1px rgba(255, 255, 255, 0.17),
+    inset -12px -12px 25px rgba(0, 0, 0, 0.32);
+}
+
+.landing-scroll-cue {
+  z-index: 6;
+}
+
+@media (max-width: 900px) {
+  .landing-hero-intro {
+    width: min(480px, 47vw);
+  }
+
+  .landing-checkpoint-caption {
+    width: min(300px, 31vw);
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-hero {
+    height: 740vh;
+  }
+
+  .landing-nav-brand {
+    gap: 6px;
+  }
+
+  .landing-nav-brand strong {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .landing-nav-brand span {
+    max-width: 112px;
+    overflow: hidden;
+    font-size: 7px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-hero-intro {
+    top: 16svh;
+    left: 20px;
+    width: calc(100% - 40px);
+  }
+
+  .landing-hero-intro h1 {
+    font-size: clamp(3rem, 13vw, 4.3rem);
+  }
+
+  .landing-hero-intro p {
+    max-width: 290px;
+  }
+
+  .landing-checkpoint-caption,
+  .landing-checkpoint-caption-left,
+  .landing-checkpoint-caption-right {
+    top: 15svh;
+    right: 20px;
+    left: 20px;
+    width: auto;
+    text-align: left;
+  }
+
+  .landing-checkpoint-caption-right p,
+  .landing-checkpoint-caption-right .landing-mask-line {
+    margin-left: 0;
+  }
+
+  .landing-checkpoint-caption strong {
+    max-width: 320px;
+    font-size: clamp(1.9rem, 9.4vw, 2.7rem);
+  }
+
+  .landing-checkpoint-caption p {
+    max-width: 310px;
+    font-size: 12px;
+  }
+
+  .landing-stage-watermark {
+    right: 17px;
+    bottom: 28px;
+  }
+
+  .landing-stage-watermark span {
+    font-size: 4rem;
+  }
+
+  .landing-trajectory {
+    transform: translateY(16%);
+    transform-origin: center;
+  }
+
+  .landing-trajectory-expected-band {
+    stroke-width: 23;
+  }
+
+  .landing-trajectory-node-halo {
+    stroke-width: 1.2;
+  }
+
+  .landing-trajectory-checkpoint text {
+    font-size: 8px;
+  }
+
+  .landing-scroll-cue {
+    bottom: 18px;
+  }
+
+  .landing-hero.landing-hero-reduced {
+    height: auto;
+  }
+}

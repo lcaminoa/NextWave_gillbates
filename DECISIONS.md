@@ -186,3 +186,25 @@ Por qué:
 Tradeoff: agrega peso de JavaScript solo a `/` y una escena de render que debe seguir siendo
 sobria. Se limita a una única pieza focal, DPR acotado, sombras moderadas y una composición
 estática accesible para `prefers-reduced-motion`.
+
+## D009 — Hero PHAROS como trayectoria de incidente sincronizada
+
+Alternativas:
+1. conservar la caída libre de la señal y agregar captions independientes
+2. convertir el hero en un gráfico tradicional sin objeto físico
+3. sincronizar una trayectoria SVG de seis hitos con el objeto WebGL y las captions de evidencia
+
+Decisión: 3
+
+Por qué:
+- los seis hitos hacen legible la investigación completa: baseline, caída sostenida, alcance,
+  control de proveedor, patrón de decline y explicación probable
+- el SVG provee un rail esperado, una ruta observada, nodos y conectores sin reemplazar la señal
+  física como foco de la composición
+- DOM, SVG, WebGL y fallback leen el mismo modelo de checkpoints, por lo que la narrativa no
+  puede desalinearse entre animación, valores y accesibilidad
+- el scroll nativo amortiguado conserva masa visual sin impedir scrub manual ni accesibilidad
+
+Tradeoff: la sección pinned pasa a 740vh para dar tiempo a cada conclusión. La superficie
+adicional se compensa con una sola caption visible por vez, trayectoria central y un handoff
+final sobrio hacia la evidencia ya existente.

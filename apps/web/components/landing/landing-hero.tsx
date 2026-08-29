@@ -3,74 +3,24 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal-scene";
+import { IncidentTrajectory } from "./incident-trajectory";
+import {
+  clamp,
+  getActiveCheckpointIndex,
+  getCheckpointVisibility,
+  getSignalMetric,
+  getSignalWaypoint,
+  getTrajectoryTone,
+  landingCheckpoints,
+} from "./landing-story";
 
 const ApprovalSignalScene = dynamic<ApprovalSignalSceneProps>(
   () => import("./approval-signal-scene").then((module) => module.ApprovalSignalScene),
   { ssr: false },
 );
-
-type StoryStage = {
-  key: "baseline" | "deviation" | "counterfactual" | "evidence";
-  eyebrow: string;
-  primary: string;
-  secondary: string;
-  start: number;
-  end: number;
-};
-
-const stages: StoryStage[] = [
-  {
-    key: "baseline",
-    eyebrow: "Baseline",
-    primary: "93.9% expected",
-    secondary: "Brazil · card payments",
-    start: 0.05,
-    end: 0.27,
-  },
-  {
-    key: "deviation",
-    eyebrow: "Sustained deviation",
-    primary: "62.4% observed",
-    secondary: "−31.4 pp below expected range",
-    start: 0.32,
-    end: 0.53,
-  },
-  {
-    key: "counterfactual",
-    eyebrow: "Counterfactual",
-    primary: "AuroraPay: 94.1%",
-    secondary: "Same traffic and issuer mix remained healthy",
-    start: 0.58,
-    end: 0.77,
-  },
-  {
-    key: "evidence",
-    eyebrow: "Evidence converges",
-    primary: "NovaPay × Brazil × Card × Itaú",
-    secondary: "do_not_honor: 71% of declines",
-    start: 0.82,
-    end: 1,
-  },
-];
-
-const giantWords = [
-  { label: "EXPECTED", start: 0, end: 0.3, top: "18%", left: "-4%", direction: -1 },
-  { label: "DEVIATION", start: 0.24, end: 0.56, top: "59%", left: "23%", direction: 1 },
-  { label: "CONTROL", start: 0.5, end: 0.79, top: "20%", left: "39%", direction: -1 },
-  { label: "EVIDENCE", start: 0.76, end: 1.05, top: "61%", left: "-2%", direction: 1 },
-];
-
-function clamp(value: number, min = 0, max = 1) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function stageVisibility(progress: number, start: number, end: number) {
-  const entering = clamp((progress - (start - 0.055)) / 0.1);
-  const leaving = end >= 1 ? 1 : clamp((end + 0.04 - progress) / 0.09);
-  return Math.min(entering, leaving);
-}
 
 function useReducedMotion() {
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -97,32 +47,43 @@ function MaskedLine({ children, progress }: { children: React.ReactNode; progres
 }
 
 function SignalFallback({ progress }: { progress: number }) {
-  const approach = clamp((progress - 0.04) / 0.54);
-  const departure = clamp((progress - 0.58) / 0.42);
-  const x = 20 - approach * 24 + departure * 14;
-  const y = -30 + approach * 38 + departure * 36;
-  const scale = (0.68 + approach * 0.47) * (1 - departure * 0.46);
-  const phase = progress < 0.31 ? "healthy" : progress < 0.75 ? "deviation" : "evidence";
+  const waypoint = getSignalWaypoint(progress);
+  const metric = getSignalMetric(progress);
+  const tone = getTrajectoryTone(progress);
+  const finalUnseal = clamp((progress - 0.958) / 0.042);
+  const x = (waypoint.x - 0.5) * 100;
+  const y = (waypoint.y - 0.5) * 100;
 
   return (
     <div className="landing-signal-fallback" aria-hidden="true">
       <div
-        className={`landing-signal-fallback-object landing-signal-fallback-${phase}`}
-        style={{ transform: `translate3d(${x}vw, ${y}vh, 0) rotate(${18 + progress * 62}deg) scale(${scale})` }}
+        className={`landing-signal-fallback-object landing-signal-fallback-${tone}`}
+        style={{
+          transform: `translate3d(${x}vw, ${y}vh, 0) rotate(${15 + progress * 28}deg) scale(${waypoint.scale})`,
+        }}
       >
         <i className="landing-signal-layer landing-signal-layer-one" />
         <i className="landing-signal-layer landing-signal-layer-two" />
-        <i className="landing-signal-display-fallback"><small>{progress < 0.3 ? "EXPECTED" : progress < 0.73 ? "OBSERVED" : "CONTROL"}</small><strong>{progress < 0.3 ? "93.9%" : progress < 0.73 ? "62.4%" : "94.1%"}</strong></i>
+        <i className="landing-signal-display-fallback">
+          <small>{metric.label}</small>
+          <strong>{metric.metric}</strong>
+        </i>
         <i className="landing-signal-band-fallback" />
         <i className="landing-signal-led-fallback" />
-        {progress > 0.79 ? <><i className="landing-signal-fragment landing-signal-fragment-a" /><i className="landing-signal-fragment landing-signal-fragment-b" /><i className="landing-signal-fragment landing-signal-fragment-c" /></> : null}
+        {finalUnseal > 0.01 ? (
+          <>
+            <i className="landing-signal-fragment landing-signal-fragment-a" />
+            <i className="landing-signal-fragment landing-signal-fragment-b" />
+            <i className="landing-signal-fragment landing-signal-fragment-c" />
+          </>
+        ) : null}
       </div>
     </div>
   );
 }
 
 export function LandingHero() {
-  const storyRef = useRef<HTMLDivElement>(null);
+  const storyRef = useRef<HTMLElement>(null);
   const progressRef = useRef(0);
   const pointerRef = useRef<LandingPointer>({ x: 0, y: 0 });
   const [progress, setProgress] = useState(0);
@@ -180,28 +141,34 @@ export function LandingHero() {
 
   const onSceneReady = useCallback(() => setSceneReady(true), []);
   const displayProgress = reducedMotion ? 0.58 : progress;
-  const introVisibility = reducedMotion ? 1 : clamp((0.2 - progress) / 0.08);
+  const introVisibility = reducedMotion ? 1 : clamp((0.12 - displayProgress) / 0.035);
+  const activeCheckpointIndex = reducedMotion ? -1 : getActiveCheckpointIndex(displayProgress);
+  const activeCheckpoint = activeCheckpointIndex >= 0 ? landingCheckpoints[activeCheckpointIndex] : undefined;
+  const activeVisibility = activeCheckpoint ? getCheckpointVisibility(displayProgress, activeCheckpoint) : 0;
+  const activeReveal = activeCheckpoint ? clamp((displayProgress - activeCheckpoint.start) / 0.02) : 0;
   const canRenderScene = webglAvailable && !reducedMotion;
-  const stageVisibilities = useMemo(
-    () => new Map(stages.map((stage) => [stage.key, stageVisibility(displayProgress, stage.start, stage.end)])),
-    [displayProgress],
-  );
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     pointerRef.current = {
-      x: clamp((event.clientX - rect.left) / rect.width * 2 - 1, -1, 1),
-      y: clamp((event.clientY - rect.top) / rect.height * 2 - 1, -1, 1),
+      x: clamp(((event.clientX - rect.left) / rect.width) * 2 - 1, -1, 1),
+      y: clamp(((event.clientY - rect.top) / rect.height) * 2 - 1, -1, 1),
     };
   };
 
   return (
     <section ref={storyRef} className={reducedMotion ? "landing-hero landing-hero-reduced" : "landing-hero"} aria-labelledby="landing-heading">
-      <div className="landing-hero-stage" onPointerMove={handlePointerMove} onPointerLeave={() => { pointerRef.current = { x: 0, y: 0 }; }}>
-        <nav className="landing-nav" aria-label="Control Tower landing">
-          <Link href="/" className="landing-nav-brand" aria-label="Control Tower home">
-            <span>CT</span>
-            <strong>Control Tower</strong>
+      <div
+        className="landing-hero-stage"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => {
+          pointerRef.current = { x: 0, y: 0 };
+        }}
+      >
+        <nav className="landing-nav" aria-label="PHAROS landing">
+          <Link href="/" className="landing-nav-brand" aria-label="PHAROS home">
+            <strong>PHAROS</strong>
+            <span>Payment Incident Intelligence</span>
           </Link>
           <div className="landing-nav-links">
             <a href="#evidence">Evidence model</a>
@@ -213,48 +180,45 @@ export function LandingHero() {
         </nav>
 
         <div className="landing-hero-atmosphere" aria-hidden="true" />
-
-        <div className="landing-giant-type" aria-hidden="true">
-          {giantWords.map((word) => {
-            const local = clamp((displayProgress - word.start) / (word.end - word.start));
-            const visibility = stageVisibility(displayProgress, word.start, word.end);
-            const x = (1 - local) * word.direction * 18;
-            const y = (1 - local) * 14;
-            return (
-              <span
-                key={word.label}
-                style={{
-                  top: word.top,
-                  left: word.left,
-                  clipPath: `inset(0 ${(1 - visibility) * 100}% 0 0)`,
-                  transform: `translate3d(${x}%, ${y}%, 0)`,
-                }}
-              >
-                {word.label}
-              </span>
-            );
-          })}
-        </div>
+        {!reducedMotion ? (
+          <div className="landing-stage-watermark" aria-hidden="true">
+            <span>{activeCheckpoint ? `0${activeCheckpoint.id}` : "PHAROS"}</span>
+          </div>
+        ) : null}
 
         <div className="landing-scene-wrap">
-          {canRenderScene ? <ApprovalSignalScene progress={displayProgress} progressRef={progressRef} pointerRef={pointerRef} onReady={onSceneReady} /> : null}
+          {canRenderScene ? <ApprovalSignalScene progressRef={progressRef} pointerRef={pointerRef} onReady={onSceneReady} /> : null}
           {!sceneReady ? <SignalFallback progress={displayProgress} /> : null}
         </div>
 
-        <div className="landing-hero-intro">
-          <MaskedLine progress={introVisibility}><span className="landing-hero-eyebrow">Control Tower · payment incident intelligence</span></MaskedLine>
+        {!reducedMotion ? <IncidentTrajectory progress={displayProgress} /> : null}
+
+        <div
+          className="landing-hero-intro"
+          aria-hidden={introVisibility < 0.02}
+          style={{
+            opacity: introVisibility,
+            pointerEvents: introVisibility > 0.02 ? "auto" : "none",
+            transform: `translate3d(0, ${(1 - introVisibility) * -22}px, 0)`,
+            visibility: introVisibility > 0.02 ? "visible" : "hidden",
+          }}
+        >
+          <MaskedLine progress={introVisibility}>
+            <span className="landing-hero-eyebrow">PHAROS · Payment Incident Intelligence</span>
+          </MaskedLine>
           <h1 id="landing-heading">
             <MaskedLine progress={introVisibility}>When approval drops,</MaskedLine>
-            <MaskedLine progress={introVisibility}><em>find what changed.</em></MaskedLine>
+            <MaskedLine progress={introVisibility}>
+              <em>find what changed.</em>
+            </MaskedLine>
           </h1>
-          <MaskedLine progress={introVisibility}><p>Control Tower turns a payment anomaly into evidence your team can verify.</p></MaskedLine>
+          <MaskedLine progress={introVisibility}>
+            <p>PHAROS turns a payment anomaly into evidence your team can verify.</p>
+          </MaskedLine>
           <div className="landing-hero-actions-mask">
             <div className="landing-hero-actions" style={{ transform: `translate3d(0, ${(1 - introVisibility) * 120}%, 0)` }}>
               <Link href="/control-room" className="landing-action landing-action-primary">
                 Enter live control room <ArrowUpRight className="size-4" />
-              </Link>
-              <Link href="/incidents/incident-br-novapay" className="landing-action landing-action-secondary">
-                See the investigation <ArrowUpRight className="size-4" />
               </Link>
             </div>
           </div>
@@ -262,31 +226,37 @@ export function LandingHero() {
 
         {reducedMotion ? (
           <div className="landing-reduced-facts">
-            {stages.map((stage) => (
-              <div key={stage.key}>
-                <span>{stage.eyebrow}</span>
-                <strong>{stage.primary}</strong>
-                <p>{stage.secondary}</p>
+            {landingCheckpoints.map((checkpoint) => (
+              <div key={checkpoint.key}>
+                <span>{checkpoint.eyebrow}</span>
+                <strong>{checkpoint.primary}</strong>
+                <p>{checkpoint.secondary}</p>
               </div>
             ))}
           </div>
-        ) : (
-          <div className="landing-stage-captions" aria-live="polite">
-            {stages.map((stage) => {
-              const visibility = stageVisibilities.get(stage.key) ?? 0;
-              return (
-                <div className={`landing-stage-caption landing-stage-caption-${stage.key}`} key={stage.key}>
-                  <MaskedLine progress={visibility}><span>{stage.eyebrow}</span></MaskedLine>
-                  <MaskedLine progress={visibility}><strong>{stage.primary}</strong></MaskedLine>
-                  <MaskedLine progress={visibility}><p>{stage.secondary}</p></MaskedLine>
-                  {stage.key === "evidence" ? <MaskedLine progress={visibility}><small>Probable · human review required</small></MaskedLine> : null}
-                </div>
-              );
-            })}
+        ) : activeCheckpoint ? (
+          <div
+            className={`landing-checkpoint-caption landing-checkpoint-caption-${activeCheckpoint.side} landing-checkpoint-caption-${activeCheckpoint.key}`}
+            aria-live="polite"
+            style={{
+              opacity: activeVisibility,
+              transform: `translate3d(${activeCheckpoint.side === "left" ? -8 : 8}px, ${(1 - activeVisibility) * 14}px, 0)`,
+              visibility: activeVisibility > 0.02 ? "visible" : "hidden",
+            }}
+          >
+            <MaskedLine progress={activeReveal}>
+              <span className="landing-checkpoint-eyebrow">{activeCheckpoint.eyebrow}</span>
+            </MaskedLine>
+            <MaskedLine progress={activeReveal}>
+              <strong>{activeCheckpoint.primary}</strong>
+            </MaskedLine>
+            <MaskedLine progress={activeReveal}>
+              <p>{activeCheckpoint.secondary}</p>
+            </MaskedLine>
           </div>
-        )}
+        ) : null}
 
-        {!reducedMotion ? (
+        {!reducedMotion && introVisibility > 0.02 ? (
           <div className="landing-scroll-cue" aria-hidden="true">
             <span>Scroll to investigate</span>
             <ArrowDown className="size-3.5" />
