@@ -170,7 +170,7 @@ class IncidentReport(BaseModel):
     winning_candidate_id: Optional[str] = None  # ausente si status == inconclusive
     summary: str  # en lenguaje humano
     claims: list[Claim]
-    estimated_revenue_loss_usd: float
+    estimated_revenue_loss_usd_per_hour: float  # tasa, no un acumulado (ver DECISIONS.md)
     recommended_action: str  # sugerida, nunca ejecutada por el sistema
     requires_human_review: bool
     investigation_steps: list[str]  # ids de InvestigationStep, en orden
