@@ -4,6 +4,9 @@ El "por qué" completo está en `NEXTWAVE_CH2_CONTROL_TOWER_MASTER_PLAN_ES.md` (
 inglés, útil para armar el pitch). Este archivo es el mapa corto: qué entidad vive en qué
 carpeta y quién la produce, para no tener que releer 2000 líneas en medio del código.
 
+El diagrama editable y exportable está en [`ARCHITECTURE.mmd`](ARCHITECTURE.mmd). Es la fuente
+para generar `ARCHITECTURE.png` y `ARCHITECTURE.pdf` que pide la checklist de pre-flight.
+
 ## El loop
 
 ```
