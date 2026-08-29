@@ -171,26 +171,45 @@ a {
 .app-nav-brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
   width: fit-content;
-  color: #f6eff7;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  border-radius: 7px;
 }
 
-.app-nav-mark {
-  display: grid;
-  width: 27px;
-  height: 27px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.055);
-  color: #f2e9f3;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
+.pharos-brand-tower {
+  display: block;
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.pharos-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pharos-brand-copy strong {
+  color: #f4f0ea;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  line-height: 1;
+}
+
+.pharos-brand-copy span {
+  color: #8c8c99;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 6px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pharos-brand-mark {
+  display: none;
+  width: 28px;
+  height: 28px;
 }
 
 .app-nav-links {
@@ -1885,15 +1904,19 @@ a {
   }
 
   .app-nav-brand {
-    gap: 7px;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
   }
 
-  .app-nav-mark {
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    font-size: 8px;
+  .app-nav-brand .pharos-brand-tower,
+  .app-nav-brand .pharos-brand-copy {
+    display: none;
+  }
+
+  .app-nav-brand .pharos-brand-mark {
+    display: block;
+    width: 25px;
+    height: 25px;
   }
 
   .app-nav-links {
@@ -2190,28 +2213,13 @@ a {
 }
 
 .landing-nav-brand {
-  gap: 9px;
   width: fit-content;
-  color: #f9f4fb;
-  font-size: 12px;
-  letter-spacing: -0.02em;
+  border-radius: 7px;
 }
 
-.landing-nav-brand span {
-  display: grid;
-  width: 25px;
-  height: 25px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.17);
-  border-radius: 8px;
-  color: #e8dff0;
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: 0.13em;
-}
-
-.landing-nav-brand strong {
-  font-weight: 720;
+.landing-nav-brand .pharos-brand-tower {
+  width: 52px;
+  height: 52px;
 }
 
 .landing-nav-links {
@@ -3347,30 +3355,6 @@ a {
   min-height: 100svh;
 }
 
-.landing-nav-brand {
-  gap: 10px;
-}
-
-.landing-nav-brand strong {
-  color: #fbf8fc;
-  font-size: 12px;
-  font-weight: 790;
-  letter-spacing: 0.12em;
-}
-
-.landing-nav-brand span {
-  display: inline;
-  width: auto;
-  height: auto;
-  border: 0;
-  border-radius: 0;
-  color: #aaa0b1;
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.035em;
-  text-transform: none;
-}
-
 .landing-stage-watermark {
   position: absolute;
   z-index: 1;
@@ -3635,20 +3619,19 @@ a {
   }
 
   .landing-nav-brand {
-    gap: 6px;
+    display: inline-flex;
+    align-items: center;
   }
 
-  .landing-nav-brand strong {
-    font-size: 10px;
-    letter-spacing: 0.1em;
+  .landing-nav-brand .pharos-brand-tower,
+  .landing-nav-brand .pharos-brand-copy {
+    display: none;
   }
 
-  .landing-nav-brand span {
-    max-width: 112px;
-    overflow: hidden;
-    font-size: 7px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .landing-nav-brand .pharos-brand-mark {
+    display: block;
+    width: 25px;
+    height: 25px;
   }
 
   .landing-hero-intro {

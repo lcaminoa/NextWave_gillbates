@@ -269,3 +269,24 @@ Por qué:
 Tradeoff: la tarjeta lleva la identidad física `PHAROS` y un estado breve sincronizado con cada
 hito de investigación; no lleva números, titular, banco, métricas ni marcas de red. La
 identificación detallada del incidente permanece en la narrativa y no en la tarjeta.
+
+## D013 — Sistema de marca PHAROS como fuente única de identidad visual
+
+Alternativas:
+1. conservar las siglas y lockups ad-hoc de cada pantalla
+2. redibujar una marca nueva dentro de la UI
+3. integrar el paquete aprobado de PHAROS en navegación, iconos de plataforma y metadata
+
+Decisión: 3
+
+Por qué:
+- el lighthouse y su beam orientado a la izquierda ya resuelven la identidad del producto sin
+  sumar otro lenguaje visual al control room ni a la landing
+- el lighthouse completo aprobado es la marca visible en desktop; el mark simplificado es el
+  único que se usa en anchos compactos
+- favicon, app icons, manifest y social preview comparten los assets del mismo paquete, de modo
+  que el navegador y los enlaces compartidos reconocen PHAROS igual que la aplicación
+
+Tradeoff: se preservan las tipografías de producto existentes para no remaquetar pantallas ya
+validadas; el wordmark acompaña la torre sin aplicarse como logo decorativo dentro de métricas,
+evidencia o la tarjeta 3D.

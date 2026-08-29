@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="PHAROS">
+
+  <path d="M40 14 L3 7 V25 L40 20 Z" fill="#F4F0EA" opacity="0.5"></path>
+  <circle cx="46.5" cy="5.5" r="2.4" fill="#F4F0EA"></circle>
+  <rect x="42" y="10" width="9" height="8" rx="1" fill="#F4F0EA"></rect>
+  <path d="M43 20 H50 L51.5 34 H41.5 Z" fill="#F4F0EA" opacity="0.85"></path>
+  <path d="M40.5 36 H53.5 L55.5 54 H38.5 Z" fill="#F4F0EA" opacity="0.6"></path>
+</svg>

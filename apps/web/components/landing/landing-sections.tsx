@@ -48,7 +48,7 @@ export function LandingSections() {
         <header className="landing-section-intro">
           <span>Evidence model / 01</span>
           <h2 id="evidence-heading">A signal is not a diagnosis.</h2>
-          <p>Control Tower puts the comparison beside the claim, so a person can verify the reasoning before deciding what to do.</p>
+          <p>PHAROS puts the comparison beside the claim, so a person can verify the reasoning before deciding what to do.</p>
         </header>
 
         <div className="landing-evidence-panels">
@@ -130,7 +130,7 @@ export function LandingSections() {
 
       <section className="landing-final-cta" aria-labelledby="final-cta-heading">
         <div>
-          <span>Control Tower / ready for review</span>
+          <span>PHAROS / ready for review</span>
           <h2 id="final-cta-heading">Detect the drop.<br />Prove the cause.</h2>
           <p>Give payment teams a defensible investigation before they make a human decision.</p>
         </div>

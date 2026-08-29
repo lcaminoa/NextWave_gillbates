@@ -206,7 +206,7 @@ export function ChaosConsole() {
   const runLog = [
     { phase: "running", title: "Scenario accepted", detail: isRandom ? "Blind scenario sealed outside this UI." : "Manual dimensions accepted for this run." },
     { phase: "awaiting-detection", title: "Awaiting sustained deviation", detail: "No root cause is asserted at injection time." },
-    { phase: "investigating", title: "Investigation started", detail: "Control Tower is ready to evaluate the resulting evidence." },
+    { phase: "investigating", title: "Investigation started", detail: "PHAROS is ready to evaluate the resulting evidence." },
     { phase: "ready-to-reveal", title: "Run window completed", detail: "Reveal can compare injected truth with the system finding." },
   ];
   const phaseOrder: Record<ChaosPhase, number> = {

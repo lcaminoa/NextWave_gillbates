@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, FlaskConical, LayoutDashboard, Radio, SearchCheck } from "lucide-react";
 import { reports } from "@/lib/fixtures/control-tower";
+import { PharosBrand } from "./pharos-brand";
 
 const navigationItems = [
   { href: "/control-room", label: "Overview", icon: LayoutDashboard, matches: (pathname: string) => pathname === "/control-room" },
@@ -19,10 +20,11 @@ export function AppNavigation() {
   return (
     <header className="app-navigation">
       <div className="app-navigation-frame">
-        <Link href="/control-room" className="app-nav-brand" aria-label="Go to Control Tower overview">
-          <span className="app-nav-mark">CT</span>
-          <span>Control Tower</span>
-        </Link>
+        <PharosBrand
+          href="/control-room"
+          className="app-nav-brand"
+          label="PHAROS — open Control Room"
+        />
 
         <nav className="app-nav-links" aria-label="Product navigation">
           {navigationItems.map((item) => {

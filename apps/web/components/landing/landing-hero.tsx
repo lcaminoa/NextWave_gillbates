@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal-scene";
 import { IncidentTrajectory } from "./incident-trajectory";
+import { PharosBrand } from "@/components/ui/pharos-brand";
 import {
   clamp,
   getCardSignalStatus,
@@ -162,10 +163,12 @@ export function LandingHero() {
         }}
       >
         <nav className="landing-nav" aria-label="PHAROS landing">
-          <Link href="/" className="landing-nav-brand" aria-label="PHAROS home">
-            <strong>PHAROS</strong>
-            <span>Payment Incident Intelligence</span>
-          </Link>
+          <PharosBrand
+            href="/"
+            className="landing-nav-brand"
+            label="PHAROS — home"
+            priority
+          />
           <div className="landing-nav-links">
             <a href="#evidence">Evidence model</a>
             <Link href="/chaos">Chaos Lab</Link>
