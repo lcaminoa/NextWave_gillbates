@@ -114,3 +114,26 @@ Tradeoff: la pantalla es más larga que un resumen de una vista. La jerarquía d
 sticky y la recomendación final mantienen el recorrido claro y la acción sigue siendo humana.
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
+
+## D006 — Chaos Console separa configuración, ejecución ciega y comparación verificable
+
+Alternativas:
+1. mostrar siempre el escenario completo para simplificar la demo
+2. construir un panel tipo terminal con logs técnicos y un resultado de match único
+3. modelar tres fases explícitas: configuración, ejecución con verdad sellada y comparación por campo
+
+Decisión: 3
+
+Por qué:
+- el modo `random_unknown` debe demostrar que el investigador no recibe una respuesta
+  hardcodeada; por eso no representa dimensiones ni parcialmente hasta que el backend revele
+  el ground truth
+- el operador puede revisar y confirmar un escenario manual sin convertir la consola en una
+  herramienta de remediación: inyectar no desvía tráfico ni ejecuta cambios externos
+- la comparación final conserva los matices de la investigación: cada dimensión, severidad y
+  tiempo se califica como match, partial o mismatch, sin ocultar un resultado parcial detrás de
+  un indicador global
+
+Tradeoff: el fixture local no puede demostrar un reveal aleatorio real sin conocer dimensiones
+ocultas. Por integridad, el flujo queda sellado y señala el adaptador `POST /api/chaos/reveal`
+hasta que el backend entregue el ground truth autorizado.
