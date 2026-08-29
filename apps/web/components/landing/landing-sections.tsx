@@ -7,7 +7,9 @@ const incidentHref = "/incidents/incident-br-novapay";
 function candidateLabel() {
   const report = reports.find((item) => item.incident_id === "incident-br-novapay") ?? reports[0];
   const candidate = candidates.find((item) => item.candidate_id === report.winning_candidate_id) ?? candidates[0];
-  return [candidate.dimensions.provider, candidate.dimensions.country, candidate.dimensions.payment_method, candidate.dimensions.issuing_bank]
+  const country = candidate.dimensions.country === "BR" ? "Brazil" : candidate.dimensions.country;
+  const paymentMethod = candidate.dimensions.payment_method === "card" ? "Card" : candidate.dimensions.payment_method;
+  return [candidate.dimensions.provider, country, paymentMethod, candidate.dimensions.issuing_bank]
     .filter(Boolean)
     .join(" × ");
 }
@@ -74,7 +76,7 @@ export function LandingSections() {
 
         <article className="landing-investigation-preview">
           <div className="landing-preview-topline">
-            <span><i /> Incident / BR-042</span>
+            <span><i /> Incident / Brazil · NovaPay</span>
             <span>Probable · human review required</span>
           </div>
 
