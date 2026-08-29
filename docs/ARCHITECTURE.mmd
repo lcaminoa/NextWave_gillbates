@@ -14,7 +14,7 @@ flowchart TB
         Dashboard["Dashboard<br/>Muestra pagos, incidentes,<br/>causas y evidencia"]
     end
 
-    API["Backend API<br/>Recibe comandos y transmite<br/>pagos e incidentes por REST/SSE"]
+    API["Backend API<br/>Recibe comandos de caos;<br/>SSE de pagos y REST de incidentes"]
 
     subgraph Stream["Stream de pagos"]
         direction LR
@@ -28,7 +28,8 @@ flowchart TB
         RCA["Análisis de causa raíz<br/>Encuentra el segmento, impacto,<br/>controles sanos y evidencia"]
     end
 
-    Investigator["Investigador OpenAI<br/>Lee evidencia con tools de solo lectura<br/>y redacta conclusiones citadas"]
+    Investigator["Investigador de incidentes<br/>Analiza evidencia con una policy segura<br/>u OpenAI con tools de solo lectura"]
+    Auditor["Auditor de evidencia<br/>Impide publicar claims que exceden<br/>la evidencia actual"]
     Report["Reporte de incidente<br/>Qué pasó · dónde · costo<br/>y recomendación humana"]
 
     Chaos -->|"solicita inject, random o reveal"| API
@@ -37,12 +38,14 @@ flowchart TB
     Pipeline -->|"cierra una ventana de pagos"| Detection
     Detection -->|"anomalías confirmadas"| RCA
     RCA -->|"anomalía + candidatos + evidencia"| Investigator
-    Investigator -->|"reporte con claims citados"| Report
+    Investigator -->|"reporte con claims citados"| Auditor
+    Auditor -->|"reporte aprobado"| Report
     Report -->|"publica el incidente"| API
-    API -->|"actualizaciones en vivo"| Dashboard
+    API -->|"SSE: pagos en vivo<br/>REST: incidentes y reportes"| Dashboard
 
-    Secret["Protección random_unknown<br/>Las dimensiones reales viven solo<br/>en el simulador hasta reveal"]
+    Secret["Protección random_unknown<br/>La API solo expone una vista pública;<br/>las dimensiones se ocultan hasta reveal"]
     Secret -.-> Chaos
+    Secret -.-> API
     Secret -.-> Simulator
     Secret -.-> Pipeline
     Secret -.-> Investigator
@@ -59,6 +62,6 @@ flowchart TB
     class API backend;
     class Simulator simulation;
     class Pipeline,Detection,RCA detection;
-    class Investigator investigator;
+    class Investigator,Auditor investigator;
     class Report report;
     class Secret note;
