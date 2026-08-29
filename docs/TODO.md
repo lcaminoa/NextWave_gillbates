@@ -25,12 +25,12 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Área | Estado | Qué existe hoy | Qué falta para considerarlo terminado |
 |---|---|---|---|
 | Contratos compartidos | ✅ | Ocho entidades en `contracts/types.ts` y `contracts/schemas.py`; endpoints definidos. | Fixtures compartidos y validación cruzada TS/Python. |
-| Datos sintéticos | 🟡 | `engine/detection/mock_generator.py` genera transacciones y aplica `ChaosSpec`. | Simulador real en `simulator/`, stream continuo y verdad oculta/reveal. |
+| Datos sintéticos | 🟡 | `simulator/` genera `Transaction` reproducibles, stream infinito, caos manual/aleatorio, reveal y varios incidentes activos; el mock de detección sigue sirviendo para Stream B aislado. | Conectarlo al servicio/API y probar el recorrido completo con el detector. |
 | Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos. | Integrarlo al servicio/API real. |
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`. | Estacionalidad efectiva, fallback jerárquico y calibración con stream continuo. |
 | Mix shift | 🟡 | `mix_shift.py` descompone mezcla vs. performance; hay test. | Usarlo como filtro real antes de abrir un incidente. |
 | RCA / evidencia | 🟡 | Candidatos 1D/2D, score, impacto por hora, decline code dominante y controles contrafácticos. | Orquestación automática desde `Anomaly`, distribución de decline codes y separación de residuos. |
-| Tests | 🟡 | 9 tests y consola interactiva; normal/noise, bajo volumen, persistencia, mix shift y `provider × country`. | Casos del brief, tests de integración y suite repetible de evaluación. |
+| Tests | 🟡 | 15 tests: detección + simulador; cubren transacciones válidas, caos oculto/reveal, duración y dos caos activos. | Casos del brief, tests de integración y suite repetible de evaluación. |
 | Investigador OpenAI | ❌ | Contratos preparados. | Tools de solo lectura, `InvestigationStep[]`, Structured Outputs e `IncidentReport`. |
 | API / stream | ❌ | Rutas congeladas en contratos. | FastAPI `engine.main`, SSE y endpoints de incidentes/chaos. |
 | Dashboard / Chaos Console | ❌ | Especificación y mocks. | Next.js, `/chaos`, flujo en vivo, detalle de incidente y reveal. |
@@ -59,14 +59,17 @@ completas.
 **Criterio de aceptación:** un caos manual `provider × country` se detecta y genera el candidato
 correcto con evidencia; un mix shift puro no crea incidente.
 
-### 2. Construir el simulador y la prueba a ciegas
+### 2. Conectar el simulador y completar la prueba a ciegas
 
-- [ ] Crear `simulator/` como productor continuo de `Transaction`.
-- [ ] Mantener historia bootstrap + stream vivo con estacionalidad, ruido y volúmenes realistas.
-- [ ] Implementar `ChaosSpec` manual: dimensiones, severidad, inicio y duración.
-- [ ] Implementar `random_unknown`: selecciona dimensiones al azar y las oculta al equipo.
-- [ ] Implementar reveal de la verdad inyectada al finalizar.
-- [ ] Verificar que un incidente termina al vencer `duration_minutes` y que el detector se recupera.
+- [x] Crear `simulator/` como productor de `Transaction`, con lote y stream infinito.
+- [x] Incluir ruido y variación de hora/día; permitir semillas reproducibles para tests.
+- [x] Implementar `ChaosSpec` manual: dimensiones, severidad, inicio y duración.
+- [x] Implementar `random_unknown`: selecciona un segmento detectable y oculta sus dimensiones.
+- [x] Implementar reveal de la verdad inyectada; `public_spec()` no filtra dimensiones antes de ese paso.
+- [x] Soportar varios ChaosSpec activos, base para dos incidentes simultáneos.
+- [ ] Conectar el stream a API + `DetectionEngine`, con historia bootstrap y ritmo realista.
+- [ ] Verificar que un incidente termina al vencer `duration_minutes` y que el detector se recupera,
+  sin crear un reporte duplicado.
 
 **Criterio de aceptación:** un juez puede cambiar una combinación no ensayada sin editar código;
 el pipeline solo recibe las transacciones, nunca el `ChaosSpec` oculto.
@@ -138,7 +141,7 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
   y datos bootstrap sin tocar el teclado durante el incidente.
 - [ ] **Diagrama de arquitectura en PDF/PNG.** Existe `docs/ARCHITECTURE.md`; falta el artefacto
   visual exportable para repo/deck.
-- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D007.
+- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D009.
 - [ ] **Casos feos manejados explícitamente.** Ruido y bajo volumen están cubiertos; faltan
   incertidumbre, recuperación, mix-shift integrado y doble incidente.
 - [ ] **Trial by fire ensayado.** El REPL es una buena prueba local; falta Chaos Console/API
@@ -169,8 +172,8 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
 ## Orden recomendado de trabajo inmediato
 
 1. Integrar mix shift + orquestador RCA y probarlos contra los casos P1.
-2. Construir simulador continuo + Chaos API para que el trial sea real.
-3. Exponer SSE/incidentes y conectar la UI contra datos reales.
+2. Conectar el simulador existente a Chaos API, SSE y `DetectionEngine` para que el trial sea real.
+3. Conectar la UI contra esos datos reales.
 4. Integrar investigador OpenAI y validación de evidencia.
 5. Terminar doble incidente e `inconclusive`.
 6. Ensayar el flujo completo, preparar diagrama, README final, slides y pitch.
