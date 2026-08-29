@@ -27,9 +27,9 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Contratos compartidos | ✅ | Ocho entidades en `contracts/types.ts` y `contracts/schemas.py`; endpoints definidos. | Fixtures compartidos y validación cruzada TS/Python. |
 | Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`, incluida la recuperacion al vencer el chaos. | -- |
 | Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos; está conectado a `DetectionPipeline` y al runtime API. | -- |
-| Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia, segmentos y calibración con stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
-| Mix shift | 🟡 | `mix_shift.py` descompone mezcla vs. performance; hay test. | Usarlo como filtro real antes de abrir un incidente. |
-| RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y controles contrafácticos. | Separación por residuos y ampliar cobertura RCA si se quieren explicar anomalías 3D. |
+| Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`; defaults calibrados contra stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
+| Mix shift | 🟡 | El pipeline calcula `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una dimensión. | Usarlo como filtro real antes de abrir un incidente; hoy informa, pero no bloquea alertas. |
+| RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y contrafácticos; D011 separa candidatos/evidencia por anomalía concurrente. | Priorización global en UI y casos de cobertura residual más complejos. |
 | Tests | 🟡 | 65 tests: Stream A/B/C, API, caos oculto, simultáneos, recuperación, dedupe, abstención y fallos seguros. | Completar los escenarios P1 que siguen abiertos y la evaluación con OpenAI real. |
 | Investigador OpenAI | 🟡 | Runner determinista y runner OpenAI con tools de solo lectura, Structured Outputs, validadores, fallback, Evidence Auditor y worker que no bloquea SSE; tests con mocks. | Elegir el modo de runtime y hacer el primer smoke real auditado. |
 | API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store y deduplicación; tests API y flujo real. | Conectar el modo OpenAI auditado cuando UI defina cómo muestra el audit. |
@@ -48,7 +48,7 @@ completas.
 - [x] Conectar `DetectionEngine` al mix-shift (`engine/detection/pipeline.py`).
   - Completa `Anomaly.mix_shift_effect_pp` y `performance_effect_pp` automaticamente para anomalias de 1 dimension (ver DECISIONS.md D011 para el caso de 2+ dimensiones / global, que no aplica).
   - Pendiente: usarlo como filtro para NO abrir incidente si el mix-shift explica la caida (hoy solo se informa, no se usa como gate).
-- [x] Orquestador creado en `engine/detection/pipeline.py` (`DetectionPipeline`), no en `engine/rootcause/` -- envuelve `DetectionEngine` y llama a `generate_candidates()` sin tocarlo. `Anomaly + history + ventana -> IncidentCandidate[] + Evidence[]`, expuesto como `WindowResult`/`AnomalyDiagnosis` por ventana.
+- [x] Orquestador creado en `engine/detection/pipeline.py` (`DetectionPipeline`), no en `engine/rootcause/` -- envuelve `DetectionEngine` y llama a `generate_candidates()` sin tocarlo. `Anomaly + history + ventana -> IncidentCandidate[] + Evidence[]`, expuesto como `WindowResult`/`AnomalyDiagnosis` por ventana. D011 filtra candidatos y evidencia para que cada anomalía concurrente reciba solo los propios.
 - [x] `candidates.py` agrega `Evidence(source="decline_code_distribution", ...)` por candidato (que % de los rechazos son del codigo dominante), ademas del campo `dominant_decline_code`.
 - [x] Definir el criterio determinista para `confirmed`, `probable` e `inconclusive`.
 - [x] Calibracion verificada contra un stream continuo real (no la demo sintetica de 2 ventanas): con los defaults de `config.py` sin tocar, un incidente de -35pp se confirma en la ventana 3 de 4. Ver DECISIONS.md D009 (resuelto) y D011.
@@ -124,7 +124,9 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
 - [ ] Caída de issuing bank a través de proveedores.
 - [x] Surge de decline code como evidencia visible.
 - [ ] Mix shift + degradación real: reportar ambos efectos.
-- [x] Dos incidentes simultáneos: separar, rankear y no mezclar evidencia.
+- [ ] Dos incidentes simultáneos: separar, rankear y no mezclar evidencia.
+  - Parcial verificado de punta a punta: API separa los episodios y Stream B no mezcla
+    candidatos/evidencia. Falta definir y mostrar una priorización global en UI.
 - [x] Incidente que termina: recuperación sin incidente duplicado.
 - [x] Evidencia insuficiente: estado `inconclusive` con explicación de qué falta.
 - [ ] Incidente inyectado al azar: coincidencia contra la verdad revelada.
@@ -139,11 +141,11 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
   y datos bootstrap sin tocar el teclado durante el incidente.
 - [ ] **Diagrama de arquitectura en PDF/PNG.** Existe `docs/ARCHITECTURE.md`; falta el artefacto
   visual exportable para repo/deck.
-- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D007.
-- [ ] **Casos feos manejados explícitamente.** Ruido y bajo volumen están cubiertos; faltan
-  incertidumbre, recuperación, mix-shift integrado y doble incidente.
-- [ ] **Trial by fire ensayado.** El REPL es una buena prueba local; falta Chaos Console/API
-  conectada al producto final y una corrida con una combinación no ensayada.
+- [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D017.
+- [ ] **Casos feos manejados explícitamente.** Ruido, bajo volumen, incertidumbre,
+  `inconclusive`, recuperación y doble incidente están cubiertos; falta usar mix-shift como gate.
+- [ ] **Trial by fire ensayado.** La API ya pasó un smoke a ciegas con `random_unknown`; falta
+  conectar la Chaos Console, activar el modo OpenAI auditado y repetir la corrida en el producto.
 - [ ] **Slides públicas + pitch cronometrado.** Crear deck, probar link sin login y ensayar.
 
 ## P3 — Ambiciones, solo después del núcleo
@@ -167,14 +169,24 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
 - [ ] **Suite de evaluación de 100 escenarios.** Métricas reales de detección, FPR, exactitud RCA,
   abstención y latencia; mostrar solo valores medidos.
 
+## Trabajo paralelo después del primer flujo API
+
+No duplicar endpoints ni crear otra consola de caos. Trabajo paralelo útil:
+
+- [x] Publicar el primer flujo FastAPI contra simulador, pipeline e investigador determinista.
+- [x] Implementar el Investigator OpenAI y el Evidence Auditor con tests mockeados.
+- [ ] Conectar dashboard y Chaos Console a los siete endpoints congelados.
+- [ ] Crear el diagrama de arquitectura exportable (PNG/PDF) para la checklist y el deck.
+- [ ] Dejar un runbook de demo: stream sano, inyección, espera de persistencia, RCA, reveal y
+  recuperación usando SSE y los endpoints reales.
+
 ## Orden recomendado de trabajo inmediato
 
-1. Integrar mix shift + orquestador RCA y probarlos contra los casos P1.
-2. Construir simulador continuo + Chaos API para que el trial sea real.
-3. Exponer SSE/incidentes y conectar la UI contra datos reales.
-4. Integrar investigador OpenAI y validación de evidencia.
-5. Terminar doble incidente e `inconclusive`.
-6. Ensayar el flujo completo, preparar diagrama, README final, slides y pitch.
+1. Franco conecta dashboard y Chaos Console a SSE/API, sin lógica estadística en frontend.
+2. Definir cómo muestra la UI el audit y activar Investigator OpenAI + Evidence Auditor en runtime.
+3. Completar mix-shift como gate y la priorización global de incidentes.
+4. Ejecutar un smoke real auditado y repetir el trial a ciegas desde la UI.
+5. Terminar README, runbook, diagrama exportable, slides, deploy y ensayo del pitch.
 
 ## Regla para cortar alcance
 
