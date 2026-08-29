@@ -111,3 +111,38 @@ que pide el master plan para el caso de mayor rca_score.
 Verificado con: `uv run python -m engine.detection.demo` -- mismos rca_score/confianza/perdida
 que antes del cambio (no se toco el scoring), ahora con lineas "contrafactico:" en el candidato
 ganador de 2 dimensiones.
+
+## D006 — Calibrar ewma_lambda en la demo (no en el default de produccion)
+
+Contexto: al mergear "connect configurable detection pipeline" (nueva capa de deteccion con
+DetectionConfig, WindowAggregator, DetectionEngine y suavizado EWMA sobre el residuo), la demo
+end-to-end paso de detectar 5 anomalias a detectar 0 durante el chaos inyectado. Diagnostico:
+con solo 2 ventanas (`persistence_windows=2` que usa demo.py para terminar rapido) y el
+`ewma_lambda` default de 0.3, el promedio suavizado no llega a cruzar `ewma_threshold=-0.05`
+a tiempo -- corriendo mas ventanas seguidas confirma que el mecanismo SI funciona, solo que
+necesita mas ventanas de las que la demo corre para "calentar".
+
+Alternativas:
+1. bajar `ewma_threshold` globalmente en config.py (mas facil de cruzar, pero mas sensible a
+   ruido en produccion real)
+2. subir `ewma_lambda` globalmente en config.py (menos suavizado en TODOS los casos, no solo
+   en la demo)
+3. calibrar `ewma_lambda=0.7` solo en `demo_config` (dentro de demo.py), dejando el default de
+   `config.py` sin tocar para uso real
+
+Decision: 3
+
+Por qué: el problema es especifico de que la demo comprime todo en 2 ventanas sinteticas
+gigantes; en produccion real (`window_seconds=60` via WindowAggregator/DetectionEngine) van a
+pasar muchas mas ventanas antes de que se pida una respuesta, asi que el suavizado con lambda
+bajo tiene sentido y no hace falta tocarlo. Cambiar el default global para arreglar un problema
+de la demo hubiera sido tapar el sintoma en el lugar equivocado.
+
+Riesgo abierto: no verificamos todavia que los defaults de `config.py` (`ewma_lambda=0.3`,
+`ewma_threshold=-0.05`, `persistence_windows=3`) reaccionen razonablemente rapido en una corrida
+real de varios minutos contra un chaos inyectado en vivo (el escenario real de "trial by fire").
+Antes del hackathon habria que probar `DetectionEngine` con un stream continuo de varios minutos
+y confirmar que detecta en un tiempo aceptable, no solo que la demo sintetica pasa.
+
+Verificado con: `uv run python -m engine.detection.demo` -- vuelve a detectar el incidente
+inyectado (provider=nova_pay, country=BR) con el mismo rca_score que antes de este merge.

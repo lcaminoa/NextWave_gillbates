@@ -16,11 +16,10 @@ import uuid
 
 from contracts.schemas import Evidence, IncidentCandidate, Transaction
 from engine.detection.baseline import compute_baseline, dimension_key
+from engine.detection.config import DetectionConfig
 
 SEGMENT_DIMENSIONS = ["provider", "country", "payment_method", "issuing_bank", "merchant"]
-MIN_SEGMENT_VOLUME = 5  # piso minimo, solo para evitar 1-2 transacciones sueltas
 AVG_ORDER_VALUE_FALLBACK = 80.0
-REVENUE_NORMALIZER_USD_PER_HOUR = 5000.0  # a partir de aca el peso de negocio ya satura en 1.0
 
 
 def _decline_rate(transactions: list[Transaction]) -> float:
@@ -62,7 +61,13 @@ def _estimate_revenue_loss_per_hour(
     return round(loss_in_window / hours, 2)
 
 
-def _rca_score(confidence: float, coverage: float, revenue_loss_usd_per_hour: float, n_dims: int) -> float:
+def _rca_score(
+    confidence: float,
+    coverage: float,
+    revenue_loss_usd_per_hour: float,
+    n_dims: int,
+    config: DetectionConfig,
+) -> float:
     """confianza x cobertura x impacto_de_negocio x especificidad (master plan Sec 9.4).
 
     A diferencia de un intento anterior, esto es puramente multiplicativo -- ningun factor
@@ -71,12 +76,14 @@ def _rca_score(confidence: float, coverage: float, revenue_loss_usd_per_hour: fl
     de dos dimensiones es evidencia mas fuerte que cualquiera de los agregados por separado),
     en vez de penalizarla como una "complejidad" a evitar.
     """
-    revenue_weight = min(1.0, revenue_loss_usd_per_hour / REVENUE_NORMALIZER_USD_PER_HOUR)
+    revenue_weight = min(1.0, revenue_loss_usd_per_hour / config.revenue_normalizer_usd_per_hour)
     specificity = 1.0 + 0.15 * (n_dims - 1)
     return round(confidence * coverage * revenue_weight * specificity, 4)
 
 
-def _counterfactual_checks(all_current: list[Transaction], dims: dict) -> list[tuple[str, str]]:
+def _counterfactual_checks(
+    all_current: list[Transaction], dims: dict, config: DetectionConfig,
+) -> list[tuple[str, str]]:
     """Genera un control por cada dimension del candidato (funciona para 1 O MAS dimensiones):
     para cada dimension, mantiene FIJAS las demas dimensiones del candidato y compara contra
     otro valor de esa dimension puntual -- evidencia de que el problema es esa interaccion
@@ -98,7 +105,7 @@ def _counterfactual_checks(all_current: list[Transaction], dims: dict) -> list[t
             continue
         control_value = sorted(other_values)[0]
         control_txns = [t for t in pool if getattr(t, dim_name, None) == control_value]
-        if len(control_txns) < MIN_SEGMENT_VOLUME:
+        if len(control_txns) < config.rca_min_segment_volume:
             continue
         control_rate = 1 - _decline_rate(control_txns)
         fixed_desc = dimension_key(fixed) if fixed else "el resto del trafico"
@@ -116,13 +123,19 @@ def generate_candidates(
     current_window: list[Transaction],
     anomaly_window_minutes: float,
     max_dims: int = 2,
+    config: DetectionConfig | None = None,
 ) -> tuple[list[IncidentCandidate], list[Evidence]]:
     """Busca, entre combinaciones de 1 y 2 dimensiones, cual explica mejor la caida observada
     en `current_window`. Devuelve los candidatos ordenados por rca_score descendente (el
     primero es la mejor hipotesis) y toda la evidencia generada."""
+    config = config or DetectionConfig()
+    max_dims = min(max_dims, config.rca_max_dimensions)
+
     # cuanto "exceso" de rechazos hay en TODA la ventana, comparado contra el baseline global --
     # es el denominador de "cobertura": que fraccion de ese exceso explica cada candidato.
-    global_baseline = compute_baseline(history, {}, current_window[0].timestamp, current_window[-1].timestamp)
+    global_baseline = compute_baseline(
+        history, {}, current_window[0].timestamp, current_window[-1].timestamp, config,
+    )
     total_declined = sum(1 for t in current_window if not t.approved)
     expected_declined = (1 - global_baseline.expected_approval_rate) * len(current_window)
     total_excess = max(1.0, total_declined - expected_declined)
@@ -144,11 +157,13 @@ def generate_candidates(
             for values in itertools.product(*values_per_dim.values()):
                 dims = dict(zip(dims_combo, values))
                 segment_current = [t for t in current_window if _matches(t, dims)]
-                if len(segment_current) < MIN_SEGMENT_VOLUME:
+                if len(segment_current) < config.rca_min_segment_volume:
                     continue
 
                 segment_history = [t for t in history if _matches(t, dims)]
-                baseline = compute_baseline(segment_history, dims, current_window[0].timestamp, current_window[-1].timestamp)
+                baseline = compute_baseline(
+                    segment_history, dims, current_window[0].timestamp, current_window[-1].timestamp, config,
+                )
                 current_decline = _decline_rate(segment_current)
                 baseline_decline = 1 - baseline.expected_approval_rate
                 current_approval = 1 - current_decline
@@ -181,7 +196,7 @@ def generate_candidates(
                 evidence_ids = [ev.evidence_id]
 
                 # un control por cada dimension del candidato (ver docstring de la funcion)
-                counterfactual_checks = _counterfactual_checks(current_window, dims)
+                counterfactual_checks = _counterfactual_checks(current_window, dims, config)
                 counterfactual_texts = []
                 for _dim_name, text in counterfactual_checks:
                     cf_ev = Evidence(
@@ -207,7 +222,7 @@ def generate_candidates(
                     current_decline_rate=round(current_decline, 4),
                     dominant_decline_code=_dominant_decline_code(segment_current),
                     estimated_revenue_loss_usd_per_hour=revenue_loss,
-                    rca_score=_rca_score(confidence, coverage, revenue_loss, n_dims),
+                    rca_score=_rca_score(confidence, coverage, revenue_loss, n_dims, config),
                     evidence_ids=evidence_ids,
                     counterfactual_check=counterfactual,
                 ))
