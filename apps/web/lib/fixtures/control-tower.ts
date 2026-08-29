@@ -1,0 +1,291 @@
+import type {
+  Anomaly,
+  BaselinePoint,
+  Evidence,
+  IncidentCandidate,
+  IncidentReport,
+  InvestigationStep,
+  Transaction,
+} from "@/lib/contracts";
+
+export const baseline: BaselinePoint = {
+  dimension_key: "global",
+  window_start: "2026-08-29T15:40:00.000Z",
+  window_end: "2026-08-29T15:55:00.000Z",
+  expected_approval_rate: 0.938,
+  credible_interval: [0.917, 0.953],
+  volume: 28340,
+};
+
+export const anomalies: Anomaly[] = [
+  {
+    anomaly_id: "anomaly-br-novapay",
+    detected_at: "2026-08-29T15:48:02.000Z",
+    dimension_key: "global",
+    window_start: "2026-08-29T15:43:00.000Z",
+    window_end: "2026-08-29T15:48:00.000Z",
+    observed_approval_rate: 0.624,
+    expected_approval_rate: 0.938,
+    persistence_windows: 4,
+    volume: 1842,
+    severity: "high",
+    mix_shift_effect_pp: -1.2,
+    performance_effect_pp: -30.2,
+  },
+  {
+    anomaly_id: "anomaly-mx-issuer",
+    detected_at: "2026-08-29T15:51:12.000Z",
+    dimension_key: "country=MX|payment_method=card",
+    window_start: "2026-08-29T15:46:00.000Z",
+    window_end: "2026-08-29T15:51:00.000Z",
+    observed_approval_rate: 0.812,
+    expected_approval_rate: 0.925,
+    persistence_windows: 3,
+    volume: 614,
+    severity: "medium",
+    performance_effect_pp: -11.3,
+  },
+];
+
+export const candidates: IncidentCandidate[] = [
+  {
+    candidate_id: "candidate-br-novapay",
+    anomaly_id: "anomaly-br-novapay",
+    dimensions: {
+      provider: "NovaPay",
+      country: "BR",
+      payment_method: "card",
+      issuing_bank: "Itaú",
+      canonical_decline_code: "do_not_honor",
+    },
+    confidence: 0.91,
+    affected_count: 1842,
+    baseline_decline_rate: 0.061,
+    current_decline_rate: 0.376,
+    dominant_decline_code: "do_not_honor",
+    estimated_revenue_loss_usd_per_hour: 11220,
+    rca_score: 0.87,
+    evidence_ids: ["ev-br-baseline", "ev-br-control", "ev-br-declines"],
+    counterfactual_check:
+      "Card approval stayed within baseline for the same issuers on AuroraPay.",
+  },
+  {
+    candidate_id: "candidate-mx-issuer",
+    anomaly_id: "anomaly-mx-issuer",
+    dimensions: {
+      country: "MX",
+      payment_method: "card",
+      issuing_bank: "Banco Azteca",
+      canonical_decline_code: "issuer_unavailable",
+    },
+    confidence: 0.56,
+    affected_count: 614,
+    baseline_decline_rate: 0.075,
+    current_decline_rate: 0.188,
+    dominant_decline_code: "issuer_unavailable",
+    estimated_revenue_loss_usd_per_hour: 2370,
+    rca_score: 0.49,
+    evidence_ids: ["ev-mx-baseline"],
+  },
+];
+
+export const evidence: Evidence[] = [
+  {
+    evidence_id: "ev-br-baseline",
+    source: "baseline_comparison",
+    summary:
+      "Brazil card approval on NovaPay fell from 93.9% expected to 62.4% across four consecutive windows.",
+    value: -0.314,
+    dimension_key: "provider=NovaPay|country=BR|payment_method=card",
+  },
+  {
+    evidence_id: "ev-br-control",
+    source: "counterfactual_provider",
+    summary:
+      "AuroraPay held 94.1% approval for the same Brazil card traffic and issuer mix.",
+    value: 0.941,
+    dimension_key: "provider=AuroraPay|country=BR|payment_method=card",
+  },
+  {
+    evidence_id: "ev-br-declines",
+    source: "decline_code_distribution",
+    summary:
+      "do_not_honor increased to 71% of observed declines, up from 18% in the baseline.",
+    value: 0.71,
+    dimension_key: "provider=NovaPay|country=BR|canonical_decline_code=do_not_honor",
+  },
+  {
+    evidence_id: "ev-mx-baseline",
+    source: "baseline_comparison",
+    summary:
+      "Mexico card approval is 11.3 pp below the expected range; issuer and provider explanations remain close.",
+    value: -0.113,
+    dimension_key: "country=MX|payment_method=card",
+  },
+];
+
+export const investigationSteps: InvestigationStep[] = [
+  {
+    step_id: "step-1",
+    candidate_id: "anomaly-br-novapay",
+    timestamp: "2026-08-29T15:48:12.000Z",
+    action: "compare_approval_by_country()",
+    result_summary: "Brazil accounts for 78% of the global approval-rate delta.",
+  },
+  {
+    step_id: "step-2",
+    candidate_id: "candidate-br-novapay",
+    timestamp: "2026-08-29T15:48:35.000Z",
+    action: "compare_providers(country=BR, payment_method=card)",
+    result_summary: "NovaPay degraded while the counterfactual provider remained healthy.",
+  },
+  {
+    step_id: "step-3",
+    candidate_id: "candidate-br-novapay",
+    timestamp: "2026-08-29T15:49:08.000Z",
+    action: "inspect_decline_codes(provider=NovaPay, country=BR)",
+    result_summary: "do_not_honor is the dominant new decline pattern.",
+  },
+  {
+    step_id: "step-4",
+    candidate_id: "candidate-mx-issuer",
+    timestamp: "2026-08-29T15:51:30.000Z",
+    action: "compare_issuer_segments(country=MX)",
+    result_summary: "Mexico is under review; evidence has not isolated a single cause.",
+  },
+];
+
+export const reports: IncidentReport[] = [
+  {
+    incident_id: "incident-br-novapay",
+    anomaly_id: "anomaly-br-novapay",
+    generated_at: "2026-08-29T15:49:18.000Z",
+    status: "probable",
+    winning_candidate_id: "candidate-br-novapay",
+    summary:
+      "Brazil card approvals degraded on NovaPay while a provider control with the same issuer mix stayed healthy.",
+    claims: [
+      {
+        claim:
+          "NovaPay × Brazil × Card × Itaú is the best-supported explanation for the sustained drop.",
+        evidence_ids: ["ev-br-baseline", "ev-br-control", "ev-br-declines"],
+        confidence: 0.91,
+      },
+    ],
+    estimated_revenue_loss_usd: 11220,
+    recommended_action:
+      "Ask NovaPay to investigate the Brazil card decline-code spike and validate an issuer-side response with Itaú.",
+    requires_human_review: true,
+    investigation_steps: ["step-1", "step-2", "step-3"],
+  },
+  {
+    incident_id: "incident-mx-review",
+    anomaly_id: "anomaly-mx-issuer",
+    generated_at: "2026-08-29T15:51:42.000Z",
+    status: "inconclusive",
+    summary:
+      "Mexico card approval is below baseline, but issuer-side and provider-country hypotheses remain too close to assert a cause.",
+    claims: [
+      {
+        claim: "The drop is sustained but no single cause has reached the evidence threshold.",
+        evidence_ids: ["ev-mx-baseline"],
+        confidence: 0.56,
+      },
+    ],
+    estimated_revenue_loss_usd: 2370,
+    recommended_action:
+      "Review issuer availability with Banco Azteca and compare the same cohort across providers before changing traffic.",
+    requires_human_review: true,
+    investigation_steps: ["step-4"],
+  },
+];
+
+export const transactions: Transaction[] = [
+  {
+    transaction_id: "txn-1842",
+    timestamp: "2026-08-29T15:52:18.000Z",
+    merchant: "Marea",
+    provider: "NovaPay",
+    payment_method: "card",
+    country: "BR",
+    issuing_bank: "Itaú",
+    approved: false,
+    amount: 89.2,
+    currency: "USD",
+    raw_provider_code: "05",
+    raw_provider_message: "DO NOT HONOR",
+    canonical_decline_code: "do_not_honor",
+    latency_ms: 481,
+  },
+  {
+    transaction_id: "txn-1843",
+    timestamp: "2026-08-29T15:52:20.000Z",
+    merchant: "Marea",
+    provider: "AuroraPay",
+    payment_method: "card",
+    country: "BR",
+    issuing_bank: "Itaú",
+    approved: true,
+    amount: 64.5,
+    currency: "USD",
+    latency_ms: 261,
+  },
+  {
+    transaction_id: "txn-1844",
+    timestamp: "2026-08-29T15:52:22.000Z",
+    merchant: "Tienda Sol",
+    provider: "NovaPay",
+    payment_method: "card",
+    country: "BR",
+    issuing_bank: "Bradesco",
+    approved: false,
+    amount: 212.0,
+    currency: "USD",
+    raw_provider_code: "05",
+    raw_provider_message: "DO NOT HONOR",
+    canonical_decline_code: "do_not_honor",
+    latency_ms: 492,
+  },
+  {
+    transaction_id: "txn-1845",
+    timestamp: "2026-08-29T15:52:25.000Z",
+    merchant: "Mercado Norte",
+    provider: "Orbito",
+    payment_method: "pix",
+    country: "BR",
+    issuing_bank: "Banco do Brasil",
+    approved: true,
+    amount: 35.7,
+    currency: "USD",
+    latency_ms: 183,
+  },
+  {
+    transaction_id: "txn-1846",
+    timestamp: "2026-08-29T15:52:28.000Z",
+    merchant: "Casa Verde",
+    provider: "NovaPay",
+    payment_method: "card",
+    country: "MX",
+    issuing_bank: "Banco Azteca",
+    approved: false,
+    amount: 46.4,
+    currency: "USD",
+    raw_provider_code: "91",
+    raw_provider_message: "ISSUER UNAVAILABLE",
+    canonical_decline_code: "issuer_unavailable",
+    latency_ms: 511,
+  },
+  {
+    transaction_id: "txn-1847",
+    timestamp: "2026-08-29T15:52:30.000Z",
+    merchant: "Altura",
+    provider: "AuroraPay",
+    payment_method: "wallet",
+    country: "AR",
+    issuing_bank: "Galicia",
+    approved: true,
+    amount: 120.0,
+    currency: "USD",
+    latency_ms: 148,
+  },
+];

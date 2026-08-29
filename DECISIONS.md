@@ -68,4 +68,26 @@ absoluto quede opacado por uno mas grande pero menos preciso -- exactamente el t
 negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer. La opcion 2
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
+## D004 — Geografía de impacto como globo 3D orientado a evidencia
+
+Alternativas:
+1. omitir geografía del Control Tower
+2. usar un mapa 2D estático
+3. usar un globo 3D interactivo, limitado a países que ya cuentan con evidencia del incidente
+
+Decisión: 3
+
+Por qué:
+- el alcance internacional de los pagos se entiende de un vistazo y aporta una señal de producto
+  útil durante la demo
+- el país es una dimensión ya definida en Evidence, IncidentCandidate y Transaction; el globo
+  no requiere campos ni endpoints nuevos
+- drag y zoom permiten inspección, pero los marcadores enlazan siempre a una investigación
+  existente y no reemplazan la evidencia citable
+- en random_unknown no se alimenta el globo con ground truth ni se muestran dimensiones antes
+  de que el backend confirme el reveal
+
+Tradeoff: suma una dependencia visual y carga de render. Se mantiene secundario frente al
+approval chart, las incident cards y el timeline, sin arcos decorativos ni telemetría inventada.
+
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
