@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from contracts.schemas import Claim, ReportStatus
+from contracts.schemas import Claim, Dimensions, Evidence, IncidentCandidate, ReportStatus
 from engine.investigator.mock_data import (
     ambiguous_provider_issuer_case,
     clear_provider_country_case,
@@ -27,6 +27,76 @@ def test_clear_case_produces_confirmed_evidence_backed_report() -> None:
     assert result.report.claims
     assert len(result.steps) >= 5
     assert set(result.report.claims[0].evidence_ids) <= result.consulted_evidence_ids
+
+
+def test_more_specific_candidate_requires_incremental_evidence() -> None:
+    evidence = (
+        Evidence(
+            evidence_id="ev_merchant",
+            source="baseline_comparison",
+            summary="Comercio2: rechazo subio de 10% a 48%.",
+            value=0.38,
+            dimension_key="merchant=Comercio2",
+        ),
+        Evidence(
+            evidence_id="ev_merchant_stripe",
+            source="baseline_comparison",
+            summary="Comercio2 con stripe: rechazo subio de 10% a 49%.",
+            value=0.39,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+        Evidence(
+            evidence_id="ev_provider_control",
+            source="counterfactual_provider",
+            summary="Otro provider del merchant mantiene un desempeno comparable.",
+            value=0.50,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+    )
+    candidates = (
+        IncidentCandidate(
+            candidate_id="cand_merchant_stripe",
+            anomaly_id="anom_merchant",
+            dimensions=Dimensions(merchant="Comercio2", provider="stripe"),
+            confidence=0.94,
+            affected_count=100,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.49,
+            estimated_revenue_loss_usd_per_hour=12_500,
+            rca_score=0.95,
+            evidence_ids=["ev_merchant_stripe", "ev_provider_control"],
+            counterfactual_check="Se compararon providers dentro del merchant.",
+        ),
+        IncidentCandidate(
+            candidate_id="cand_merchant",
+            anomaly_id="anom_merchant",
+            dimensions=Dimensions(merchant="Comercio2"),
+            confidence=0.91,
+            affected_count=210,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.48,
+            estimated_revenue_loss_usd_per_hour=12_000,
+            rca_score=0.80,
+            evidence_ids=["ev_merchant"],
+        ),
+    )
+
+    result = run_investigation("anom_merchant", candidates, evidence)
+
+    assert result.report.status in {ReportStatus.confirmed, ReportStatus.probable}
+    assert result.report.winning_candidate_id == "cand_merchant"
+    assert "provider=stripe" not in result.report.summary
+
+
+def test_true_two_dimension_incident_remains_publishable() -> None:
+    case = clear_provider_country_case()
+
+    result = run_investigation(case.anomaly_id, case.candidates, case.evidence)
+
+    assert result.report.winning_candidate_id == "cand_novapay_br"
+    assert {"ev_clear_control", "ev_clear_country_control"} <= (
+        result.consulted_evidence_ids
+    )
 
 
 def test_ambiguous_case_abstains_without_winner() -> None:
@@ -71,13 +141,20 @@ def test_validator_rejects_evidence_that_was_not_consulted() -> None:
     case = clear_provider_country_case()
     result = run_investigation(case.anomaly_id, case.candidates, case.evidence)
     invalid_report = result.report.model_copy(deep=True)
-    invalid_report.claims[0].evidence_ids = ["ev_country_baseline"]
+    unconsulted = Evidence(
+        evidence_id="ev_unconsulted",
+        source="baseline_comparison",
+        summary="Evidencia valida que ninguna candidata consultada referencia.",
+        value=0.01,
+        dimension_key="provider=nova_pay",
+    )
+    invalid_report.claims[0].evidence_ids = [unconsulted.evidence_id]
 
     with pytest.raises(ReportValidationError, match="not consulted"):
         validate_report(
             invalid_report,
             candidates=case.candidates,
-            evidence=case.evidence,
+            evidence=(*case.evidence, unconsulted),
             steps=result.steps,
             consulted_evidence_ids=result.consulted_evidence_ids,
         )

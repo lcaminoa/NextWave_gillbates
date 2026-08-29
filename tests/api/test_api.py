@@ -21,7 +21,13 @@ from contracts.schemas import (
 )
 from engine.api.runtime import ControlTowerService
 from engine.detection.pipeline import AnomalyDiagnosis, DetectionPipeline, WindowResult
-from engine.investigator import run_investigation
+from engine.investigator import (
+    AuditedInvestigationResult,
+    AuditIssue,
+    EvidenceAudit,
+    EvidenceAuditError,
+    run_investigation,
+)
 from engine.investigator.runner import InvestigationResult
 from engine.main import create_app
 from simulator import PaymentSimulator
@@ -179,6 +185,21 @@ def test_health_and_frozen_routes_are_exposed() -> None:
         "/api/chaos/random",
         "/api/chaos/reveal",
     } <= set(schema["paths"])
+
+
+def test_audited_openai_mode_is_explicit_and_requires_a_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    with pytest.raises(RuntimeError, match="requires OPENAI_MODEL"):
+        create_app(start_background=False)
+
+    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    app = create_app(start_background=False)
+
+    assert app.state.control_tower.audited_investigator is not None
 
 
 def test_random_chaos_is_opaque_until_reveal() -> None:
@@ -674,6 +695,156 @@ def test_transient_investigator_failure_is_retried_without_duplicate_report() ->
     assert calls == ["anom_retry_1", "anom_retry_2"]
     assert recovered.anomaly_id == "anom_retry_2"
     assert recovered.status is ReportStatus.confirmed
+
+
+def test_audited_runtime_rejection_fails_closed_and_retries_without_duplicate() -> None:
+    first = _diagnosis(
+        "audit_retry_1",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    second = _diagnosis(
+        "audit_retry_2",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    calls: list[str] = []
+
+    def audited_investigator(anomaly, candidates, evidence):
+        calls.append(anomaly.anomaly_id)
+        investigation = run_investigation(
+            anomaly.anomaly_id,
+            tuple(candidates),
+            tuple(evidence),
+        )
+        if len(calls) == 1:
+            audit = EvidenceAudit(
+                approved=False,
+                summary="La especificidad no esta suficientemente respaldada.",
+                issues=[
+                    AuditIssue(
+                        code="missing_counterfactual",
+                        message="Falta aislar una dimension adicional.",
+                    )
+                ],
+            )
+        else:
+            audit = EvidenceAudit(
+                approved=True,
+                summary="El reporte puede publicarse.",
+                issues=[],
+            )
+        return AuditedInvestigationResult(investigation=investigation, audit=audit)
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(first), _window(second)]),
+        audited_investigator=audited_investigator,
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction(0))
+    [fallback] = service.list_reports()
+    assert fallback.status is ReportStatus.inconclusive
+    assert fallback.winning_candidate_id is None
+
+    service.process_transaction(_transaction(1))
+    [recovered] = service.list_reports()
+    assert calls == ["anom_audit_retry_1", "anom_audit_retry_2"]
+    assert recovered.anomaly_id == "anom_audit_retry_2"
+    assert recovered.status is ReportStatus.confirmed
+
+
+def test_audited_runtime_error_never_publishes_an_unaudited_winner() -> None:
+    diagnosis = _diagnosis(
+        "audit_failure",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+
+    def failing_auditor(anomaly, candidates, evidence):
+        raise EvidenceAuditError("synthetic audit failure")
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        audited_investigator=failing_auditor,
+        start_at=START,
+    )
+    service.process_transaction(_transaction())
+
+    [report] = service.list_reports()
+    assert report.status is ReportStatus.inconclusive
+    assert report.winning_candidate_id is None
+    assert report.claims == []
+
+
+def test_api_runtime_does_not_publish_an_unproven_extra_dimension() -> None:
+    base = _diagnosis(
+        "merchant_specificity",
+        dimensions=Dimensions(merchant="Comercio2"),
+        dimension_key="merchant=Comercio2",
+    )
+    simple = base.candidates[0].model_copy(
+        update={
+            "candidate_id": "cand_merchant",
+            "dimensions": Dimensions(merchant="Comercio2"),
+            "confidence": 0.91,
+            "current_decline_rate": 0.48,
+            "rca_score": 0.80,
+            "evidence_ids": ["ev_merchant"],
+        }
+    )
+    specific = base.candidates[0].model_copy(
+        update={
+            "candidate_id": "cand_merchant_stripe",
+            "dimensions": Dimensions(merchant="Comercio2", provider="stripe"),
+            "confidence": 0.94,
+            "current_decline_rate": 0.49,
+            "rca_score": 0.95,
+            "evidence_ids": ["ev_merchant_stripe", "ev_provider_control"],
+            "counterfactual_check": "Se compararon providers dentro del merchant.",
+        }
+    )
+    evidence = [
+        Evidence(
+            evidence_id="ev_merchant",
+            source="baseline_comparison",
+            summary="Comercio2: rechazo subio de 10% a 48%.",
+            value=0.38,
+            dimension_key="merchant=Comercio2",
+        ),
+        Evidence(
+            evidence_id="ev_merchant_stripe",
+            source="baseline_comparison",
+            summary="Comercio2 con stripe: rechazo subio de 10% a 49%.",
+            value=0.39,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+        Evidence(
+            evidence_id="ev_provider_control",
+            source="counterfactual_provider",
+            summary="Otro provider del merchant tiene un desempeno comparable.",
+            value=0.50,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+    ]
+    diagnosis = AnomalyDiagnosis(
+        anomaly=base.anomaly,
+        candidates=[specific, simple],
+        evidence=evidence,
+    )
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction())
+
+    [report] = service.list_reports()
+    assert report.winning_candidate_id == "cand_merchant"
+    assert "provider=stripe" not in report.summary
 
 
 def test_invalid_investigator_output_fails_closed_before_publication() -> None:

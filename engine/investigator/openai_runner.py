@@ -27,6 +27,10 @@ from engine.investigator.runner import (
     MIN_WINNER_MARGIN,
     InvestigationResult,
 )
+from engine.investigator.specificity import (
+    filter_specificity_supported_candidates,
+    maximal_simpler_candidates,
+)
 from engine.investigator.tools import ReadOnlyInvestigationTools
 from engine.investigator.validation import ReportValidationError, validate_report
 
@@ -197,6 +201,12 @@ No afirmes que el problema esta "aislado", que una causa es "exclusiva" o que "s
 dimension salvo que hayas consultado controles contrafactuales suficientes y no exista evidencia
 rival que contradiga esa conclusion.
 
+Si una candidata agrega dimensiones respecto de una hipotesis mas simple disponible, no alcanza
+con que tenga mayor score. Para publicar la interseccion, debe mostrar una diferencia incremental
+material y controles contrafactuales para cada dimension agregada. Consulta la evidencia de las
+alternativas simples; si la especificidad adicional no queda demostrada, elegi la hipotesis simple
+o devolve inconclusive.
+
 Si una parte del resumen o de la recomendacion depende de un dato, ese dato tambien debe estar
 respaldado por la evidencia consultada.
 
@@ -334,7 +344,7 @@ def _validate_decision_policy(
 def _validate_tool_workflow(
     draft: AgentReportDraft,
     tools: ReadOnlyInvestigationTools,
-    candidate_count: int,
+    candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
 ) -> None:
     calls = tools.call_records
     names = [call.name for call in calls]
@@ -353,8 +363,41 @@ def _validate_tool_workflow(
         raise ReportValidationError("agent selected a winner without consulting its evidence")
     if not called_for("get_financial_impact", draft.winning_candidate_id):
         raise ReportValidationError("agent selected a winner without consulting its impact")
-    if candidate_count > 1 and "compare_top_candidates" not in names:
+    if len(candidates) > 1 and "compare_top_candidates" not in names:
         raise ReportValidationError("agent selected a winner without comparing candidates")
+
+    winner = next(
+        candidate
+        for candidate in candidates
+        if candidate.candidate_id == draft.winning_candidate_id
+    )
+    required_reviews = list(maximal_simpler_candidates(winner, candidates))
+    top_competitor = next(
+        (
+            candidate
+            for candidate in sorted(
+                candidates,
+                key=lambda item: item.rca_score,
+                reverse=True,
+            )
+            if candidate.candidate_id != winner.candidate_id
+        ),
+        None,
+    )
+    if top_competitor is not None and top_competitor.candidate_id not in {
+        candidate.candidate_id for candidate in required_reviews
+    }:
+        required_reviews.append(top_competitor)
+    missing_reviews = [
+        candidate.candidate_id
+        for candidate in required_reviews
+        if not called_for("get_candidate_evidence", candidate.candidate_id)
+    ]
+    if missing_reviews:
+        raise ReportValidationError(
+            "agent selected a winner without consulting required alternatives: "
+            + ", ".join(missing_reviews)
+        )
 
 
 def _build_report(
@@ -449,7 +492,8 @@ def run_openai_investigation(
 
         client = OpenAI()
 
-    read_tools = ReadOnlyInvestigationTools(anomaly_id, candidates, evidence)
+    eligible_candidates = filter_specificity_supported_candidates(candidates, evidence)
+    read_tools = ReadOnlyInvestigationTools(anomaly_id, eligible_candidates, evidence)
     steps: list[InvestigationStep] = []
     input_items: list[Any] = [
         {
@@ -553,9 +597,9 @@ def run_openai_investigation(
         if draft is None:
             raise RuntimeError("model did not produce a parsed incident report")
 
-        _validate_tool_workflow(draft, read_tools, len(candidates))
+        _validate_tool_workflow(draft, read_tools, eligible_candidates)
         try:
-            report = _build_report(anomaly_id, draft, candidates, steps)
+            report = _build_report(anomaly_id, draft, eligible_candidates, steps)
             validate_report(
                 report,
                 candidates=candidates,

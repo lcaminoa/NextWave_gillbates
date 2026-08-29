@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 import engine.investigator.openai_runner as openai_runner
-from contracts.schemas import ReportStatus
+from contracts.schemas import Evidence, ReportStatus
 from engine.investigator.mock_data import clear_provider_country_case
 from engine.investigator.openai_runner import (
     AgentClaimDraft,
@@ -61,9 +61,10 @@ def _successful_calls() -> list[FakeCall]:
         _call(1, "rank_candidates", limit=5),
         _call(2, "get_candidate_evidence", candidate_id="cand_novapay_br"),
         _call(3, "get_candidate_evidence", candidate_id="cand_novapay"),
-        _call(4, "compare_top_candidates"),
-        _call(5, "get_financial_impact", candidate_id="cand_novapay_br"),
-        _call(6, "finish_investigation"),
+        _call(4, "get_candidate_evidence", candidate_id="cand_br"),
+        _call(5, "compare_top_candidates"),
+        _call(6, "get_financial_impact", candidate_id="cand_novapay_br"),
+        _call(7, "finish_investigation"),
     ]
 
 
@@ -105,7 +106,7 @@ def test_openai_runner_uses_tools_then_validates_structured_report() -> None:
     assert report_loss_per_hour(result.report) == 11220.0
     assert result.consulted_evidence_ids >= {"ev_clear_baseline", "ev_clear_control"}
     assert result.report.investigation_steps == [step.step_id for step in result.steps]
-    assert len(responses.create_requests) == 6
+    assert len(responses.create_requests) == 7
     assert len(responses.parse_requests) == 1
     assert all(request["store"] is False for request in responses.create_requests)
     assert responses.parse_requests[0]["text_format"] is AgentReportDraft
@@ -113,11 +114,18 @@ def test_openai_runner_uses_tools_then_validates_structured_report() -> None:
 
 def test_openai_runner_rejects_structured_claim_with_unconsulted_evidence() -> None:
     case = clear_provider_country_case()
+    unconsulted = Evidence(
+        evidence_id="ev_unconsulted",
+        source="baseline_comparison",
+        summary="Evidencia valida que ninguna candidata consultada referencia.",
+        value=0.01,
+        dimension_key="provider=nova_pay",
+    )
     responses = FakeResponses(
         _successful_calls(),
         [
-            _confirmed_draft(["ev_country_baseline"]),
-            _confirmed_draft(["ev_country_baseline"]),
+            _confirmed_draft([unconsulted.evidence_id]),
+            _confirmed_draft([unconsulted.evidence_id]),
         ],
     )
 
@@ -125,7 +133,7 @@ def test_openai_runner_rejects_structured_claim_with_unconsulted_evidence() -> N
         run_openai_investigation(
             case.anomaly_id,
             case.candidates,
-            case.evidence,
+            (*case.evidence, unconsulted),
             model="test-model",
             client=SimpleNamespace(responses=responses),
         )
@@ -165,6 +173,31 @@ def test_openai_runner_rejects_finishing_without_an_investigation() -> None:
     )
 
     with pytest.raises(ReportValidationError, match="without ranking candidates"):
+        run_openai_investigation(
+            case.anomaly_id,
+            case.candidates,
+            case.evidence,
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+        )
+
+
+def test_openai_runner_requires_simpler_alternatives_for_specific_winner() -> None:
+    case = clear_provider_country_case()
+    calls_without_country_control = [
+        _call(1, "rank_candidates", limit=5),
+        _call(2, "get_candidate_evidence", candidate_id="cand_novapay_br"),
+        _call(3, "get_candidate_evidence", candidate_id="cand_novapay"),
+        _call(4, "compare_top_candidates"),
+        _call(5, "get_financial_impact", candidate_id="cand_novapay_br"),
+        _call(6, "finish_investigation"),
+    ]
+    responses = FakeResponses(
+        calls_without_country_control,
+        _confirmed_draft(["ev_clear_baseline", "ev_clear_control"]),
+    )
+
+    with pytest.raises(ReportValidationError, match="cand_br"):
         run_openai_investigation(
             case.anomaly_id,
             case.candidates,

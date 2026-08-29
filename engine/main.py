@@ -19,6 +19,33 @@ from engine.api import (
     IncidentDetail,
 )
 from engine.api.models import HealthResponse
+from engine.investigator import run_audited_openai_investigation
+
+
+def _runtime_from_environment() -> ControlTowerService:
+    mode = os.getenv("CONTROL_TOWER_INVESTIGATOR_MODE", "deterministic").strip().lower()
+    if mode == "deterministic":
+        return ControlTowerService()
+    if mode != "audited_openai":
+        raise RuntimeError(
+            "CONTROL_TOWER_INVESTIGATOR_MODE must be deterministic or audited_openai"
+        )
+
+    model = os.getenv("OPENAI_MODEL", "").strip()
+    if not model:
+        raise RuntimeError("audited_openai mode requires OPENAI_MODEL")
+    auditor_model = os.getenv("OPENAI_AUDITOR_MODEL", "").strip() or model
+
+    def audited_investigator(anomaly, candidates, evidence):
+        return run_audited_openai_investigation(
+            anomaly,
+            tuple(candidates),
+            tuple(evidence),
+            model=model,
+            auditor_model=auditor_model,
+        )
+
+    return ControlTowerService(audited_investigator=audited_investigator)
 
 
 def _sse_transaction(transaction_json: str, transaction_id: str) -> str:
@@ -32,7 +59,7 @@ def create_app(
     judge_token: str | None = None,
     public_mode: bool | None = None,
 ) -> FastAPI:
-    runtime = service or ControlTowerService()
+    runtime = service or _runtime_from_environment()
     configured_token = judge_token if judge_token is not None else os.getenv(
         "CONTROL_TOWER_JUDGE_TOKEN"
     )

@@ -460,3 +460,37 @@ cruzados, dos diagnosticos simultaneos, ambiguedad entre episodios activos y fal
 corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> investigador ->
 endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
 muchos sintomas publicables, queda en un reporte.
+
+## D018 — Auditor como gate y evidencia incremental para publicar causas especificas
+
+Contexto: en un smoke a ciegas, un caos real de `merchant=Comercio2` termino explicado como
+`merchant=Comercio2|provider=stripe`. El merchant era correcto, pero el reporte agrego una
+dimension que no mejoraba materialmente la explicacion simple. Ademas, D015 habia dejado al
+Evidence Auditor disponible como runner separado, pero todavia no era una compuerta del runtime.
+
+Alternativas:
+1. conservar el ranking y el Auditor como utilidades independientes;
+2. darle al Auditor transacciones crudas o la verdad secreta del `ChaosSpec` para decidir;
+3. filtrar intersecciones no demostradas y, en modo OpenAI auditado, exigir aprobacion sobre un
+   paquete acotado de anomalía, candidatos relevantes, evidencia consultada, reporte y pasos.
+
+Decision: 3. Si una candidata agrega dimensiones frente a una explicacion propia mas simple,
+debe mejorar su `current_decline_rate` por al menos 8 puntos porcentuales y tener un control
+`counterfactual_<dimension>` citable y consultado para cada dimension agregada. Si no cumple, no
+participa como posible ganadora; la investigacion elige la alternativa simple o se abstiene. El
+validador de publicacion repite la regla para que un runner inyectado tampoco pueda saltearla.
+
+El modo `audited_openai` ejecuta Investigator -> validacion determinista -> Evidence Auditor ->
+publicacion. Un rechazo, una salida invalida o una falla de la llamada produce un reporte local
+`inconclusive`, conserva revision humana y deja el episodio habilitado para retry sin duplicarlo.
+El modo deterministico sigue siendo el default y no realiza llamadas externas.
+
+El paquete del Auditor contiene la `Anomaly`, ganador, alternativas propias mas simples y principal
+competidora con `confidence`, `rca_score`, impacto, `evidence_ids` y `counterfactual_check`; la
+evidencia sigue limitada a IDs efectivamente consultados. Nunca recibe `ChaosSpec`, dimensiones
+secretas del random, transacciones crudas, tools ni capacidad de modificar el reporte.
+
+Tradeoff: el umbral de 8 pp privilegia evitar una explicacion vistosa pero falsa y puede volver
+`inconclusive` un incidente real con poco volumen. Para la prueba a ciegas es preferible
+sub-atribuir; el valor queda centralizado y puede recalibrarse con escenarios reproducibles sin
+cambiar contratos.

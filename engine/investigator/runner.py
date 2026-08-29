@@ -18,6 +18,10 @@ from contracts.schemas import (
     InvestigationStep,
     ReportStatus,
 )
+from engine.investigator.specificity import (
+    filter_specificity_supported_candidates,
+    maximal_simpler_candidates,
+)
 from engine.investigator.tools import ReadOnlyInvestigationTools, ToolCallRecord
 from engine.investigator.validation import validate_report
 
@@ -72,7 +76,8 @@ def run_investigation(
     evidence: list[Evidence] | tuple[Evidence, ...],
 ) -> InvestigationResult:
     """Run a deterministic, auditable investigation and return a validated report."""
-    tools = ReadOnlyInvestigationTools(anomaly_id, candidates, evidence)
+    eligible_candidates = filter_specificity_supported_candidates(candidates, evidence)
+    tools = ReadOnlyInvestigationTools(anomaly_id, eligible_candidates, evidence)
     steps: list[InvestigationStep] = []
 
     ranked = tools.rank_candidates(limit=5)
@@ -143,18 +148,39 @@ def run_investigation(
         )
     )
 
-    alternative_evidence: list[dict[str, Any]] = []
+    eligible_by_id = {
+        candidate.candidate_id: candidate for candidate in eligible_candidates
+    }
+    top_candidate = eligible_by_id[top_id]
+    alternative_candidates = list(
+        maximal_simpler_candidates(top_candidate, eligible_candidates)
+    )
     if len(ranked) > 1:
-        alternative_id = str(ranked[1]["candidate_id"])
-        alternative_evidence = tools.get_candidate_evidence(alternative_id)
+        runner_up = eligible_by_id[str(ranked[1]["candidate_id"])]
+        if runner_up.candidate_id not in {
+            candidate.candidate_id for candidate in alternative_candidates
+        }:
+            alternative_candidates.append(runner_up)
+
+    alternative_evidence: list[dict[str, Any]] = []
+    primary_alternative_data: dict[str, Any] | None = None
+    primary_alternative_evidence: list[dict[str, Any]] = []
+    for alternative in alternative_candidates:
+        alternative_id = alternative.candidate_id
+        current_evidence = tools.get_candidate_evidence(alternative_id)
+        alternative_evidence.extend(current_evidence)
+        alternative_data = alternative.model_dump(mode="json")
+        if primary_alternative_data is None:
+            primary_alternative_data = alternative_data
+            primary_alternative_evidence = current_evidence
         steps.append(
             _step(
                 anomaly_id,
                 len(steps) + 1,
                 f"get_candidate_evidence(candidate_id={alternative_id})",
                 (
-                    f"Se reviso la alternativa {_dimensions_text(ranked[1])} con "
-                    f"{len(alternative_evidence)} evidencias."
+                    f"Se reviso la alternativa {_dimensions_text(alternative_data)} con "
+                    f"{len(current_evidence)} evidencias."
                 ),
                 alternative_id,
             )
@@ -254,15 +280,18 @@ def run_investigation(
                     confidence=round(top_confidence, 4),
                 )
             )
-        if len(ranked) > 1 and alternative_evidence:
+        if primary_alternative_data is not None and primary_alternative_evidence:
             claims.append(
                 Claim(
                     claim=(
-                        f"La explicacion mas general {_dimensions_text(ranked[1])} queda por "
-                        "debajo de la interseccion principal."
+                        f"La alternativa {_dimensions_text(primary_alternative_data)} queda "
+                        "por debajo de la hipotesis principal."
                     ),
                     evidence_ids=(
-                        [_evidence_ids(top_evidence)[0], _evidence_ids(alternative_evidence)[0]]
+                        [
+                            _evidence_ids(top_evidence)[0],
+                            _evidence_ids(primary_alternative_evidence)[0],
+                        ]
                     ),
                     confidence=round(top_confidence, 4),
                 )
