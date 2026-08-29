@@ -8,7 +8,7 @@ from engine.investigator.mock_data import (
     clear_provider_country_case,
     no_candidate_case,
 )
-from engine.investigator.runner import run_investigation
+from engine.investigator.runner import report_loss_per_hour, run_investigation
 from engine.investigator.tools import (
     ReadOnlyInvestigationTools,
     ToolBudgetExceeded,
@@ -46,7 +46,7 @@ def test_no_candidate_case_is_inconclusive_without_fabricating_claims() -> None:
     assert result.report.status == ReportStatus.inconclusive
     assert result.report.winning_candidate_id is None
     assert result.report.claims == []
-    assert result.report.estimated_revenue_loss_usd == 0.0
+    assert report_loss_per_hour(result.report) == 0.0
 
 
 def test_validator_rejects_unknown_evidence() -> None:

@@ -88,3 +88,23 @@ Por qué:
 
 Tradeoff: el runner inicial usa una politica simple por confianza y margen; sirve como harness y
 fallback, pero no reemplaza la exploracion adaptativa del futuro investigador OpenAI.
+
+## D005 — Un solo investigador con tools directas y Structured Outputs
+
+Alternativas:
+1. un enjambre de agentes especializados
+2. un investigador con Responses API, tools de solo lectura y salida estructurada
+3. Programmatic Tool Calling desde la primera version
+
+Decision: 2
+
+Por qué:
+- cada consulta puede cambiar el siguiente paso, y los resultados intermedios son chicos
+- mantiene una sola superficie de tools acotada, auditable y sin efectos secundarios
+- Pydantic/Structured Outputs controla la forma; la validacion local controla evidencia,
+  umbrales, impacto financiero y revision humana
+- permite comparar mas adelante tools directas contra Programmatic Tool Calling con los mismos
+  casos de evaluacion, sin agregar complejidad antes de demostrar una mejora
+
+Tradeoff: requiere varias vueltas de API por investigacion. Se limita a 8 tools y 10 turnos de
+modelo; el runner determinista queda disponible como fallback para la demo.
