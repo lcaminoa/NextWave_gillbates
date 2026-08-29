@@ -1,0 +1,15 @@
+[project]
+name = "control-tower"
+version = "0.1.0"
+description = "NextWave Hackathon 2026 - Control Tower (Challenge 2, Yuno)"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.6",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[tool.uv]
+package = false

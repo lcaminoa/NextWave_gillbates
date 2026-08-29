@@ -44,3 +44,28 @@ Por qué:
 
 Tradeoff: son más entidades para mantener sincronizadas entre `types.ts` y `schemas.py`, pero el
 mapeo streams -> entidades queda más limpio (cada Stream B/C produce exactamente lo que le toca).
+
+## D003 — Formula de rca_score: multiplicativa, no con penalizacion fija
+
+Contexto: al probar el motor de RCA contra un chaos inyectado (`provider=nova_pay` x
+`country=BR`, -45pp), el candidato exacto y correcto (confianza 87%, evidencia contrafactica
+clara) obtuvo `rca_score = 0` y quedo invisible detras de una explicacion mas generica pero
+menos precisa (`provider=nova_pay` solo, sin el pais). Causa: una penalizacion fija por
+"complejidad" (mas dimensiones = mas resta) dominaba el score cuando el volumen absoluto del
+segmento era bajo, aunque la señal fuera estadisticamente clarisima.
+
+Alternativas:
+1. mantener penalizacion fija por numero de dimensiones, subir el piso de volumen minimo
+2. formula puramente multiplicativa (confianza x cobertura x impacto de negocio x
+   especificidad), sin resta, con cobertura medida sobre el EXCESO de rechazos vs. baseline
+   (no el conteo crudo) y especificidad que premia -- no penaliza -- una combinacion de mas
+   dimensiones cuando sigue siendo significativa
+
+Decision: 2
+
+Por qué: la opcion 1 sigue vulnerable a que cualquier segmento real pero de bajo volumen
+absoluto quede opacado por uno mas grande pero menos preciso -- exactamente el tipo de falso
+negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer. La opcion 2
+se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
+
+Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
