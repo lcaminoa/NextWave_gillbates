@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from engine.detection.anomaly import detect
+from engine.detection.anomaly import DetectionState, detect
+from engine.detection.config import DetectionConfig
 from engine.detection.mock_generator import generate_stream, make_chaos
 from engine.investigator.runner import run_investigation
 from engine.rootcause.candidates import generate_candidates
@@ -36,20 +37,23 @@ def main() -> None:
         seed=3,
     )
     half = len(chaos_window) // 2
-    persistence_state: dict[str, int] = {}
+    demo_config = DetectionConfig(persistence_windows=2, ewma_lambda=0.7)
+    detector_state = DetectionState()
     detect(
         history + quiet_window,
         chaos_window[:half],
         chaos.started_at,
         chaos_window[half - 1].timestamp,
-        persistence_state,
+        detector_state,
+        demo_config,
     )
     anomalies = detect(
         history + quiet_window,
         chaos_window[half:],
         chaos_window[half].timestamp,
         chaos_window[-1].timestamp,
-        persistence_state,
+        detector_state,
+        demo_config,
     )
     if not anomalies:
         raise RuntimeError("Stream B did not detect the deterministic chaos scenario")

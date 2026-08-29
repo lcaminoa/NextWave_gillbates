@@ -223,3 +223,33 @@ Verificado con: script standalone que corre `generate_candidates` sobre el chaos
 confirma que para el candidato ganador `{provider: nova_pay, country: BR}` aparecen
 `counterfactual_provider` y `counterfactual_country`, ambos con su evidence_id dentro de
 `candidate.evidence_ids`.
+
+## D011 — Agregar un Evidence Auditor independiente, sin tools ni capacidad de reparacion
+
+Contexto: los validadores deterministas comprueban que cada claim cite evidencia existente y
+consultada, pero no pueden decidir si el texto de esa evidencia realmente alcanza para sostener
+la interpretacion escrita por el modelo. Un ID valido podria citarse para justificar una
+conclusion semanticamente mas fuerte que los datos.
+
+Alternativas:
+1. confiar solo en el Investigator y los validadores deterministas
+2. crear varios agentes especializados que repitan la investigacion
+3. agregar un segundo agente acotado que reciba el reporte terminado y su paquete auditable, y
+   emita una decision estructurada de aprobar o rechazar
+
+Decision: 3
+
+Por qué:
+- cubre el hueco semantico sin duplicar el acceso a datos ni la exploracion de hipotesis
+- no tiene tools, no modifica el reporte y no ejecuta acciones
+- usa una sola llamada estructurada y solo ve evidencia que el Investigator consulto
+- su salida tambien se valida localmente: no puede referenciar evidencias o claims inexistentes
+- un rechazo queda explicito para revision humana; no dispara loops autonomos impredecibles
+
+Tradeoff: agrega latencia y costo de una llamada por reporte auditado. Por eso el runner
+determinista sigue disponible y la auditoria se mantiene separada de `IncidentReport` hasta que
+el backend/UI definan como representar el estado de publicacion.
+
+Verificado con `gpt-5.6-terra`: el Auditor rechazo correctamente una afirmacion de "aislamiento"
+demasiado fuerte y aprobo el mismo caso al reformularla como "hipotesis con mayor respaldo",
+sin cambiar los datos ni el ganador.

@@ -26,7 +26,6 @@ from engine.investigator.runner import (
     MIN_PROBABLE_CONFIDENCE,
     MIN_WINNER_MARGIN,
     InvestigationResult,
-    report_loss_fields,
 )
 from engine.investigator.tools import ReadOnlyInvestigationTools
 from engine.investigator.validation import ReportValidationError, validate_report
@@ -168,7 +167,10 @@ las hipotesis, devuelve inconclusive sin ganador. Usa confirmed solo con confian
 {MIN_CONFIRMED_CONFIDENCE:.2f} y margen >= {MIN_CONFIRMED_MARGIN:.2f}; usa probable solo con
 confianza >= {MIN_PROBABLE_CONFIDENCE:.2f} y margen >= {MIN_WINNER_MARGIN:.2f}. Escribi summary,
 claims y recommended_action en espanol claro. Solo recomenda acciones: nunca afirmes que fueron
-ejecutadas y conserva siempre la revision humana.
+ejecutadas y conserva siempre la revision humana. Presenta al ganador como la hipotesis con mayor
+respaldo; no afirmes aislamiento absoluto o causalidad exclusiva salvo que hayas consultado
+controles contrafactuales suficientes para todas sus dimensiones y no exista evidencia rival que
+lo contradiga.
 """.strip()
 
 
@@ -297,7 +299,7 @@ def _build_report(
         recommended_action=draft.recommended_action,
         requires_human_review=True,
         investigation_steps=[step.step_id for step in steps],
-        **report_loss_fields(loss_per_hour),
+        estimated_revenue_loss_usd_per_hour=loss_per_hour,
     )
 
 

@@ -35,20 +35,9 @@ class InvestigationResult:
     tool_calls: tuple[ToolCallRecord, ...]
 
 
-def report_loss_fields(value: float) -> dict[str, float]:
-    """Support the announced IncidentReport field rename while branches converge."""
-    new_name = "estimated_revenue_loss_usd_per_hour"
-    if new_name in IncidentReport.model_fields:
-        return {new_name: value}
-    return {"estimated_revenue_loss_usd": value}
-
-
 def report_loss_per_hour(report: IncidentReport) -> float:
-    """Read the hourly loss consistently before and after the contract rename."""
-    new_name = "estimated_revenue_loss_usd_per_hour"
-    if new_name in IncidentReport.model_fields:
-        return float(getattr(report, new_name))
-    return float(report.estimated_revenue_loss_usd)
+    """Return the report's explicitly hourly revenue-loss estimate."""
+    return float(report.estimated_revenue_loss_usd_per_hour)
 
 
 def _dimensions_text(candidate_data: dict[str, Any]) -> str:
@@ -125,7 +114,7 @@ def run_investigation(
             ),
             requires_human_review=True,
             investigation_steps=[step.step_id for step in steps],
-            **report_loss_fields(0.0),
+            estimated_revenue_loss_usd_per_hour=0.0,
         )
         validate_report(
             report,
@@ -241,7 +230,10 @@ def run_investigation(
         )
         claims = [
             Claim(
-                claim=f"La degradacion esta aislada a {dimensions_text}.",
+                claim=(
+                    f"{dimensions_text} es la hipotesis con mayor respaldo para explicar "
+                    "la degradacion observada."
+                ),
                 evidence_ids=_evidence_ids(top_evidence),
                 confidence=round(top_confidence, 4),
             )
@@ -249,12 +241,15 @@ def run_investigation(
         counterfactual_ids = [
             str(item["evidence_id"])
             for item in top_evidence
-            if item.get("source") == "counterfactual_provider"
+            if str(item.get("source", "")).startswith("counterfactual_")
         ]
         if counterfactual_ids:
             claims.append(
                 Claim(
-                    claim="Un proveedor alternativo permanece saludable para trafico comparable.",
+                    claim=(
+                        "La evidencia contrafactual consultada muestra trafico comparable "
+                        "con mejor desempeno fuera de la interseccion principal."
+                    ),
                     evidence_ids=counterfactual_ids,
                     confidence=round(top_confidence, 4),
                 )
@@ -297,7 +292,9 @@ def run_investigation(
         recommended_action=recommendation,
         requires_human_review=True,
         investigation_steps=[step.step_id for step in steps],
-        **report_loss_fields(float(impact["estimated_revenue_loss_usd_per_hour"])),
+        estimated_revenue_loss_usd_per_hour=float(
+            impact["estimated_revenue_loss_usd_per_hour"]
+        ),
     )
     validate_report(
         report,
