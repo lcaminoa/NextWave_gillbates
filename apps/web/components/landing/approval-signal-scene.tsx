@@ -34,6 +34,53 @@ function CameraRig({ pointerRef }: Pick<ApprovalSignalSceneProps, "pointerRef">)
   return <PerspectiveCamera ref={cameraRef} makeDefault fov={41} position={[0, 0, 7.1]} />;
 }
 
+function createCardMarkingsTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1280;
+  canvas.height = 300;
+  const context = canvas.getContext("2d");
+  if (!context) return new THREE.CanvasTexture(canvas);
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(232, 235, 244, 0.94)";
+  context.font = "600 92px Arial, sans-serif";
+  context.fillText("PHAROS", 18, 106);
+  context.fillStyle = "rgba(193, 199, 216, 0.82)";
+  context.font = "700 27px Arial, sans-serif";
+  context.fillText("CONTROL TOWER", 22, 159);
+  context.fillStyle = "rgba(180, 186, 204, 0.66)";
+  context.font = "600 22px Arial, sans-serif";
+  context.fillText("PAYMENT SIGNAL", 22, 204);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 2;
+  return texture;
+}
+
+function CardMarkings({ progressRef }: Pick<ApprovalSignalSceneProps, "progressRef">) {
+  const texture = useMemo(() => createCardMarkingsTexture(), []);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const color = useMemo(() => new THREE.Color("#e8ebf4"), []);
+  const targetColor = useMemo(() => new THREE.Color(), []);
+
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  useFrame((_state, delta) => {
+    const tone = getTrajectoryTone(progressRef.current);
+    targetColor.set(tone === "evidence" ? "#f1c8d7" : "#e8ebf4");
+    color.lerp(targetColor, 1 - Math.exp(-delta * 3.8));
+    if (materialRef.current) materialRef.current.color.copy(color);
+  });
+
+  return (
+    <mesh position={[0.56, 0.51, 0.127]} renderOrder={3}>
+      <planeGeometry args={[1.53, 0.36]} />
+      <meshBasicMaterial ref={materialRef} map={texture} transparent opacity={0.74} depthWrite={false} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function ApprovalSignal({ progressRef }: Pick<ApprovalSignalSceneProps, "progressRef">) {
   const signalRef = useRef<THREE.Group>(null);
   const edgeMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
@@ -182,6 +229,8 @@ function ApprovalSignal({ progressRef }: Pick<ApprovalSignalSceneProps, "progres
           clearcoatRoughness={0.2}
         />
       </RoundedBox>
+
+      <CardMarkings progressRef={progressRef} />
 
       <RoundedBox args={[0.69, 0.57, 0.016]} radius={0.065} smoothness={5} position={[-0.72, 0.17, 0.13]}>
         <meshStandardMaterial color="#0d1016" metalness={0.7} roughness={0.42} />

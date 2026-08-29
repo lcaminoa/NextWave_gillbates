@@ -266,5 +266,6 @@ Por qué:
 - la geometría local conserva carga cliente, fallback y la coreografía existente sin importar modelos,
   marcas ni contenido de terceros
 
-Tradeoff: el objeto es deliberadamente mínimo: no lleva logos, números, paneles ni marcas de red.
-La identificación del incidente permanece en la narrativa y no en la tarjeta.
+Tradeoff: la tarjeta solo lleva la identidad física `PHAROS` y microcopy de producto; no lleva
+números, titular, banco, métricas ni marcas de red. La identificación del incidente permanece
+en la narrativa y no en la tarjeta.

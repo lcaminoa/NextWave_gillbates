@@ -63,6 +63,7 @@ function SignalFallback({ progress }: { progress: number }) {
       >
         <i className="landing-payment-card-edge" />
         <i className="landing-payment-card-face" />
+        <i className="landing-payment-card-marking" />
         <i className="landing-payment-card-chip" />
         {finalUnseal > 0.01 ? (
           <>

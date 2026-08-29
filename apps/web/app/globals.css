@@ -2347,6 +2347,42 @@ a {
   content: "";
 }
 
+.landing-payment-card-marking {
+  z-index: 3;
+  top: 17%;
+  right: 11%;
+  width: 45%;
+  height: 32%;
+  color: rgba(231, 234, 243, 0.86);
+  font-family: var(--font-geist-sans), ui-sans-serif, sans-serif;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.08), 0 1px 5px rgba(163, 182, 228, 0.12);
+}
+
+.landing-payment-card-marking::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "PHAROS";
+  font-size: clamp(8px, 1.15vw, 13px);
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.landing-payment-card-marking::after {
+  position: absolute;
+  top: 42%;
+  left: 0;
+  color: rgba(190, 198, 217, 0.67);
+  content: "CONTROL TOWER\A PAYMENT SIGNAL";
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: clamp(4px, 0.52vw, 6px);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.6;
+  white-space: pre;
+}
+
 .landing-payment-card-chip {
   z-index: 4;
   top: 25%;
