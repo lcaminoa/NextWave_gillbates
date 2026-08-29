@@ -76,25 +76,38 @@ def _rca_score(confidence: float, coverage: float, revenue_loss_usd_per_hour: fl
     return round(confidence * coverage * revenue_weight * specificity, 4)
 
 
-def _counterfactual_check(all_current: list[Transaction], dims: dict) -> str | None:
-    """Compara el segmento sospechoso contra un control cercano: mismo resto de trafico, un
-    valor distinto en la UNICA dimension del candidato -- evidencia de interaccion especifica,
-    no de una caida generica de todo el trafico (master plan Sec 9.5)."""
-    if len(dims) != 1:
-        return None  # el control solo tiene sentido para candidatos de 1 dimension
-    (dim_name, dim_value), = dims.items()
-    other_values = {getattr(t, dim_name) for t in all_current if getattr(t, dim_name, None) != dim_value}
-    if not other_values:
-        return None
-    control_value = sorted(other_values)[0]
-    control_txns = [t for t in all_current if getattr(t, dim_name, None) == control_value]
-    if len(control_txns) < MIN_SEGMENT_VOLUME:
-        return None
-    control_rate = 1 - _decline_rate(control_txns)
-    return (
-        f"control: {dim_name}={control_value} aprueba {control_rate:.0%} en la misma ventana "
-        f"-> la caida no es generica del resto del trafico"
-    )
+def _counterfactual_checks(all_current: list[Transaction], dims: dict) -> list[tuple[str, str]]:
+    """Genera un control por cada dimension del candidato (funciona para 1 O MAS dimensiones):
+    para cada dimension, mantiene FIJAS las demas dimensiones del candidato y compara contra
+    otro valor de esa dimension puntual -- evidencia de que el problema es esa interaccion
+    especifica, no algo generico de una sola dimension (master plan Sec 9.5).
+
+    Ej. para {provider: nova_pay, country: BR} genera hasta 2 controles: uno fijando country=BR
+    y variando provider (prueba que no es "Brasil en general"), y otro fijando provider=nova_pay
+    y variando country (prueba que no es "nova_pay en todos lados").
+
+    Devuelve lista de (dimension, texto en lenguaje humano) -- puede venir vacia si no hay
+    volumen suficiente para armar el control.
+    """
+    checks: list[tuple[str, str]] = []
+    for dim_name, dim_value in dims.items():
+        fixed = {k: v for k, v in dims.items() if k != dim_name}  # el resto del candidato, sin tocar
+        pool = [t for t in all_current if _matches(t, fixed)]
+        other_values = {getattr(t, dim_name) for t in pool if getattr(t, dim_name, None) != dim_value}
+        if not other_values:
+            continue
+        control_value = sorted(other_values)[0]
+        control_txns = [t for t in pool if getattr(t, dim_name, None) == control_value]
+        if len(control_txns) < MIN_SEGMENT_VOLUME:
+            continue
+        control_rate = 1 - _decline_rate(control_txns)
+        fixed_desc = dimension_key(fixed) if fixed else "el resto del trafico"
+        checks.append((
+            dim_name,
+            f"control: {dim_name}={control_value} (con {fixed_desc}) aprueba {control_rate:.0%} "
+            f"en la misma ventana -> la caida no es generica de {fixed_desc}"
+        ))
+    return checks
 
 
 def generate_candidates(
@@ -167,16 +180,20 @@ def generate_candidates(
                 evidence.append(ev)
                 evidence_ids = [ev.evidence_id]
 
-                counterfactual = _counterfactual_check(current_window, dims)
-                if counterfactual:
+                # un control por cada dimension del candidato (ver docstring de la funcion)
+                counterfactual_checks = _counterfactual_checks(current_window, dims)
+                counterfactual_texts = []
+                for _dim_name, text in counterfactual_checks:
                     cf_ev = Evidence(
                         evidence_id=f"ev_{uuid.uuid4().hex[:8]}",
                         source="counterfactual_provider",
-                        summary=counterfactual,
+                        summary=text,
                         dimension_key=dimension_key(dims),
                     )
                     evidence.append(cf_ev)
                     evidence_ids.append(cf_ev.evidence_id)
+                    counterfactual_texts.append(text)
+                counterfactual = " | ".join(counterfactual_texts) if counterfactual_texts else None
 
                 revenue_loss = _estimate_revenue_loss_per_hour(segment_current, 1 - baseline_decline, anomaly_window_minutes)
 

@@ -69,3 +69,45 @@ negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
+
+## D004 — Renombrar estimated_revenue_loss_usd a estimated_revenue_loss_usd_per_hour
+
+Contexto: Valentin (Stream C) pregunto si `IncidentReport.estimated_revenue_loss_usd` es un
+total acumulado o una tasa por hora, porque `IncidentCandidate` ya tenia el campo analogo
+llamado `estimated_revenue_loss_usd_per_hour` -- inconsistencia real entre los dos.
+
+Alternativas:
+1. dejar `IncidentReport` como un total acumulado desde que arranco el incidente
+2. renombrar para que sea la misma tasa por hora que ya calcula `engine/rootcause/candidates.py`
+
+Decision: 2
+
+Por qué: todos los ejemplos numericos del master plan (Sec 12, 17) son tasas ("USD 12,4 mil
+por hora", "USD 187/min"), nunca un acumulado. Stream C no tiene que inventar ningun calculo
+nuevo: toma `estimated_revenue_loss_usd_per_hour` del `IncidentCandidate` ganador y lo copia
+tal cual al `IncidentReport`.
+
+Archivos: contracts/schemas.py, contracts/types.ts.
+
+## D005 — Evidencia contrafactual tambien para candidatos de 2 dimensiones
+
+Contexto: Valentin señalo que `_counterfactual_check` en `engine/rootcause/candidates.py`
+solo generaba evidencia contrafactica para candidatos de 1 dimension (`if len(dims) != 1:
+return None`), justo cuando los candidatos de 2 dimensiones son los que mas rca_score sacan
+en la demo (D003) -- se perdia la evidencia mas fuerte donde mas importaba (master plan Sec 9.5).
+
+Alternativas:
+1. dejarlo como esta, solo 1 dimension
+2. generalizar: para cada dimension del candidato, fijar las demas dimensiones y comparar
+   contra otro valor de esa dimension puntual (1 control por dimension del candidato)
+
+Decision: 2
+
+Por qué: para {provider: nova_pay, country: BR} ahora genera 2 controles -- uno fijando
+country=BR y variando provider (descarta "es Brasil en general"), otro fijando provider=nova_pay
+y variando country (descarta "es nova_pay en todos lados") -- exactamente el tipo de evidencia
+que pide el master plan para el caso de mayor rca_score.
+
+Verificado con: `uv run python -m engine.detection.demo` -- mismos rca_score/confianza/perdida
+que antes del cambio (no se toco el scoring), ahora con lineas "contrafactico:" en el candidato
+ganador de 2 dimensiones.
