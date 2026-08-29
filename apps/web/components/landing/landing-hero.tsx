@@ -4,14 +4,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PointerEvent } from "react";
+import type { CSSProperties, PointerEvent } from "react";
 import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal-scene";
 import { IncidentTrajectory } from "./incident-trajectory";
 import {
   clamp,
   getActiveCheckpointIndex,
   getCheckpointVisibility,
-  getSignalMetric,
   getSignalWaypoint,
   getTrajectoryTone,
   landingCheckpoints,
@@ -48,7 +47,6 @@ function MaskedLine({ children, progress }: { children: React.ReactNode; progres
 
 function SignalFallback({ progress }: { progress: number }) {
   const waypoint = getSignalWaypoint(progress);
-  const metric = getSignalMetric(progress);
   const tone = getTrajectoryTone(progress);
   const finalUnseal = clamp((progress - 0.958) / 0.042);
   const x = (waypoint.x - 0.5) * 100;
@@ -57,24 +55,19 @@ function SignalFallback({ progress }: { progress: number }) {
   return (
     <div className="landing-signal-fallback" aria-hidden="true">
       <div
-        className={`landing-signal-fallback-object landing-signal-fallback-${tone}`}
+        className={`landing-payment-card-fallback landing-payment-card-fallback-${tone}`}
         style={{
-          transform: `translate3d(${x}vw, ${y}vh, 0) rotate(${15 + progress * 28}deg) scale(${waypoint.scale})`,
-        }}
+          transform: `translate3d(${x}vw, ${y}vh, 0) rotateX(${7 + progress * 9}deg) rotateY(${-13 + progress * 12}deg) rotateZ(${-5 + progress * 11}deg) scale(${waypoint.scale})`,
+          "--card-unseal": finalUnseal,
+        } as CSSProperties}
       >
-        <i className="landing-signal-layer landing-signal-layer-one" />
-        <i className="landing-signal-layer landing-signal-layer-two" />
-        <i className="landing-signal-display-fallback">
-          <small>{metric.label}</small>
-          <strong>{metric.metric}</strong>
-        </i>
-        <i className="landing-signal-band-fallback" />
-        <i className="landing-signal-led-fallback" />
+        <i className="landing-payment-card-edge" />
+        <i className="landing-payment-card-face" />
+        <i className="landing-payment-card-chip" />
         {finalUnseal > 0.01 ? (
           <>
-            <i className="landing-signal-fragment landing-signal-fragment-a" />
-            <i className="landing-signal-fragment landing-signal-fragment-b" />
-            <i className="landing-signal-fragment landing-signal-fragment-c" />
+            <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-a" />
+            <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-b" />
           </>
         ) : null}
       </div>

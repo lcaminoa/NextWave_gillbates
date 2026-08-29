@@ -248,3 +248,23 @@ Por qué:
 
 Tradeoff: el hero renuncia a simular un gráfico. La comparación cuantitativa completa sigue en
 las vistas de producto, donde tiene contexto y evidencia citable.
+
+## D012 — Tarjeta física como señal de aprobación de la landing
+
+Alternativas:
+1. conservar el dispositivo abstracto con display de métricas
+2. usar una tarjeta plana o un modelo externo descargado
+3. construir una tarjeta de pago de grafito con geometría local, chip EMV y capas contenidas de evidencia
+
+Decisión: 3
+
+Por qué:
+- una tarjeta es el objeto físico correcto para una investigación de pagos y elimina la lectura de
+  pager, POS o hardware inventado
+- mantiene los datos en el spine y en captions DOM, donde son legibles y auditables; el objeto solo
+  comunica materialidad, estado y el origen del signal en el chip
+- la geometría local conserva carga cliente, fallback y la coreografía existente sin importar modelos,
+  marcas ni contenido de terceros
+
+Tradeoff: el objeto es deliberadamente mínimo: no lleva logos, números, paneles ni marcas de red.
+La identificación del incidente permanece en la narrativa y no en la tarjeta.

@@ -158,15 +158,6 @@ export function getTrajectoryTone(progress: number): TrajectoryTone {
   return "stable";
 }
 
-export function getSignalMetric(progress: number) {
-  if (progress < 0.25) return { label: "BASELINE", metric: "93.9%" };
-  if (progress < 0.4) return { label: "DROP", metric: "62.4%" };
-  if (progress < 0.54) return { label: "COHORT", metric: "BR / CARD" };
-  if (progress < 0.68) return { label: "CONTROL", metric: "94.1%" };
-  if (progress < 0.82) return { label: "DECLINE", metric: "71%" };
-  return { label: "STATUS", metric: "PROBABLE" };
-}
-
 export const trajectoryViewBox = { width: 1000, height: 640 };
 
 export const observedTrajectoryPath = `M ${landingCheckpoints.map((checkpoint) => `${checkpoint.x * trajectoryViewBox.width} ${checkpoint.y * trajectoryViewBox.height}`).join(" L ")}`;
