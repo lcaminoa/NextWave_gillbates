@@ -22,6 +22,7 @@ SEGMENT_DIMENSIONS = ["provider", "country", "payment_method", "issuing_bank", "
 SEGMENT_DIMENSION_SETS = [
     (),
     *((dimension,) for dimension in SEGMENT_DIMENSIONS),
+    ("provider", "country"),
     ("provider", "country", "payment_method"),
 ]
 
