@@ -34,6 +34,9 @@ def dimension_key(dims: dict) -> str:
 
 
 def _matches(txn: Transaction, dims: dict) -> bool:
+    """
+    Chequea si una transacción puntual pertenece al segmento dims
+    """
     return all(getattr(txn, k, None) == v for k, v in dims.items())
 
 
@@ -73,6 +76,9 @@ def group_by_segment(transactions: list[Transaction], dimension: str) -> dict[st
     """
     Agrupa transacciones por el valor de UNA dimension (ej. 'provider') -- base para barrer
     segmentos en deteccion y RCA.
+
+    Organiza transacciones. Recibe una lista de transacciones y el nombre de UNA dimensión
+    El resultado final es un diccionario tipo {"nova_pay": [txn1, txn3, ...], "stripe": [txn2, ...], ...}
     """
     groups: dict[str, list[Transaction]] = defaultdict(list)
     for t in transactions:
