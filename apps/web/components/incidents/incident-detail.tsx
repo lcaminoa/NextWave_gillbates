@@ -232,7 +232,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
 
   return (
     <div className="control-canvas incident-canvas">
-      <main className="mx-auto max-w-[1400px]">
+      <main className="mx-auto w-full max-w-none">
         <header className="incident-hero">
           <div className="relative z-10">
             <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#bdb1c1] transition hover:text-white">

@@ -46,7 +46,7 @@ export function ChaosConsole() {
 
   return (
     <div className="control-canvas">
-      <main className="mx-auto max-w-[1160px]">
+      <main className="mx-auto w-full max-w-none">
         <header>
           <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#b9acbe] hover:text-white">
             <ArrowLeft className="size-3.5" /> Control Tower
