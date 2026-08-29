@@ -20,6 +20,50 @@ from engine.api import (
     IncidentDetail,
 )
 from engine.api.models import HealthResponse
+from engine.investigator import run_audited_openai_investigation
+from engine.investigator.openai_config import (
+    DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
+    validate_request_timeout,
+)
+
+
+def _runtime_from_environment() -> ControlTowerService:
+    mode = os.getenv("CONTROL_TOWER_INVESTIGATOR_MODE", "deterministic").strip().lower()
+    if mode == "deterministic":
+        return ControlTowerService()
+    if mode != "audited_openai":
+        raise RuntimeError(
+            "CONTROL_TOWER_INVESTIGATOR_MODE must be deterministic or audited_openai"
+        )
+
+    model = os.getenv("OPENAI_MODEL", "").strip()
+    if not model:
+        raise RuntimeError("audited_openai mode requires OPENAI_MODEL")
+    if not os.getenv("OPENAI_API_KEY", "").strip():
+        raise RuntimeError("audited_openai mode requires OPENAI_API_KEY")
+    auditor_model = os.getenv("OPENAI_AUDITOR_MODEL", "").strip() or model
+    raw_timeout = os.getenv(
+        "OPENAI_REQUEST_TIMEOUT_SECONDS",
+        str(DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS),
+    )
+    try:
+        request_timeout_seconds = validate_request_timeout(float(raw_timeout))
+    except ValueError as exc:
+        raise RuntimeError(
+            "OPENAI_REQUEST_TIMEOUT_SECONDS must be a positive number"
+        ) from exc
+
+    def audited_investigator(anomaly, candidates, evidence):
+        return run_audited_openai_investigation(
+            anomaly,
+            tuple(candidates),
+            tuple(evidence),
+            model=model,
+            auditor_model=auditor_model,
+            request_timeout_seconds=request_timeout_seconds,
+        )
+
+    return ControlTowerService(audited_investigator=audited_investigator)
 
 
 def _sse_transaction(transaction_json: str, transaction_id: str) -> str:
@@ -33,7 +77,7 @@ def create_app(
     judge_token: str | None = None,
     public_mode: bool | None = None,
 ) -> FastAPI:
-    runtime = service or ControlTowerService()
+    runtime = service or _runtime_from_environment()
     configured_token = judge_token if judge_token is not None else os.getenv(
         "CONTROL_TOWER_JUDGE_TOKEN"
     )

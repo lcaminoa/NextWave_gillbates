@@ -13,8 +13,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from contracts.schemas import Evidence, IncidentCandidate
+from contracts.schemas import Anomaly, Evidence, IncidentCandidate
+from engine.investigator.openai_config import (
+    DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
+    validate_request_timeout,
+)
 from engine.investigator.runner import InvestigationResult
+from engine.investigator.specificity import relevant_audit_candidates
 from engine.investigator.validation import ReportValidationError, validate_report
 
 
@@ -83,6 +88,8 @@ Aproba solo si:
 - ganador, claims, impacto y pasos son coherentes entre si;
 - la recommended_action es concreta, acotada y proporcional a la evidencia;
 - la recomendacion no afirma que una accion fue ejecutada y conserva revision humana.
+- si el ganador agrega dimensiones frente a una hipotesis mas simple, existe evidencia incremental
+  que aisla cada dimension agregada; un score mayor por si solo no alcanza.
 
 La existencia de un evidence_id no significa automaticamente que respalde el claim. Evalua si el
 contenido de esa evidencia demuestra realmente lo escrito.
@@ -106,19 +113,22 @@ Aproba solo cuando no exista ningun issue. Nunca conviertas incertidumbre en apr
 
 
 def _audit_packet(
+    anomaly: Anomaly,
     result: InvestigationResult,
     candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
     evidence: list[Evidence] | tuple[Evidence, ...],
 ) -> dict[str, Any]:
     consulted = result.consulted_evidence_ids
+    relevant_candidates = relevant_audit_candidates(
+        result.report.winning_candidate_id,
+        candidates,
+    )
     return {
+        "anomaly": anomaly.model_dump(mode="json"),
         "report": result.report.model_dump(mode="json"),
-        "ranked_candidates": [
-            candidate.model_dump(
-                mode="json",
-                exclude={"evidence_ids", "counterfactual_check"},
-            )
-            for candidate in sorted(candidates, key=lambda item: item.rca_score, reverse=True)
+        "relevant_candidates": [
+            candidate.model_dump(mode="json")
+            for candidate in relevant_candidates
         ],
         "consulted_evidence": [
             item.model_dump(mode="json")
@@ -153,16 +163,22 @@ def _validate_audit(
 
 
 def run_evidence_audit(
+    anomaly: Anomaly,
     result: InvestigationResult,
     candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
     evidence: list[Evidence] | tuple[Evidence, ...],
     *,
     model: str,
     client: Any | None = None,
+    request_timeout_seconds: float = DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
 ) -> EvidenceAudit:
     """Review one completed investigation with a separate structured model call."""
     if not model.strip():
         raise ValueError("model must be an explicit non-empty model ID")
+    request_timeout_seconds = validate_request_timeout(request_timeout_seconds)
+
+    if anomaly.anomaly_id != result.report.anomaly_id:
+        raise ReportValidationError("audit anomaly does not match the incident report")
 
     validate_report(
         result.report,
@@ -175,9 +191,9 @@ def run_evidence_audit(
     if client is None:
         from openai import OpenAI
 
-        client = OpenAI()
+        client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
 
-    packet = _audit_packet(result, candidates, evidence)
+    packet = _audit_packet(anomaly, result, candidates, evidence)
     packet_evidence_ids = {
         str(item["evidence_id"]) for item in packet["consulted_evidence"]
     }
@@ -193,6 +209,7 @@ def run_evidence_audit(
             ],
             text_format=EvidenceAudit,
             store=False,
+            timeout=request_timeout_seconds,
         )
     except Exception as exc:
         raise EvidenceAuditError(
@@ -208,29 +225,39 @@ def run_evidence_audit(
 
 
 def run_audited_openai_investigation(
-    anomaly_id: str,
+    anomaly: Anomaly,
     candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
     evidence: list[Evidence] | tuple[Evidence, ...],
     *,
     model: str,
     auditor_model: str | None = None,
     client: Any | None = None,
+    request_timeout_seconds: float = DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
 ) -> AuditedInvestigationResult:
     """Run the investigator and then its independent Evidence Auditor."""
     from engine.investigator.openai_runner import run_openai_investigation
 
+    request_timeout_seconds = validate_request_timeout(request_timeout_seconds)
+    if client is None:
+        from openai import OpenAI
+
+        client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
+
     investigation = run_openai_investigation(
-        anomaly_id,
+        anomaly.anomaly_id,
         candidates,
         evidence,
         model=model,
         client=client,
+        request_timeout_seconds=request_timeout_seconds,
     )
     audit = run_evidence_audit(
+        anomaly,
         investigation,
         candidates,
         evidence,
         model=auditor_model or model,
         client=client,
+        request_timeout_seconds=request_timeout_seconds,
     )
     return AuditedInvestigationResult(investigation=investigation, audit=audit)

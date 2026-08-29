@@ -10,6 +10,7 @@ import re
 from collections.abc import Iterable, Sequence
 
 from contracts.schemas import Evidence, IncidentCandidate, IncidentReport, InvestigationStep, ReportStatus
+from engine.investigator.specificity import specificity_errors
 
 
 class ReportValidationError(ValueError):
@@ -110,6 +111,15 @@ def validate_report(
         cited_ids = {item for claim in report.claims for item in claim.evidence_ids}
         if winner is not None and not (set(winner.evidence_ids) & cited_ids):
             errors.append("report does not cite evidence from the winning candidate")
+        if winner is not None:
+            errors.extend(
+                specificity_errors(
+                    winner,
+                    candidates=candidates,
+                    evidence=evidence,
+                    consulted_evidence_ids=consulted_ids,
+                )
+            )
 
     if report.investigation_steps != actual_step_ids:
         errors.append("investigation_steps must reference every emitted step in order")

@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from contracts.schemas import Evidence
 from engine.investigator.auditor import (
     AuditIssue,
     EvidenceAudit,
@@ -39,6 +40,7 @@ def _run_with_audit(audit: EvidenceAudit) -> EvidenceAudit:
     case = clear_provider_country_case()
     investigation = run_investigation(case.anomaly_id, case.candidates, case.evidence)
     return run_evidence_audit(
+        case.anomaly,
         investigation,
         case.candidates,
         case.evidence,
@@ -57,11 +59,19 @@ def test_evidence_auditor_approves_supported_report() -> None:
             issues=[],
         )
     )
+    unconsulted = Evidence(
+        evidence_id="ev_not_consulted",
+        source="baseline_comparison",
+        summary="Evidencia fuera del recorrido del Investigator.",
+        value=0.01,
+        dimension_key="provider=atlas_pay",
+    )
 
     audit = run_evidence_audit(
+        case.anomaly,
         investigation,
         case.candidates,
-        case.evidence,
+        (*case.evidence, unconsulted),
         model="test-model",
         client=SimpleNamespace(responses=responses),
     )
@@ -69,13 +79,20 @@ def test_evidence_auditor_approves_supported_report() -> None:
     assert audit.approved is True
     assert responses.parse_requests[0]["text_format"] is EvidenceAudit
     assert responses.parse_requests[0]["store"] is False
+    assert responses.parse_requests[0]["timeout"] == 30.0
     assert "tools" not in responses.parse_requests[0]
     packet = json.loads(responses.parse_requests[0]["input"][0]["content"])
     consulted_ids = {item["evidence_id"] for item in packet["consulted_evidence"]}
-    assert "ev_clear_baseline" in consulted_ids
-    assert "ev_country_baseline" not in consulted_ids
-    assert all("evidence_ids" not in item for item in packet["ranked_candidates"])
-    assert all("counterfactual_check" not in item for item in packet["ranked_candidates"])
+    assert consulted_ids == investigation.consulted_evidence_ids
+    assert unconsulted.evidence_id not in consulted_ids
+    assert packet["anomaly"]["anomaly_id"] == case.anomaly_id
+    candidate_by_id = {
+        item["candidate_id"]: item for item in packet["relevant_candidates"]
+    }
+    assert set(candidate_by_id) == {"cand_novapay_br", "cand_novapay", "cand_br"}
+    assert candidate_by_id["cand_novapay_br"]["evidence_ids"]
+    assert candidate_by_id["cand_novapay_br"]["counterfactual_check"]
+    assert candidate_by_id["cand_novapay_br"]["rca_score"] == 0.91
 
 
 def test_evidence_auditor_can_reject_semantically_unsupported_claim() -> None:
@@ -97,6 +114,7 @@ def test_evidence_auditor_can_reject_semantically_unsupported_claim() -> None:
     )
 
     audit = run_evidence_audit(
+        case.anomaly,
         investigation,
         case.candidates,
         case.evidence,
@@ -128,6 +146,7 @@ def test_evidence_auditor_rejects_unknown_evidence_reference() -> None:
 
     with pytest.raises(ReportValidationError, match="unknown evidence"):
         run_evidence_audit(
+            case.anomaly,
             investigation,
             case.candidates,
             case.evidence,
@@ -226,6 +245,7 @@ def test_evidence_auditor_rejects_invalid_issue_references(issue: AuditIssue) ->
 
     with pytest.raises(ReportValidationError):
         run_evidence_audit(
+            case.anomaly,
             investigation,
             case.candidates,
             case.evidence,
@@ -241,6 +261,7 @@ def test_evidence_auditor_fails_closed_when_openai_call_fails() -> None:
 
     with pytest.raises(EvidenceAuditError, match="must not be published") as exc_info:
         run_evidence_audit(
+            case.anomaly,
             investigation,
             case.candidates,
             case.evidence,
@@ -250,6 +271,25 @@ def test_evidence_auditor_fails_closed_when_openai_call_fails() -> None:
 
     assert isinstance(exc_info.value.__cause__, TimeoutError)
     assert responses.parse_requests
+
+
+def test_evidence_auditor_uses_configured_timeout() -> None:
+    case = clear_provider_country_case()
+    investigation = run_investigation(case.anomaly_id, case.candidates, case.evidence)
+    responses = FakeAuditResponses(error=TimeoutError("upstream timeout"))
+
+    with pytest.raises(EvidenceAuditError, match="must not be published"):
+        run_evidence_audit(
+            case.anomaly,
+            investigation,
+            case.candidates,
+            case.evidence,
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+            request_timeout_seconds=4.5,
+        )
+
+    assert responses.parse_requests[0]["timeout"] == 4.5
 
 
 def test_deterministic_validator_runs_before_auditor_call() -> None:
@@ -274,6 +314,7 @@ def test_deterministic_validator_runs_before_auditor_call() -> None:
 
     with pytest.raises(ReportValidationError, match="require human review"):
         run_evidence_audit(
+            case.anomaly,
             invalid_investigation,
             case.candidates,
             case.evidence,

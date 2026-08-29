@@ -28,7 +28,12 @@ from contracts.schemas import (
 )
 from engine.api.models import IncidentDetail
 from engine.detection.pipeline import AnomalyDiagnosis, DetectionPipeline, WindowResult
-from engine.investigator import InvestigationResult, run_investigation
+from engine.investigator import (
+    AuditedInvestigationResult,
+    EvidenceAuditError,
+    InvestigationResult,
+    run_investigation,
+)
 from engine.investigator.validation import validate_report
 from simulator import PaymentSimulator
 
@@ -47,6 +52,10 @@ class Pipeline(Protocol):
 Investigator = Callable[
     [str, Sequence[IncidentCandidate], Sequence[Evidence]],
     InvestigationResult,
+]
+AuditedInvestigator = Callable[
+    [Anomaly, Sequence[IncidentCandidate], Sequence[Evidence]],
+    AuditedInvestigationResult,
 ]
 
 
@@ -368,7 +377,8 @@ class ControlTowerService:
         *,
         simulator: PaymentSimulator | None = None,
         pipeline: Pipeline | None = None,
-        investigator: Investigator = run_investigation,
+        investigator: Investigator | None = None,
+        audited_investigator: AuditedInvestigator | None = None,
         start_at: datetime | None = None,
         simulated_interval_seconds: float = 0.05,
         emit_delay_seconds: float = 0.005,
@@ -384,6 +394,8 @@ class ControlTowerService:
             raise ValueError("max_chaos_specs must be positive")
         if episode_grace_windows < 1:
             raise ValueError("episode_grace_windows must be positive")
+        if investigator is not None and audited_investigator is not None:
+            raise ValueError("configure either investigator or audited_investigator, not both")
 
         current = start_at or datetime.now(timezone.utc).replace(microsecond=0)
         if current.tzinfo is None or current.utcoffset() is None:
@@ -398,7 +410,8 @@ class ControlTowerService:
             )
             pipeline = DetectionPipeline(history=history)
         self.pipeline = pipeline
-        self.investigator = investigator
+        self.investigator = investigator or run_investigation
+        self.audited_investigator = audited_investigator
         self.current_timestamp = current
         self.simulated_interval_seconds = simulated_interval_seconds
         self.emit_delay_seconds = emit_delay_seconds
@@ -761,11 +774,23 @@ class ControlTowerService:
             investigation = run_investigation(diagnosis.anomaly.anomaly_id, (), ())
         else:
             try:
-                investigation = self.investigator(
-                    diagnosis.anomaly.anomaly_id,
-                    candidates,
-                    evidence,
-                )
+                if self.audited_investigator is not None:
+                    audited = self.audited_investigator(
+                        diagnosis.anomaly,
+                        candidates,
+                        evidence,
+                    )
+                    if not audited.audit.approved:
+                        raise EvidenceAuditError(
+                            "evidence audit rejected the report; it must not be published"
+                        )
+                    investigation = audited.investigation
+                else:
+                    investigation = self.investigator(
+                        diagnosis.anomaly.anomaly_id,
+                        candidates,
+                        evidence,
+                    )
                 if investigation.report.anomaly_id != diagnosis.anomaly.anomaly_id:
                     raise ValueError("investigator returned a report for another anomaly")
                 if investigation.report.incident_id != f"inc_{diagnosis.anomaly.anomaly_id}":

@@ -8,16 +8,37 @@ viable candidates.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
-from contracts.schemas import Dimensions, Evidence, IncidentCandidate
+from contracts.schemas import Anomaly, Dimensions, Evidence, IncidentCandidate, Severity
 
 
 @dataclass(frozen=True)
 class InvestigationCase:
     name: str
-    anomaly_id: str
+    anomaly: Anomaly
     candidates: tuple[IncidentCandidate, ...]
     evidence: tuple[Evidence, ...]
+
+    @property
+    def anomaly_id(self) -> str:
+        return self.anomaly.anomaly_id
+
+
+def _anomaly(anomaly_id: str, dimension_key: str) -> Anomaly:
+    window_end = datetime(2026, 8, 29, 15, 3, tzinfo=timezone.utc)
+    return Anomaly(
+        anomaly_id=anomaly_id,
+        detected_at=window_end,
+        dimension_key=dimension_key,
+        window_start=window_end - timedelta(minutes=1),
+        window_end=window_end,
+        observed_approval_rate=0.51,
+        expected_approval_rate=0.88,
+        persistence_windows=3,
+        volume=142,
+        severity=Severity.critical,
+    )
 
 
 def clear_provider_country_case() -> InvestigationCase:
@@ -35,6 +56,13 @@ def clear_provider_country_case() -> InvestigationCase:
             source="counterfactual_provider",
             summary="Mismo pais y metodo mediante atlas_pay mantiene 90% de aprobacion.",
             value=0.90,
+            dimension_key="country=BR|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_clear_country_control",
+            source="counterfactual_country",
+            summary="Mismo provider en Argentina mantiene 88% de aprobacion.",
+            value=0.88,
             dimension_key="country=BR|provider=nova_pay",
         ),
         Evidence(
@@ -71,8 +99,15 @@ def clear_provider_country_case() -> InvestigationCase:
             dominant_decline_code="issuer_unavailable",
             estimated_revenue_loss_usd_per_hour=11220.0,
             rca_score=0.91,
-            evidence_ids=["ev_clear_baseline", "ev_clear_control", "ev_clear_declines"],
-            counterfactual_check="atlas_pay permanece saludable para el trafico comparable",
+            evidence_ids=[
+                "ev_clear_baseline",
+                "ev_clear_control",
+                "ev_clear_country_control",
+                "ev_clear_declines",
+            ],
+            counterfactual_check=(
+                "atlas_pay permanece saludable en BR y nova_pay permanece saludable en AR"
+            ),
         ),
         IncidentCandidate(
             candidate_id="cand_novapay",
@@ -103,7 +138,7 @@ def clear_provider_country_case() -> InvestigationCase:
     )
     return InvestigationCase(
         name="clear_provider_country",
-        anomaly_id="anom_clear",
+        anomaly=_anomaly("anom_clear", "country=BR|provider=nova_pay"),
         candidates=candidates,
         evidence=evidence,
     )
@@ -157,7 +192,7 @@ def ambiguous_provider_issuer_case() -> InvestigationCase:
     )
     return InvestigationCase(
         name="ambiguous_provider_issuer",
-        anomaly_id="anom_ambiguous",
+        anomaly=_anomaly("anom_ambiguous", "provider=nova_pay"),
         candidates=candidates,
         evidence=evidence,
     )
@@ -167,7 +202,7 @@ def no_candidate_case() -> InvestigationCase:
     """An anomaly exists, but Stream B has not produced a defensible explanation."""
     return InvestigationCase(
         name="no_candidates",
-        anomaly_id="anom_no_candidates",
+        anomaly=_anomaly("anom_no_candidates", "global"),
         candidates=(),
         evidence=(),
     )

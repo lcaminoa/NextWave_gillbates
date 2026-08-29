@@ -68,7 +68,7 @@ absoluto quede opacado por uno mas grande pero menos preciso -- exactamente el t
 negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer. La opcion 2
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
-## D018 — Geografía de impacto como globo 3D orientado a evidencia
+## D019 — Geografía de impacto como globo 3D orientado a evidencia
 
 Alternativas:
 1. omitir geografía del Control Tower
@@ -91,7 +91,7 @@ Tradeoff: suma una dependencia visual y carga de render. Se usa como pieza princ
 orientación geográfica, con una card de detalle por marcador; aun así no reemplaza el approval
 chart ni la evidencia citable, y no incluye arcos decorativos ni telemetría inventada.
 
-## D019 — Detail de incidente como workspace de evidencia
+## D020 — Detail de incidente como workspace de evidencia
 
 Alternativas:
 1. una grilla de muchos KPIs y mini-cards
@@ -115,7 +115,7 @@ sticky y la recomendación final mantienen el recorrido claro y la acción sigue
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
 
-## D020 — Chaos Console separa configuración, ejecución ciega y comparación verificable
+## D021 — Chaos Console separa configuración, ejecución ciega y comparación verificable
 
 Alternativas:
 1. mostrar siempre el escenario completo para simplificar la demo
@@ -134,11 +134,11 @@ Por qué:
   tiempo se califica como match, partial o mismatch, sin ocultar un resultado parcial detrás de
   un indicador global
 
-Tradeoff: el fixture local no puede demostrar un reveal aleatorio real sin conocer dimensiones
-ocultas. Por integridad, el flujo queda sellado y señala el adaptador `POST /api/chaos/reveal`
-hasta que el backend entregue el ground truth autorizado.
+Tradeoff: el flujo real depende de que el backend entregue el ground truth autorizado mediante
+`POST /api/chaos/reveal`. El contrato todavía no vincula `chaos_id` con `incident_id`, por lo que
+la comparación nunca afirma una correlación automática entre la inyección y un reporte.
 
-## D021 — Navegación global como header de producto y bandeja de investigaciones
+## D022 — Navegación global como header de producto y bandeja de investigaciones
 
 Alternativas:
 1. conservar la sidebar solo en Control Tower y usar enlaces de regreso en las demás pantallas
@@ -155,13 +155,13 @@ Por qué:
   una sidebar permanente sería desproporcionada para tres destinos
 - `Investigations` deja de ser un enlace artificial hacia un único detalle: ordena los casos por
   impacto y distingue de forma explícita `probable` de `inconclusive`
-- la nueva ruta es solo una composición de frontend sobre fixtures tipadas y no agrega endpoint,
-  campo de contrato ni capacidad de remediación
+- la nueva ruta compone `GET /api/incidents` sin agregar endpoint, campo de contrato ni capacidad
+  de remediación
 
-Tradeoff: la bandeja muestra los dos incidentes fixture hasta conectar `GET /api/incidents`.
-El badge de navegación también es fixture por ahora y deberá leer la lista real al integrar.
+Tradeoff: la bandeja y el badge dependen del runtime; si este no está disponible, la UI muestra
+ese estado explícitamente en vez de sustituir reportes live por fixtures.
 
-## D022 — Landing pública con señal procedimental y scroll nativo
+## D023 — Landing pública con señal procedimental y scroll nativo
 
 Alternativas:
 1. resolver la landing como una hero estática o un video de fondo
@@ -187,7 +187,7 @@ Tradeoff: agrega peso de JavaScript solo a `/` y una escena de render que debe s
 sobria. Se limita a una única pieza focal, DPR acotado, sombras moderadas y una composición
 estática accesible para `prefers-reduced-motion`.
 
-## D023 — Hero PHAROS como trayectoria de incidente sincronizada
+## D024 — Hero PHAROS como trayectoria de incidente sincronizada
 
 Alternativas:
 1. conservar la caída libre de la señal y agregar captions independientes
@@ -209,7 +209,7 @@ Tradeoff: la sección pinned pasa a 740vh para dar tiempo a cada conclusión. La
 adicional se compensa con una sola caption visible por vez, trayectoria central y un handoff
 final sobrio hacia la evidencia ya existente.
 
-## D024 — Timeline central como protagonista del hero PHAROS
+## D025 — Timeline central como protagonista del hero PHAROS
 
 Alternativas:
 1. dejar que la señal 3D recorra físicamente el mismo espacio que la trayectoria
@@ -229,7 +229,7 @@ Por qué:
 Tradeoff: la señal deja de recorrer la línea de forma literal. La progresión compartida conserva
 la causalidad visual y gana legibilidad en desktop y mobile.
 
-## D025 — Evidence spine en vez de pseudo-gráfico dentro del hero PHAROS
+## D026 — Evidence spine en vez de pseudo-gráfico dentro del hero PHAROS
 
 Alternativas:
 1. mantener un rail con etiquetas `expected` y `observed`, banda de rango y nodos numerados
@@ -249,7 +249,7 @@ Por qué:
 Tradeoff: el hero renuncia a simular un gráfico. La comparación cuantitativa completa sigue en
 las vistas de producto, donde tiene contexto y evidencia citable.
 
-## D026 — Tarjeta física como señal de aprobación de la landing
+## D027 — Tarjeta física como señal de aprobación de la landing
 
 Alternativas:
 1. conservar el dispositivo abstracto con display de métricas
@@ -660,7 +660,7 @@ corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> inve
 endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
 muchos sintomas publicables, queda en un reporte.
 
-## D027 — Conectar el dashboard al runtime mediante CORS con allowlist explícita
+## D028 — Conectar el dashboard al runtime mediante CORS con allowlist explícita
 
 Contexto: el dashboard Next.js corre localmente en `http://localhost:3000` y el engine FastAPI
 en `http://localhost:8000`. Para que el navegador pueda consumir reportes, detalle, SSE y Chaos
@@ -680,7 +680,7 @@ Tradeoff: en cada entorno se debe declarar el origen público exacto. Es preferi
 comodín porque los endpoints de caos pueden estar protegidos por `CONTROL_TOWER_JUDGE_TOKEN`.
 Esa clave sigue siendo exclusivamente server-side; nunca se expone como `NEXT_PUBLIC_*`.
 
-## D028 — Sistema de marca PHAROS como fuente única de identidad visual
+## D029 — Sistema de marca PHAROS como fuente única de identidad visual
 
 Alternativas:
 1. conservar las siglas y lockups ad-hoc de cada pantalla;
@@ -700,3 +700,42 @@ Por qué:
 Tradeoff: se preservan las tipografías de producto existentes para no remaquetar pantallas ya
 validadas; el wordmark acompaña la torre sin aplicarse como logo decorativo dentro de métricas,
 evidencia o la tarjeta 3D.
+
+## D018 — Auditor como gate y evidencia incremental para publicar causas especificas
+
+Contexto: en un smoke a ciegas, un caos real de `merchant=Comercio2` termino explicado como
+`merchant=Comercio2|provider=stripe`. El merchant era correcto, pero el reporte agrego una
+dimension que no mejoraba materialmente la explicacion simple. Ademas, D015 habia dejado al
+Evidence Auditor disponible como runner separado, pero todavia no era una compuerta del runtime.
+
+Alternativas:
+1. conservar el ranking y el Auditor como utilidades independientes;
+2. darle al Auditor transacciones crudas o la verdad secreta del `ChaosSpec` para decidir;
+3. filtrar intersecciones no demostradas y, en modo OpenAI auditado, exigir aprobacion sobre un
+   paquete acotado de anomalía, candidatos relevantes, evidencia consultada, reporte y pasos.
+
+Decision: 3. Si una candidata agrega dimensiones frente a una explicacion propia mas simple,
+debe mejorar su `current_decline_rate` por al menos 8 puntos porcentuales y tener un control
+`counterfactual_<dimension>` citable y consultado para cada dimension agregada. Si no cumple, no
+participa como posible ganadora; la investigacion elige la alternativa simple o se abstiene. El
+validador de publicacion repite la regla para que un runner inyectado tampoco pueda saltearla.
+
+El modo `audited_openai` ejecuta Investigator -> validacion determinista -> Evidence Auditor ->
+publicacion. Un rechazo, una salida invalida o una falla de la llamada produce un reporte local
+`inconclusive`, conserva revision humana y deja el episodio habilitado para retry sin duplicarlo.
+El modo deterministico sigue siendo el default y no realiza llamadas externas.
+
+Cada request del Investigator y del Auditor tiene un timeout explicito configurable con
+`OPENAI_REQUEST_TIMEOUT_SECONDS` (30 segundos por default). Los reintentos internos del SDK se
+desactivan: ante timeout el runtime falla cerrado y el retry controlado ocurre recien en una nueva
+ventana del mismo episodio, sin bloquear SSE ni multiplicar llamadas fuera de nuestra politica.
+
+El paquete del Auditor contiene la `Anomaly`, ganador, alternativas propias mas simples y principal
+competidora con `confidence`, `rca_score`, impacto, `evidence_ids` y `counterfactual_check`; la
+evidencia sigue limitada a IDs efectivamente consultados. Nunca recibe `ChaosSpec`, dimensiones
+secretas del random, transacciones crudas, tools ni capacidad de modificar el reporte.
+
+Tradeoff: el umbral de 8 pp privilegia evitar una explicacion vistosa pero falsa y puede volver
+`inconclusive` un incidente real con poco volumen. Para la prueba a ciegas es preferible
+sub-atribuir; el valor queda centralizado y puede recalibrarse con escenarios reproducibles sin
+cambiar contratos.

@@ -21,7 +21,13 @@ from contracts.schemas import (
 )
 from engine.api.runtime import ControlTowerService
 from engine.detection.pipeline import AnomalyDiagnosis, DetectionPipeline, WindowResult
-from engine.investigator import run_investigation
+from engine.investigator import (
+    AuditedInvestigationResult,
+    AuditIssue,
+    EvidenceAudit,
+    EvidenceAuditError,
+    run_investigation,
+)
 from engine.investigator.runner import InvestigationResult
 from engine.main import create_app
 from simulator import PaymentSimulator
@@ -179,6 +185,102 @@ def test_health_and_frozen_routes_are_exposed() -> None:
         "/api/chaos/random",
         "/api/chaos/reveal",
     } <= set(schema["paths"])
+
+
+def test_audited_openai_mode_is_explicit_and_requires_a_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    with pytest.raises(RuntimeError, match="requires OPENAI_MODEL"):
+        create_app(start_background=False)
+
+    captured: dict[str, object] = {}
+
+    def fake_audited_run(anomaly, candidates, evidence, **kwargs):
+        captured.update(kwargs)
+        investigation = run_investigation(
+            anomaly.anomaly_id,
+            tuple(candidates),
+            tuple(evidence),
+        )
+        return AuditedInvestigationResult(
+            investigation=investigation,
+            audit=EvidenceAudit(
+                approved=True,
+                summary="Reporte aprobado por el mock.",
+                issues=[],
+            ),
+        )
+
+    monkeypatch.setattr("engine.main.run_audited_openai_investigation", fake_audited_run)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
+    monkeypatch.setenv("OPENAI_MODEL", "mock-investigator")
+    monkeypatch.setenv("OPENAI_AUDITOR_MODEL", "mock-auditor")
+    monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "7.5")
+    app = create_app(start_background=False)
+    diagnosis = _diagnosis(
+        "configured_audit",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+
+    audited = app.state.control_tower.audited_investigator(
+        diagnosis.anomaly,
+        diagnosis.candidates,
+        diagnosis.evidence,
+    )
+
+    assert app.state.control_tower.audited_investigator is not None
+    assert audited.audit.approved is True
+    assert captured == {
+        "model": "mock-investigator",
+        "auditor_model": "mock-auditor",
+        "request_timeout_seconds": 7.5,
+    }
+
+
+@pytest.mark.parametrize("configured_key", [None, "   "], ids=["missing", "empty"])
+def test_audited_openai_mode_requires_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+    configured_key: str | None,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    if configured_key is None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", configured_key)
+
+    with pytest.raises(RuntimeError, match="requires OPENAI_API_KEY") as exc_info:
+        create_app(start_background=False)
+
+    assert str(exc_info.value) == "audited_openai mode requires OPENAI_API_KEY"
+
+
+def test_deterministic_mode_does_not_require_openai_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "deterministic")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    app = create_app(start_background=False)
+
+    assert app.state.control_tower.audited_investigator is None
+
+
+def test_audited_openai_mode_rejects_invalid_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_TOWER_INVESTIGATOR_MODE", "audited_openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
+    monkeypatch.setenv("OPENAI_MODEL", "mock-model")
+    monkeypatch.setenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "0")
+
+    with pytest.raises(RuntimeError, match="must be a positive number"):
+        create_app(start_background=False)
 
 
 def test_random_chaos_is_opaque_until_reveal() -> None:
@@ -676,6 +778,163 @@ def test_transient_investigator_failure_is_retried_without_duplicate_report() ->
     assert recovered.status is ReportStatus.confirmed
 
 
+def test_audited_runtime_rejection_fails_closed_and_retries_without_duplicate() -> None:
+    first = _diagnosis(
+        "audit_retry_1",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    second = _diagnosis(
+        "audit_retry_2",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    calls: list[str] = []
+
+    def audited_investigator(anomaly, candidates, evidence):
+        calls.append(anomaly.anomaly_id)
+        investigation = run_investigation(
+            anomaly.anomaly_id,
+            tuple(candidates),
+            tuple(evidence),
+        )
+        if len(calls) == 1:
+            audit = EvidenceAudit(
+                approved=False,
+                summary="La especificidad no esta suficientemente respaldada.",
+                issues=[
+                    AuditIssue(
+                        code="missing_counterfactual",
+                        message="Falta aislar una dimension adicional.",
+                    )
+                ],
+            )
+        else:
+            audit = EvidenceAudit(
+                approved=True,
+                summary="El reporte puede publicarse.",
+                issues=[],
+            )
+        return AuditedInvestigationResult(investigation=investigation, audit=audit)
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(first), _window(second)]),
+        audited_investigator=audited_investigator,
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction(0))
+    [fallback] = service.list_reports()
+    assert fallback.status is ReportStatus.inconclusive
+    assert fallback.winning_candidate_id is None
+
+    service.process_transaction(_transaction(1))
+    [recovered] = service.list_reports()
+    assert calls == ["anom_audit_retry_1", "anom_audit_retry_2"]
+    assert recovered.anomaly_id == "anom_audit_retry_2"
+    assert recovered.status is ReportStatus.confirmed
+
+
+@pytest.mark.parametrize(
+    "error_type",
+    [EvidenceAuditError, TimeoutError],
+    ids=["audit_error", "audit_timeout"],
+)
+def test_audited_runtime_error_never_publishes_an_unaudited_winner(
+    error_type: type[Exception],
+) -> None:
+    diagnosis = _diagnosis(
+        "audit_failure",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+
+    def failing_auditor(anomaly, candidates, evidence):
+        raise error_type("synthetic audit failure")
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        audited_investigator=failing_auditor,
+        start_at=START,
+    )
+    service.process_transaction(_transaction())
+
+    [report] = service.list_reports()
+    assert report.status is ReportStatus.inconclusive
+    assert report.winning_candidate_id is None
+    assert report.claims == []
+
+
+def test_api_runtime_does_not_publish_an_unproven_extra_dimension() -> None:
+    base = _diagnosis(
+        "merchant_specificity",
+        dimensions=Dimensions(merchant="Comercio2"),
+        dimension_key="merchant=Comercio2",
+    )
+    simple = base.candidates[0].model_copy(
+        update={
+            "candidate_id": "cand_merchant",
+            "dimensions": Dimensions(merchant="Comercio2"),
+            "confidence": 0.91,
+            "current_decline_rate": 0.48,
+            "rca_score": 0.80,
+            "evidence_ids": ["ev_merchant"],
+        }
+    )
+    specific = base.candidates[0].model_copy(
+        update={
+            "candidate_id": "cand_merchant_stripe",
+            "dimensions": Dimensions(merchant="Comercio2", provider="stripe"),
+            "confidence": 0.94,
+            "current_decline_rate": 0.49,
+            "rca_score": 0.95,
+            "evidence_ids": ["ev_merchant_stripe", "ev_provider_control"],
+            "counterfactual_check": "Se compararon providers dentro del merchant.",
+        }
+    )
+    evidence = [
+        Evidence(
+            evidence_id="ev_merchant",
+            source="baseline_comparison",
+            summary="Comercio2: rechazo subio de 10% a 48%.",
+            value=0.38,
+            dimension_key="merchant=Comercio2",
+        ),
+        Evidence(
+            evidence_id="ev_merchant_stripe",
+            source="baseline_comparison",
+            summary="Comercio2 con stripe: rechazo subio de 10% a 49%.",
+            value=0.39,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+        Evidence(
+            evidence_id="ev_provider_control",
+            source="counterfactual_provider",
+            summary="Otro provider del merchant tiene un desempeno comparable.",
+            value=0.50,
+            dimension_key="merchant=Comercio2|provider=stripe",
+        ),
+    ]
+    diagnosis = AnomalyDiagnosis(
+        anomaly=base.anomaly,
+        candidates=[specific, simple],
+        evidence=evidence,
+    )
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction())
+
+    [report] = service.list_reports()
+    assert report.winning_candidate_id == "cand_merchant"
+    assert "provider=stripe" not in report.summary
+
+
 def test_invalid_investigator_output_fails_closed_before_publication() -> None:
     diagnosis = _diagnosis(
         "invalid_agent",
@@ -746,7 +1005,10 @@ def test_health_degrades_if_the_single_producer_stops_unexpectedly() -> None:
     assert response.json() == {"status": "degraded"}
 
 
-def test_slow_investigator_runs_off_the_stream_event_loop() -> None:
+@pytest.mark.parametrize("audited_mode", [False, True], ids=["deterministic", "audited"])
+def test_slow_investigator_runs_off_the_stream_event_loop(
+    audited_mode: bool,
+) -> None:
     diagnosis = _diagnosis(
         "slow_worker",
         dimensions=Dimensions(provider="nova_pay", country="BR"),
@@ -761,12 +1023,29 @@ def test_slow_investigator_runs_off_the_stream_event_loop() -> None:
             raise TimeoutError("test did not release investigator")
         return run_investigation(anomaly_id, tuple(candidates), tuple(evidence))
 
+    def slow_audited_investigator(anomaly, candidates, evidence):
+        investigation = slow_investigator(anomaly.anomaly_id, candidates, evidence)
+        return AuditedInvestigationResult(
+            investigation=investigation,
+            audit=EvidenceAudit(
+                approved=True,
+                summary="El mock aprobo el reporte.",
+                issues=[],
+            ),
+        )
+
+    investigator_config = (
+        {"audited_investigator": slow_audited_investigator}
+        if audited_mode
+        else {"investigator": slow_investigator}
+    )
+
     service = ControlTowerService(
         simulator=PaymentSimulator(seed=42),
         pipeline=FakePipeline([_window(diagnosis)]),
-        investigator=slow_investigator,
         start_at=START,
         emit_delay_seconds=0.001,
+        **investigator_config,
     )
 
     async def exercise() -> None:
