@@ -3431,38 +3431,28 @@ a {
   overflow: visible;
 }
 
-.landing-trajectory-expected-band {
+.landing-trajectory-spine {
   fill: none;
-  stroke: rgba(185, 200, 233, 0.075);
+  stroke: rgba(218, 211, 225, 0.16);
   stroke-linecap: round;
-  stroke-width: 18;
-  transition: stroke 280ms ease;
+  stroke-width: 1.2;
 }
 
-.landing-trajectory-expected-rail {
-  fill: none;
-  stroke: rgba(196, 207, 236, 0.4);
-  stroke-dasharray: 2 10;
-  stroke-linecap: round;
-  stroke-width: 1.25;
-}
-
-.landing-trajectory-observed {
+.landing-trajectory-trace {
   fill: none;
   stroke: #bdc9ea;
   stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 3;
-  filter: drop-shadow(0 0 9px rgba(188, 202, 235, 0.42));
-  transition: stroke 280ms ease, filter 280ms ease;
+  stroke-width: 2.35;
+  filter: drop-shadow(0 0 8px rgba(188, 202, 235, 0.34));
+  transition: stroke 280ms ease, filter 280ms ease, stroke-dashoffset 160ms linear;
 }
 
-.landing-trajectory-deviation .landing-trajectory-observed {
+.landing-trajectory-deviation .landing-trajectory-trace {
   stroke: #e4aa61;
   filter: drop-shadow(0 0 8px rgba(228, 170, 97, 0.34));
 }
 
-.landing-trajectory-evidence .landing-trajectory-observed {
+.landing-trajectory-evidence .landing-trajectory-trace {
   stroke: #dd7a99;
   filter: drop-shadow(0 0 9px rgba(221, 122, 153, 0.38));
 }
@@ -3486,36 +3476,12 @@ a {
   transition: stroke 240ms ease, fill 240ms ease;
 }
 
-.landing-trajectory-checkpoint text {
-  fill: #ede8f1;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 5.6px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-.landing-trajectory-rail-label {
-  fill: rgba(214, 208, 221, 0.55);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 7px;
-  font-weight: 760;
-  letter-spacing: 0.12em;
-  text-anchor: middle;
-}
-
-.landing-trajectory-rail-label-expected {
-  fill: rgba(185, 200, 233, 0.5);
-}
-
-.landing-trajectory-connector {
+.landing-trajectory-leader {
   fill: none;
-  stroke: rgba(220, 213, 229, 0.3);
-  stroke-dasharray: 2.5 7;
+  stroke: rgba(228, 221, 236, 0.72);
   stroke-linecap: round;
-  stroke-width: 1;
-  transition: stroke-dashoffset 260ms ease, stroke 220ms ease;
+  stroke-width: 1.2;
+  transition: stroke 220ms ease;
 }
 
 .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
@@ -3526,10 +3492,6 @@ a {
 .landing-trajectory-checkpoint-active .landing-trajectory-node {
   fill: #e4e9f8;
   stroke: #f7f3ff;
-}
-
-.landing-trajectory-checkpoint-active .landing-trajectory-connector {
-  stroke: rgba(232, 224, 240, 0.72);
 }
 
 .landing-trajectory-deviation .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
@@ -3552,14 +3514,22 @@ a {
   stroke: #ffd7e4;
 }
 
+.landing-trajectory-deviation .landing-trajectory-leader {
+  stroke: rgba(247, 201, 132, 0.82);
+}
+
+.landing-trajectory-evidence .landing-trajectory-leader {
+  stroke: rgba(239, 154, 181, 0.85);
+}
+
 .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
-  animation: landing-trajectory-pulse 2.15s ease-in-out infinite;
+  animation: landing-trajectory-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes landing-trajectory-pulse {
   0%,
   100% {
-    opacity: 0.46;
+    opacity: 0.56;
   }
 
   50% {
@@ -3590,7 +3560,7 @@ a {
 .landing-checkpoint-caption {
   position: absolute;
   z-index: 5;
-  left: 57vw;
+  left: 55vw;
   width: min(350px, 22vw);
   pointer-events: none;
   text-align: left;
@@ -3598,7 +3568,7 @@ a {
 }
 
 .landing-checkpoint-caption-left {
-  left: 57vw;
+  left: 55vw;
   text-align: left;
 }
 
@@ -3794,19 +3764,19 @@ a {
     transform-origin: center;
   }
 
-  .landing-trajectory-expected-band {
-    stroke-width: 23;
+  .landing-trajectory-spine {
+    stroke-width: 1.35;
+  }
+
+  .landing-trajectory-trace {
+    stroke-width: 2.6;
   }
 
   .landing-trajectory-node-halo {
     stroke-width: 1.2;
   }
 
-  .landing-trajectory-checkpoint text {
-    font-size: 8px;
-  }
-
-  .landing-trajectory-rail-label {
+  .landing-trajectory-leader {
     display: none;
   }
 

@@ -19,7 +19,7 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     id: 1,
     key: "baseline",
     eyebrow: "01 · Baseline",
-    primary: "93.9% expected",
+    primary: "93.9% was the learned baseline",
     secondary: "Brazil · card payments",
     start: 0.12,
     end: 0.25,
@@ -31,12 +31,12 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     id: 2,
     key: "deviation",
     eyebrow: "02 · Sustained deviation",
-    primary: "62.4% observed",
-    secondary: "−31.4 pp below expected range · four consecutive windows",
+    primary: "Approval fell to 62.4%",
+    secondary: "−31.4 pp below its learned range · four consecutive windows",
     start: 0.25,
     end: 0.4,
     side: "right",
-    x: 0.48,
+    x: 0.49,
     y: 0.32,
   },
   {
@@ -48,7 +48,7 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.4,
     end: 0.54,
     side: "right",
-    x: 0.5,
+    x: 0.49,
     y: 0.45,
   },
   {
@@ -60,7 +60,7 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.54,
     end: 0.68,
     side: "right",
-    x: 0.48,
+    x: 0.49,
     y: 0.58,
   },
   {
@@ -72,7 +72,7 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.68,
     end: 0.82,
     side: "right",
-    x: 0.5,
+    x: 0.49,
     y: 0.69,
   },
   {
@@ -159,8 +159,8 @@ export function getTrajectoryTone(progress: number): TrajectoryTone {
 }
 
 export function getSignalMetric(progress: number) {
-  if (progress < 0.25) return { label: "EXPECTED", metric: "93.9%" };
-  if (progress < 0.4) return { label: "OBSERVED", metric: "62.4%" };
+  if (progress < 0.25) return { label: "BASELINE", metric: "93.9%" };
+  if (progress < 0.4) return { label: "DROP", metric: "62.4%" };
   if (progress < 0.54) return { label: "COHORT", metric: "BR / CARD" };
   if (progress < 0.68) return { label: "CONTROL", metric: "94.1%" };
   if (progress < 0.82) return { label: "DECLINE", metric: "71%" };
@@ -170,5 +170,3 @@ export function getSignalMetric(progress: number) {
 export const trajectoryViewBox = { width: 1000, height: 640 };
 
 export const observedTrajectoryPath = `M ${landingCheckpoints.map((checkpoint) => `${checkpoint.x * trajectoryViewBox.width} ${checkpoint.y * trajectoryViewBox.height}`).join(" L ")}`;
-
-export const expectedRangePath = "M 455 104 C 460 177 454 249 459 324 S 454 473 459 552";

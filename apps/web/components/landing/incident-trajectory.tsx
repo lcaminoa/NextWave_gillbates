@@ -1,6 +1,5 @@
 import {
   clamp,
-  expectedRangePath,
   getActiveCheckpointIndex,
   getTrajectoryTone,
   landingCheckpoints,
@@ -20,28 +19,9 @@ export function IncidentTrajectory({ progress }: IncidentTrajectoryProps) {
   return (
     <div className={`landing-trajectory landing-trajectory-${tone}`} aria-hidden="true">
       <svg viewBox={`0 0 ${trajectoryViewBox.width} ${trajectoryViewBox.height}`} preserveAspectRatio="none">
-        <text className="landing-trajectory-rail-label landing-trajectory-rail-label-expected" x="420" y="79">
-          EXPECTED
-        </text>
-        <text className="landing-trajectory-rail-label" x="492" y="79">
-          OBSERVED
-        </text>
+        <path className="landing-trajectory-spine" d={observedTrajectoryPath} />
         <path
-          className="landing-trajectory-expected-band"
-          d={expectedRangePath}
-          pathLength={100}
-          strokeDasharray={100}
-          strokeDashoffset={100 - pathProgress * 100}
-        />
-        <path
-          className="landing-trajectory-expected-rail"
-          d={expectedRangePath}
-          pathLength={100}
-          strokeDasharray={100}
-          strokeDashoffset={100 - pathProgress * 100}
-        />
-        <path
-          className="landing-trajectory-observed"
+          className="landing-trajectory-trace"
           d={observedTrajectoryPath}
           pathLength={100}
           strokeDasharray={100}
@@ -53,21 +33,21 @@ export function IncidentTrajectory({ progress }: IncidentTrajectoryProps) {
           const y = checkpoint.y * trajectoryViewBox.height;
           const reveal = clamp((progress - (checkpoint.start - 0.018)) / 0.045);
           const active = index === activeIndex;
-          const connectorEnd = 565;
-          const control = x + 34;
 
           return (
-            <g key={checkpoint.key} className={active ? "landing-trajectory-checkpoint landing-trajectory-checkpoint-active" : "landing-trajectory-checkpoint"} style={{ opacity: reveal }}>
-              <path
-                className="landing-trajectory-connector"
-                d={`M ${x} ${y} C ${control} ${y}, ${connectorEnd - 26} ${y}, ${connectorEnd} ${y}`}
-                pathLength={100}
-                strokeDasharray={100}
-                strokeDashoffset={active ? 0 : 100}
-              />
-              <circle className="landing-trajectory-node-halo" cx={x} cy={y} r={active ? 18 : 12} />
-              <circle className="landing-trajectory-node" cx={x} cy={y} r={active ? 8.5 : 6.4} />
-              <text x={x} y={y + 3.1}>{String(checkpoint.id).padStart(2, "0")}</text>
+            <g
+              key={checkpoint.key}
+              className={`landing-trajectory-checkpoint${active ? " landing-trajectory-checkpoint-active" : ""}`}
+              style={{ opacity: reveal }}
+            >
+              {active ? (
+                <path
+                  className="landing-trajectory-leader"
+                  d={`M ${x + 19} ${y} C ${x + 46} ${y}, 522 ${y}, 545 ${y}`}
+                />
+              ) : null}
+              <circle className="landing-trajectory-node-halo" cx={x} cy={y} r={active ? 18 : 7.2} />
+              <circle className="landing-trajectory-node" cx={x} cy={y} r={active ? 7.5 : 4.3} />
             </g>
           );
         })}

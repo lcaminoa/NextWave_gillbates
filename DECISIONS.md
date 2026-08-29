@@ -228,3 +228,23 @@ Por qué:
 
 Tradeoff: la señal deja de recorrer la línea de forma literal. La progresión compartida conserva
 la causalidad visual y gana legibilidad en desktop y mobile.
+
+## D011 — Evidence spine en vez de pseudo-gráfico dentro del hero PHAROS
+
+Alternativas:
+1. mantener un rail con etiquetas `expected` y `observed`, banda de rango y nodos numerados
+2. convertir la secuencia en un gráfico de aprobación completo dentro del hero
+3. usar un único spine de investigación con nodos silenciosos y un conector sólido al estado activo
+
+Decisión: 3
+
+Por qué:
+- sin eje ni escala, el rail anterior parecía telemetría decorativa y no explicaba la diferencia
+  entre baseline y caída observada
+- los valores viven ahora en las primeras dos conclusiones, con lenguaje directo; el spine solo
+  comunica la progresión de la investigación
+- quitar números duplicados y líneas punteadas conserva la jerarquía: estado, evidencia y luego
+  la señal física
+
+Tradeoff: el hero renuncia a simular un gráfico. La comparación cuantitativa completa sigue en
+las vistas de producto, donde tiene contexto y evidencia citable.
