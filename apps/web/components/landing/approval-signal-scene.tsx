@@ -71,9 +71,11 @@ function ApprovalSignal({ progressRef }: Pick<ApprovalSignalSceneProps, "progres
     const progress = progressRef.current;
     const waypoint = getSignalWaypoint(progress);
     const viewport = state.viewport.getCurrentViewport(state.camera, origin.set(0, 0, waypoint.depth));
-    const mobileFactor = state.size.width <= 640 ? 0.78 : 1;
-    const mobileShift = state.size.width <= 640 ? smoothstep(0.12, 0.2, progress) * viewport.height * 0.16 : 0;
-    const targetX = (waypoint.x - 0.5) * viewport.width;
+    const isNarrow = state.size.width <= 640;
+    const mobileFactor = isNarrow ? 0.68 : 1;
+    const mobileShift = isNarrow ? smoothstep(0.12, 0.2, progress) * viewport.height * 0.09 : 0;
+    const horizontalPosition = isNarrow ? waypoint.x + 0.1 : waypoint.x;
+    const targetX = (horizontalPosition - 0.5) * viewport.width;
     const targetY = (0.5 - waypoint.y) * viewport.height - mobileShift;
     const evidenceOpen = smoothstep(0.958, 0.997, progress);
     const drift = Math.sin(state.clock.elapsedTime * 0.32) * 0.022;

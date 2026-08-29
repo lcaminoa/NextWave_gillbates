@@ -208,3 +208,23 @@ Por qué:
 Tradeoff: la sección pinned pasa a 740vh para dar tiempo a cada conclusión. La superficie
 adicional se compensa con una sola caption visible por vez, trayectoria central y un handoff
 final sobrio hacia la evidencia ya existente.
+
+## D010 — Timeline central como protagonista del hero PHAROS
+
+Alternativas:
+1. dejar que la señal 3D recorra físicamente el mismo espacio que la trayectoria
+2. ubicar la trayectoria como un detalle lateral y mantener la señal como protagonista
+3. separar zonas: señal lateral, rail de investigación central y estado que nace del nodo activo
+
+Decisión: 3
+
+Por qué:
+- el rail central vuelve visible el método de investigación, no solo el resultado visual de la
+  anomalía
+- cada checkpoint extiende un conector corto hacia su estado, haciendo explícita la relación
+  entre evidencia, etapa y conclusión sin atravesar la señal
+- la señal permanece sincronizada en métrica, luz, profundidad y apertura final, pero deja de
+  competir espacialmente con el timeline
+
+Tradeoff: la señal deja de recorrer la línea de forma literal. La progresión compartida conserva
+la causalidad visual y gana legibilidad en desktop y mobile.

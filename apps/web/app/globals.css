@@ -3433,18 +3433,18 @@ a {
 
 .landing-trajectory-expected-band {
   fill: none;
-  stroke: rgba(185, 200, 233, 0.09);
+  stroke: rgba(185, 200, 233, 0.075);
   stroke-linecap: round;
-  stroke-width: 28;
+  stroke-width: 18;
   transition: stroke 280ms ease;
 }
 
 .landing-trajectory-expected-rail {
   fill: none;
-  stroke: rgba(196, 207, 236, 0.32);
+  stroke: rgba(196, 207, 236, 0.4);
   stroke-dasharray: 2 10;
   stroke-linecap: round;
-  stroke-width: 1.1;
+  stroke-width: 1.25;
 }
 
 .landing-trajectory-observed {
@@ -3452,8 +3452,8 @@ a {
   stroke: #bdc9ea;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.1;
-  filter: drop-shadow(0 0 7px rgba(188, 202, 235, 0.3));
+  stroke-width: 3;
+  filter: drop-shadow(0 0 9px rgba(188, 202, 235, 0.42));
   transition: stroke 280ms ease, filter 280ms ease;
 }
 
@@ -3494,6 +3494,19 @@ a {
   letter-spacing: 0.02em;
   text-anchor: middle;
   pointer-events: none;
+}
+
+.landing-trajectory-rail-label {
+  fill: rgba(214, 208, 221, 0.55);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 7px;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-anchor: middle;
+}
+
+.landing-trajectory-rail-label-expected {
+  fill: rgba(185, 200, 233, 0.5);
 }
 
 .landing-trajectory-connector {
@@ -3577,48 +3590,50 @@ a {
 .landing-checkpoint-caption {
   position: absolute;
   z-index: 5;
-  width: min(350px, 23vw);
+  left: 57vw;
+  width: min(350px, 22vw);
   pointer-events: none;
+  text-align: left;
   transition: opacity 150ms linear, transform 190ms ease, visibility 0s linear 150ms;
 }
 
 .landing-checkpoint-caption-left {
-  left: clamp(26px, 7.2vw, 132px);
+  left: 57vw;
   text-align: left;
 }
 
 .landing-checkpoint-caption-right {
-  right: clamp(26px, 7.2vw, 132px);
-  text-align: right;
+  right: auto;
+  text-align: left;
 }
 
 .landing-checkpoint-caption-right p,
 .landing-checkpoint-caption-right .landing-mask-line {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .landing-checkpoint-caption-baseline {
-  top: 60vh;
+  top: calc(19vh - 10px);
 }
 
 .landing-checkpoint-caption-deviation {
-  top: 21vh;
+  top: calc(32vh - 10px);
 }
 
 .landing-checkpoint-caption-scope {
-  top: 25vh;
+  top: calc(45vh - 10px);
 }
 
 .landing-checkpoint-caption-counterfactual {
-  top: 61vh;
+  top: calc(58vh - 10px);
 }
 
 .landing-checkpoint-caption-decline {
-  top: 60vh;
+  top: calc(69vh - 10px);
 }
 
 .landing-checkpoint-caption-evidence {
-  top: 25vh;
+  top: calc(80vh - 10px);
 }
 
 .landing-checkpoint-eyebrow {
@@ -3744,7 +3759,7 @@ a {
   .landing-checkpoint-caption-left,
   .landing-checkpoint-caption-right {
     top: 15svh;
-    right: 20px;
+    right: 70px;
     left: 20px;
     width: auto;
     text-align: left;
@@ -3756,12 +3771,12 @@ a {
   }
 
   .landing-checkpoint-caption strong {
-    max-width: 320px;
+    max-width: 270px;
     font-size: clamp(1.9rem, 9.4vw, 2.7rem);
   }
 
   .landing-checkpoint-caption p {
-    max-width: 310px;
+    max-width: 265px;
     font-size: 12px;
   }
 
@@ -3775,7 +3790,7 @@ a {
   }
 
   .landing-trajectory {
-    transform: translateY(16%);
+    transform: translate3d(28%, 9%, 0);
     transform-origin: center;
   }
 
@@ -3789,6 +3804,10 @@ a {
 
   .landing-trajectory-checkpoint text {
     font-size: 8px;
+  }
+
+  .landing-trajectory-rail-label {
+    display: none;
   }
 
   .landing-scroll-cue {

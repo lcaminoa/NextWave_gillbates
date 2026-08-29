@@ -20,6 +20,12 @@ export function IncidentTrajectory({ progress }: IncidentTrajectoryProps) {
   return (
     <div className={`landing-trajectory landing-trajectory-${tone}`} aria-hidden="true">
       <svg viewBox={`0 0 ${trajectoryViewBox.width} ${trajectoryViewBox.height}`} preserveAspectRatio="none">
+        <text className="landing-trajectory-rail-label landing-trajectory-rail-label-expected" x="420" y="79">
+          EXPECTED
+        </text>
+        <text className="landing-trajectory-rail-label" x="492" y="79">
+          OBSERVED
+        </text>
         <path
           className="landing-trajectory-expected-band"
           d={expectedRangePath}
@@ -47,15 +53,14 @@ export function IncidentTrajectory({ progress }: IncidentTrajectoryProps) {
           const y = checkpoint.y * trajectoryViewBox.height;
           const reveal = clamp((progress - (checkpoint.start - 0.018)) / 0.045);
           const active = index === activeIndex;
-          const connectorEnd = checkpoint.side === "left" ? 295 : 705;
-          const direction = checkpoint.side === "left" ? -1 : 1;
-          const control = x + direction * 62;
+          const connectorEnd = 565;
+          const control = x + 34;
 
           return (
             <g key={checkpoint.key} className={active ? "landing-trajectory-checkpoint landing-trajectory-checkpoint-active" : "landing-trajectory-checkpoint"} style={{ opacity: reveal }}>
               <path
                 className="landing-trajectory-connector"
-                d={`M ${x} ${y} C ${control} ${y}, ${connectorEnd - direction * 32} ${y}, ${connectorEnd} ${y}`}
+                d={`M ${x} ${y} C ${control} ${y}, ${connectorEnd - 26} ${y}, ${connectorEnd} ${y}`}
                 pathLength={100}
                 strokeDasharray={100}
                 strokeDashoffset={active ? 0 : 100}

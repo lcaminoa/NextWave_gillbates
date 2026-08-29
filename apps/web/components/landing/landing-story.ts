@@ -23,9 +23,9 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     secondary: "Brazil · card payments",
     start: 0.12,
     end: 0.25,
-    side: "left",
-    x: 0.47,
-    y: 0.29,
+    side: "right",
+    x: 0.49,
+    y: 0.19,
   },
   {
     id: 2,
@@ -36,8 +36,8 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.25,
     end: 0.4,
     side: "right",
-    x: 0.51,
-    y: 0.4,
+    x: 0.48,
+    y: 0.32,
   },
   {
     id: 3,
@@ -47,9 +47,9 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     secondary: "The system isolates the affected cohort before claiming a cause.",
     start: 0.4,
     end: 0.54,
-    side: "left",
-    x: 0.47,
-    y: 0.51,
+    side: "right",
+    x: 0.5,
+    y: 0.45,
   },
   {
     id: 4,
@@ -60,8 +60,8 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.54,
     end: 0.68,
     side: "right",
-    x: 0.54,
-    y: 0.46,
+    x: 0.48,
+    y: 0.58,
   },
   {
     id: 5,
@@ -71,9 +71,9 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     secondary: "Up from 18% of declines at baseline.",
     start: 0.68,
     end: 0.82,
-    side: "left",
+    side: "right",
     x: 0.5,
-    y: 0.58,
+    y: 0.69,
   },
   {
     id: 6,
@@ -84,8 +84,8 @@ export const landingCheckpoints: LandingCheckpoint[] = [
     start: 0.82,
     end: 0.96,
     side: "right",
-    x: 0.55,
-    y: 0.62,
+    x: 0.49,
+    y: 0.8,
   },
 ];
 
@@ -98,15 +98,15 @@ type SignalWaypoint = {
 };
 
 const signalWaypoints: SignalWaypoint[] = [
-  { progress: 0, x: 0.47, y: 0.19, depth: -3.9, scale: 0.54 },
-  { progress: 0.12, x: 0.47, y: 0.29, depth: -2.5, scale: 0.67 },
-  { progress: 0.25, x: 0.51, y: 0.4, depth: 0.12, scale: 0.91 },
-  { progress: 0.4, x: 0.47, y: 0.51, depth: 0.44, scale: 0.94 },
-  { progress: 0.54, x: 0.54, y: 0.46, depth: 0.68, scale: 1 },
-  { progress: 0.68, x: 0.5, y: 0.58, depth: 0.42, scale: 0.9 },
-  { progress: 0.82, x: 0.55, y: 0.62, depth: 0.22, scale: 0.83 },
-  { progress: 0.96, x: 0.55, y: 0.62, depth: 0.12, scale: 0.79 },
-  { progress: 1, x: 0.57, y: 0.74, depth: -1.05, scale: 0.61 },
+  { progress: 0, x: 0.52, y: 0.19, depth: -3.9, scale: 0.5 },
+  { progress: 0.12, x: 0.25, y: 0.5, depth: -1.45, scale: 0.5 },
+  { progress: 0.25, x: 0.25, y: 0.5, depth: 0.02, scale: 0.58 },
+  { progress: 0.4, x: 0.24, y: 0.5, depth: 0.26, scale: 0.59 },
+  { progress: 0.54, x: 0.25, y: 0.48, depth: 0.46, scale: 0.61 },
+  { progress: 0.68, x: 0.25, y: 0.51, depth: 0.24, scale: 0.57 },
+  { progress: 0.82, x: 0.25, y: 0.51, depth: 0.08, scale: 0.55 },
+  { progress: 0.96, x: 0.25, y: 0.51, depth: 0.02, scale: 0.53 },
+  { progress: 1, x: 0.25, y: 0.65, depth: -0.75, scale: 0.43 },
 ];
 
 export function clamp(value: number, min = 0, max = 1) {
@@ -171,4 +171,4 @@ export const trajectoryViewBox = { width: 1000, height: 640 };
 
 export const observedTrajectoryPath = `M ${landingCheckpoints.map((checkpoint) => `${checkpoint.x * trajectoryViewBox.width} ${checkpoint.y * trajectoryViewBox.height}`).join(" L ")}`;
 
-export const expectedRangePath = "M 390 174 C 446 170 497 174 545 184 S 639 205 690 214";
+export const expectedRangePath = "M 455 104 C 460 177 454 249 459 324 S 454 473 459 552";
