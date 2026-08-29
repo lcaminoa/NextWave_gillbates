@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from contracts.schemas import Evidence, IncidentCandidate
+from engine.investigator.specificity import is_strict_refinement
 
 
 class ToolLookupError(LookupError):
@@ -120,27 +121,52 @@ class ReadOnlyInvestigationTools:
         )
         return result
 
-    def compare_top_candidates(self) -> dict[str, Any]:
+    def compare_top_candidates(
+        self,
+        top_candidate_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Compare a proposed winner with independent RCA alternatives.
+
+        A more-specific child of the proposed winner is supporting detail, not
+        a rival explanation.  Excluding those children avoids failing closed
+        just because RCA also surfaced a narrow slice of the same incident.
+        """
         self._check_budget()
         ranked = sorted(self._candidates, key=lambda candidate: candidate.rca_score, reverse=True)
+        selected_top = (
+            self._candidate_by_id.get(top_candidate_id)
+            if top_candidate_id is not None
+            else (ranked[0] if ranked else None)
+        )
+        if top_candidate_id is not None and selected_top is None:
+            raise ToolLookupError(f"Unknown candidate_id: {top_candidate_id}")
+        competitors = [
+            candidate
+            for candidate in ranked
+            if selected_top is not None
+            and candidate.candidate_id != selected_top.candidate_id
+            and not is_strict_refinement(candidate, selected_top)
+        ]
+        runner_up = competitors[0] if competitors else None
         result: dict[str, Any] = {
             "candidate_count": len(ranked),
-            "top_candidate": ranked[0].model_dump(mode="json") if ranked else None,
-            "runner_up": ranked[1].model_dump(mode="json") if len(ranked) > 1 else None,
+            "top_candidate": selected_top.model_dump(mode="json") if selected_top else None,
+            "runner_up": runner_up.model_dump(mode="json") if runner_up else None,
             "confidence_margin": (
-                round(ranked[0].confidence - ranked[1].confidence, 4)
-                if len(ranked) > 1
-                else (1.0 if ranked else 0.0)
+                round(selected_top.confidence - runner_up.confidence, 4)
+                if selected_top is not None and runner_up is not None
+                else (1.0 if selected_top is not None else 0.0)
             ),
             "score_margin": (
-                round(ranked[0].rca_score - ranked[1].rca_score, 4)
-                if len(ranked) > 1
-                else (ranked[0].rca_score if ranked else 0.0)
+                round(selected_top.rca_score - runner_up.rca_score, 4)
+                if selected_top is not None and runner_up is not None
+                else (selected_top.rca_score if selected_top is not None else 0.0)
             ),
         }
         self._record(
             "compare_top_candidates",
-            f"compared {min(2, len(ranked))} candidates",
+            f"compared {1 + int(runner_up is not None)} independent candidates",
+            top_candidate_id=top_candidate_id,
         )
         return result
 

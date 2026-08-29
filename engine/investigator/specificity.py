@@ -34,6 +34,21 @@ def _is_proper_subset(
     )
 
 
+def is_strict_refinement(
+    candidate: IncidentCandidate,
+    base: IncidentCandidate,
+) -> bool:
+    """Return whether ``candidate`` only adds dimensions to ``base``.
+
+    A refinement can be useful supporting detail, but it is not an independent
+    competing root cause.  For example, ``issuing_bank=nubank`` and
+    ``issuing_bank=nubank x payment_method=card`` describe the same causal
+    lineage; the latter must not make the former look ambiguous merely because
+    both are present in the RCA ranking.
+    """
+    return _is_proper_subset(base, candidate)
+
+
 def maximal_simpler_candidates(
     candidate: IncidentCandidate,
     candidates: Sequence[IncidentCandidate],

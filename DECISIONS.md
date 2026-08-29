@@ -499,3 +499,38 @@ Tradeoff: el umbral de 8 pp privilegia evitar una explicacion vistosa pero falsa
 `inconclusive` un incidente real con poco volumen. Para la prueba a ciegas es preferible
 sub-atribuir; el valor queda centralizado y puede recalibrarse con escenarios reproducibles sin
 cambiar contratos.
+
+## D019 — Elegibilidad de publicacion por volumen y competencia RCA independiente
+
+Contexto: en una corrida real de `PaymentSimulator -> DetectionPipeline -> RCA -> Investigator`,
+una inyeccion de 35 pp sobre `issuing_bank=nubank` fue detectada de forma sostenida: 68 intentos,
+35,3% de rechazo observado contra 14,7% de baseline. Sin embargo, el Investigator la publico
+como `inconclusive`. La formula de `confidence` dio 58,3% y el minimo fijo era 65%, aunque el
+RCA la rankeo primera con margen de score suficiente. En otras semillas, una interseccion de
+menos de 20 intentos podia quedar primera y bloquear una causa amplia con volumen, o una variante
+`bank x payment_method` podia contar como competidora de la misma causa `bank`.
+
+Alternativas:
+1. conservar el minimo de 65% y aceptar que una anomalia ya confirmada se abstenga;
+2. bajar `rca_min_segment_volume` en Stream B para que las intersecciones chicas compitan mejor;
+3. antes de publicar, descartar solo de la competencia los candidatos con menos de 20 intentos,
+   comparar una causa contra alternativas independientes (no sus refinamientos), y usar un
+   minimo de confidence de 50% junto con los guardrails existentes.
+
+Decision: 3.
+
+Por que: `confidence` es la fraccion del rechazo observado que excede el baseline propio; no es
+la probabilidad calibrada de que una causa sea verdadera. La deteccion ya exige breach del
+intervalo Beta-Binomial, EWMA negativo y persistencia. Para publicar se conservan volumen minimo,
+evidencia citable, guardrail de especificidad y margen RCA; los segmentos chicos siguen visibles
+en el detalle pero no pueden suprimir una causa amplia. Una interseccion que solo agrega
+dimensiones a la ganadora es evidencia de detalle, no una explicacion rival.
+
+Tradeoff: un umbral de 50% puede publicar causas con menor contraste relativo que antes, pero
+solo despues de los filtros estadisticos de Stream B y de la comparacion RCA. Preferimos esa
+calibracion a negar un incidente sostenido de volumen suficiente por aplicar dos veces un umbral
+no calibrado. No cambia contratos ni permite remediacion automatica.
+
+Verificado con una prueba end-to-end reproducible de cuatro inyecciones de 35 pp (provider,
+provider x country, merchant e issuing_bank), usando el simulador y pipeline reales; las cuatro
+producen una causa `probable` o `confirmed` que coincide exactamente con la inyeccion.

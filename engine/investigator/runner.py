@@ -25,7 +25,13 @@ from engine.investigator.specificity import (
 from engine.investigator.tools import ReadOnlyInvestigationTools, ToolCallRecord
 from engine.investigator.validation import validate_report
 
-MIN_PROBABLE_CONFIDENCE = 0.65
+# ``confidence`` measures the share of the observed decline that exceeds the
+# segment's own baseline; it is not a calibrated probability that the cause is
+# true. Detection already requires a credible-interval breach, EWMA breach, and
+# sustained windows. Requiring 65% here rejected statistically confirmed issuer
+# incidents with enough volume, so publication uses 50% plus the RCA margin,
+# specificity, and volume guards below (D019).
+MIN_PROBABLE_CONFIDENCE = 0.50
 MIN_WINNER_MARGIN = 0.08
 MIN_CONFIRMED_CONFIDENCE = 0.90
 MIN_CONFIRMED_MARGIN = 0.15
@@ -50,6 +56,22 @@ def _estimated_segment_volume(candidate: IncidentCandidate) -> float:
     if candidate.current_decline_rate <= 0:
         return 0.0
     return candidate.affected_count / candidate.current_decline_rate
+
+
+def _has_publishable_volume(candidate: IncidentCandidate) -> bool:
+    return _estimated_segment_volume(candidate) >= MIN_ESTIMATED_SEGMENT_VOLUME
+
+
+def filter_publishable_candidates(
+    candidates: list[IncidentCandidate] | tuple[IncidentCandidate, ...],
+    evidence: list[Evidence] | tuple[Evidence, ...],
+) -> tuple[IncidentCandidate, ...]:
+    """Apply the shared deterministic publication policy for every runner mode."""
+    return tuple(
+        candidate
+        for candidate in filter_specificity_supported_candidates(candidates, evidence)
+        if _has_publishable_volume(candidate)
+    )
 
 
 def _dimensions_text(candidate_data: dict[str, Any]) -> str:
@@ -84,7 +106,10 @@ def run_investigation(
     evidence: list[Evidence] | tuple[Evidence, ...],
 ) -> InvestigationResult:
     """Run a deterministic, auditable investigation and return a validated report."""
-    eligible_candidates = filter_specificity_supported_candidates(candidates, evidence)
+    specificity_supported_candidates = filter_specificity_supported_candidates(candidates, evidence)
+    # Keep low-volume RCA slices visible in incident detail, but never let one
+    # outrank and suppress a broader, publishable root cause.
+    eligible_candidates = filter_publishable_candidates(candidates, evidence)
     tools = ReadOnlyInvestigationTools(anomaly_id, eligible_candidates, evidence)
     steps: list[InvestigationStep] = []
 
@@ -98,7 +123,12 @@ def run_investigation(
                 f"Se encontraron {len(ranked)} hipotesis; la primera es "
                 f"{_dimensions_text(ranked[0])}."
                 if ranked
-                else "Stream B no produjo una hipotesis defendible."
+                else (
+                    "Stream B produjo hipotesis, pero ninguna tiene el volumen minimo "
+                    "para publicarse."
+                    if specificity_supported_candidates
+                    else "Stream B no produjo una hipotesis defendible."
+                )
             ),
         )
     )
@@ -118,8 +148,13 @@ def run_investigation(
             generated_at=datetime.now(timezone.utc),
             status=ReportStatus.inconclusive,
             summary=(
-                "Se detecto una degradacion, pero todavia no existe una explicacion "
-                "respaldada por evidencia."
+                "Se detecto una degradacion, pero las hipotesis disponibles todavia no "
+                "tienen volumen suficiente para publicar una causa."
+                if specificity_supported_candidates
+                else (
+                    "Se detecto una degradacion, pero todavia no existe una explicacion "
+                    "respaldada por evidencia."
+                )
             ),
             claims=[],
             recommended_action=(
@@ -163,8 +198,10 @@ def run_investigation(
     alternative_candidates = list(
         maximal_simpler_candidates(top_candidate, eligible_candidates)
     )
-    if len(ranked) > 1:
-        runner_up = eligible_by_id[str(ranked[1]["candidate_id"])]
+    comparison = tools.compare_top_candidates(top_id)
+    runner_up_data = comparison["runner_up"]
+    if runner_up_data is not None:
+        runner_up = eligible_by_id[str(runner_up_data["candidate_id"])]
         if runner_up.candidate_id not in {
             candidate.candidate_id for candidate in alternative_candidates
         }:
@@ -194,7 +231,6 @@ def run_investigation(
             )
         )
 
-    comparison = tools.compare_top_candidates()
     confidence_margin = float(comparison["confidence_margin"])
     score_margin = float(comparison["score_margin"])
     top_confidence = float(top["confidence"])
