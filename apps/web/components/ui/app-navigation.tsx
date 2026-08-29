@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, FlaskConical, LayoutDashboard, Radio, SearchCheck } from "lucide-react";
-import { reports } from "@/lib/fixtures/control-tower";
+import { useIncidentReports } from "@/lib/api/use-control-tower";
 
 const navigationItems = [
   { href: "/control-room", label: "Overview", icon: LayoutDashboard, matches: (pathname: string) => pathname === "/control-room" },
@@ -13,6 +13,7 @@ const navigationItems = [
 
 export function AppNavigation() {
   const pathname = usePathname();
+  const { reports, status } = useIncidentReports();
 
   if (pathname === "/") return null;
 
@@ -39,7 +40,7 @@ export function AppNavigation() {
         </nav>
 
         <div className="app-nav-utilities">
-          <span className="app-nav-live"><Radio className="size-3 animate-pulse" /> Live</span>
+          <span className="app-nav-live"><Radio className={status === "live" ? "size-3 animate-pulse" : "size-3"} /> {status === "live" ? "Live" : "Offline"}</span>
           <Link href="/investigations" className="app-nav-notifications" aria-label={`${reports.length} active investigations`}>
             <Bell className="size-4" />
             <span>{reports.length}</span>

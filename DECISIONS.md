@@ -659,3 +659,23 @@ cruzados, dos diagnosticos simultaneos, ambiguedad entre episodios activos y fal
 corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> investigador ->
 endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
 muchos sintomas publicables, queda en un reporte.
+
+## D027 — Conectar el dashboard al runtime mediante CORS con allowlist explícita
+
+Contexto: el dashboard Next.js corre localmente en `http://localhost:3000` y el engine FastAPI
+en `http://localhost:8000`. Para que el navegador pueda consumir reportes, detalle, SSE y Chaos
+Lab sin copiar fixtures ni exponer el engine a cualquier origen, el runtime necesita una política
+de origen explícita.
+
+Alternativas:
+1. usar `Access-Control-Allow-Origin: *`;
+2. crear un proxy Next.js nuevo;
+3. habilitar CORS en FastAPI con una allowlist configurable.
+
+Decisión: 3. `CONTROL_TOWER_CORS_ORIGINS` acepta una lista separada por comas y por defecto
+admite solamente el dashboard local. Los métodos permitidos son `GET` y `POST`; el SSE continúa
+siendo el endpoint congelado `/api/stream`. No se agregan rutas ni campos de contrato.
+
+Tradeoff: en cada entorno se debe declarar el origen público exacto. Es preferible a usar un
+comodín porque los endpoints de caos pueden estar protegidos por `CONTROL_TOWER_JUDGE_TOKEN`.
+Esa clave sigue siendo exclusivamente server-side; nunca se expone como `NEXT_PUBLIC_*`.

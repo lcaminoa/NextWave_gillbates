@@ -1,5 +1,20 @@
-import type { IncidentReport, Transaction } from "@/lib/contracts";
-import type { ChaosSpec } from "@/lib/contracts";
+import type {
+  ChaosSpec,
+  Evidence,
+  IncidentCandidate,
+  IncidentReport,
+  InvestigationStep,
+  Transaction,
+} from "@/lib/contracts";
+
+export type IncidentDetail = {
+  report: IncidentReport;
+  candidates: IncidentCandidate[];
+  evidence: Evidence[];
+  investigation_steps: InvestigationStep[];
+};
+
+export type RandomChaosRequest = Pick<ChaosSpec, "severity_pp" | "duration_minutes">;
 
 const apiOrigin = process.env.NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN ?? "";
 
@@ -15,8 +30,8 @@ export function getIncidentReports() {
   return getJson<IncidentReport[]>("/api/incidents");
 }
 
-export function getIncidentReport(incidentId: string) {
-  return getJson<IncidentReport>("/api/incidents/" + incidentId);
+export function getIncidentDetail(incidentId: string) {
+  return getJson<IncidentDetail>("/api/incidents/" + incidentId);
 }
 
 export function connectTransactionStream(
@@ -24,7 +39,9 @@ export function connectTransactionStream(
   onError: () => void,
 ) {
   const source = new EventSource(apiOrigin + "/api/stream");
-  source.onmessage = (event) => onTransaction(JSON.parse(event.data) as Transaction);
+  source.addEventListener("transaction", (event) => {
+    onTransaction(JSON.parse(event.data) as Transaction);
+  });
   source.onerror = onError;
   return () => source.close();
 }
@@ -33,12 +50,12 @@ export function injectChaos(spec: ChaosSpec) {
   return postJson<ChaosSpec>("/api/chaos/inject", spec);
 }
 
-export function injectRandomChaos(spec: ChaosSpec) {
+export function injectRandomChaos(spec: RandomChaosRequest) {
   return postJson<ChaosSpec>("/api/chaos/random", spec);
 }
 
-export function revealChaos() {
-  return postJson<ChaosSpec>("/api/chaos/reveal");
+export function revealChaos(chaosId?: string) {
+  return postJson<ChaosSpec>("/api/chaos/reveal", chaosId ? { chaos_id: chaosId } : undefined);
 }
 
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
