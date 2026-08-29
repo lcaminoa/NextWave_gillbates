@@ -236,3 +236,45 @@ falso negativo del producto. El injector elige proveedor, proveedor × país, pr
 método, emisor o comercio. Sigue siendo desconocido para el equipo, pero es estadísticamente
 observable y permite evaluar de verdad detección y RCA.
 
+
+## D011 — Ownership de candidatos por anomalia (filtro pedido por Stream C)
+
+Contexto: D008 dejo documentado que `generate_candidates()` busca en TODA la ventana y
+devuelve la MISMA lista para cualquier anomalia que la pida -- con 2+ incidentes
+concurrentes en la misma ventana, un `AnomalyDiagnosis` podia terminar mostrando el
+candidato mas fuerte de OTRO incidente. Valentin (Stream C) lo detecto: su Investigator
+filtra por `anomaly_id`, pero como `generate_candidates()` le pone el `anomaly_id` de quien
+pregunta a TODA la lista, no podia distinguir cuales candidatos eran conceptualmente del
+incidente que esta investigando -- riesgo real de que el agente eligiera y duplicara la
+causa de un incidente que no es el suyo.
+
+Alternativas:
+1. hacer que `generate_candidates()` reciba y filtre por segmento desde el vamos (tocaria
+   `candidates.py`, que el equipo pidio explicitamente no rehacer);
+2. filtrar en `engine/detection/pipeline.py`, DESPUES de generar los candidatos de la
+   ventana, quedandome solo con los que le "pertenecen" a cada anomalia.
+
+Decision: 2. No se toco `candidates.py` ni `contracts/`.
+
+Regla de ownership (`_owns_candidate` en pipeline.py): un candidato le pertenece a una
+anomalia si, para cada dimension que AMBOS especifican, los valores coinciden (nunca se
+acepta un candidato que contradiga una dimension ya fijada por la anomalia), Y comparten
+al menos una dimension (si no comparten ninguna, no se puede confirmar que sea el mismo
+incidente). Una anomalia "global" (sin dimensiones propias) acepta cualquier candidato.
+`evidence` se recorta junto con `candidates`, a solo la citada por los que quedaron.
+
+Limite honesto: NO se exige que el candidato cubra TODAS las dimensiones de la anomalia
+(una anomalia de 3 dimensiones se quedaria sin ningun candidato, porque
+`generate_candidates()` busca como maximo `config.rca_max_dimensions` = 2 por defecto). Y
+un candidato que no comparte NINGUNA dimension con la anomalia (ej. solo
+payment_method+issuing_bank contra una anomalia de provider+country) queda afuera de esa
+diagnosis aunque en los datos reales resulte ser el mismo incidente real -- se prefiere
+sub-cubrir (perder algun candidato legitimo) antes que sobre-atribuir (mostrarle a Stream C
+la causa de un incidente que no es el que esta investigando).
+
+Verificado con: `tests/detection/test_pipeline.py::TwoSimultaneousIncidentsTests` ahora
+confirma que cada `AnomalyDiagnosis` NO contiene ningun candidato del otro incidente (antes
+solo confirmaba que no se inventaba una combinacion cruzada), y que la evidencia de cada
+diagnosis es exactamente la citada por sus propios candidatos. Los 18 tests del repo siguen
+pasando; `demo.py` no cambia (llama a `generate_candidates()` directo, sin pipeline, a
+proposito no filtra -- es una demo de UN solo incidente).

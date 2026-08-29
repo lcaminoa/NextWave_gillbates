@@ -70,19 +70,25 @@ class TwoSimultaneousIncidentsTests(unittest.TestCase):
         self.assertIn("country=BR|provider=nova_pay", diagnoses_by_key)
         self.assertIn("country=MX|provider=stripe", diagnoses_by_key)
 
-        nova_dims = [c.dimensions.model_dump(exclude_none=True) for c in diagnoses_by_key["country=BR|provider=nova_pay"].candidates]
-        stripe_dims = [c.dimensions.model_dump(exclude_none=True) for c in diagnoses_by_key["country=MX|provider=stripe"].candidates]
+        nova = diagnoses_by_key["country=BR|provider=nova_pay"]
+        stripe = diagnoses_by_key["country=MX|provider=stripe"]
+        nova_dims = [c.dimensions.model_dump(exclude_none=True) for c in nova.candidates]
+        stripe_dims = [c.dimensions.model_dump(exclude_none=True) for c in stripe.candidates]
 
         self.assertIn({"provider": "nova_pay", "country": "BR"}, nova_dims)
         self.assertIn({"provider": "stripe", "country": "MX"}, stripe_dims)
 
-        # nunca se inventa una combinacion cruzada que no existio en los datos
-        cross_contaminated = [
-            d for d in nova_dims + stripe_dims
-            if (d.get("provider") == "nova_pay" and d.get("country") == "MX")
-            or (d.get("provider") == "stripe" and d.get("country") == "BR")
-        ]
-        self.assertEqual(cross_contaminated, [])
+        # ownership (pedido por Stream C): cada diagnosis recibe SOLO candidatos propios,
+        # nunca el del otro incidente concurrente -- ni mezclado ni como entrada aparte
+        self.assertTrue(all(d.get("provider") != "stripe" for d in nova_dims))
+        self.assertTrue(all(d.get("provider") != "nova_pay" for d in stripe_dims))
+
+        # la evidencia tambien queda recortada a la de los candidatos propios (no toda la
+        # evidencia generada en la ventana, solo la citada por los candidatos ya filtrados)
+        nova_evidence_ids = {e.evidence_id for e in nova.evidence}
+        self.assertTrue(all(eid in nova_evidence_ids for c in nova.candidates for eid in c.evidence_ids))
+        stripe_evidence_ids = {e.evidence_id for e in stripe.evidence}
+        self.assertTrue(all(eid in stripe_evidence_ids for c in stripe.candidates for eid in c.evidence_ids))
 
 
 class ProductionDefaultsLongStreamTests(unittest.TestCase):

@@ -30,8 +30,10 @@ MIX_SHIFT_DIMENSIONS = {"provider", "country", "payment_method", "issuing_bank",
 @dataclass(frozen=True)
 class AnomalyDiagnosis:
     """Todo lo que Stream C necesita para UNA anomalia: la anomalia (ya con mix-shift
-    incorporado si aplica), sus candidatos RCA rankeados por rca_score, y toda la evidencia
-    que esos candidatos citan en evidence_ids."""
+    incorporado si aplica), y SOLO los candidatos RCA que le pertenecen a ella (ver
+    `_owns_candidate`) -- si hay 2+ incidentes en la misma ventana, cada uno recibe su
+    propia lista, no la de toda la ventana. `evidence` trae unicamente la evidencia citada
+    por esos candidatos ya filtrados (no toda la evidencia generada en la ventana)."""
 
     anomaly: Anomaly
     candidates: list[IncidentCandidate]
@@ -48,11 +50,12 @@ class WindowResult:
     diagnoses: list[AnomalyDiagnosis]
 
 
-def _dims_in_key(dimension_key: str) -> list[str]:
-    """'country=BR|provider=nova_pay' -> ['country', 'provider']. 'global' -> []."""
+def _dims_in_key(dimension_key: str) -> dict[str, str]:
+    """'country=BR|provider=nova_pay' -> {'country': 'BR', 'provider': 'nova_pay'}.
+    'global' -> {} (no tiene dimensiones propias)."""
     if dimension_key == "global":
-        return []
-    return [part.split("=", 1)[0] for part in dimension_key.split("|")]
+        return {}
+    return dict(part.split("=", 1) for part in dimension_key.split("|"))
 
 
 def _with_mix_shift(
@@ -61,13 +64,42 @@ def _with_mix_shift(
     """Completa mix_shift_effect_pp/performance_effect_pp cuando la anomalia es de una sola
     dimension conocida. Devuelve una copia (Anomaly es inmutable) -- no muta el original."""
     dims = _dims_in_key(anomaly.dimension_key)
-    if len(dims) != 1 or dims[0] not in MIX_SHIFT_DIMENSIONS:
+    if len(dims) != 1:
         return anomaly
-    mix_pp, performance_pp = decompose(baseline, current_window, dimension=dims[0])
+    (dim_name,) = dims.keys()
+    if dim_name not in MIX_SHIFT_DIMENSIONS:
+        return anomaly
+    mix_pp, performance_pp = decompose(baseline, current_window, dimension=dim_name)
     return anomaly.model_copy(update={
         "mix_shift_effect_pp": mix_pp,
         "performance_effect_pp": performance_pp,
     })
+
+
+def _owns_candidate(candidate_dims: dict, anomaly_dims: dict) -> bool:
+    """Filtro de "ownership" (pedido por Stream C, ver DECISIONS.md): un candidato le
+    pertenece a esta anomalia si no CONTRADICE ninguna dimension que la anomalia ya fijo,
+    Y comparte al menos una dimension con ella -- asi nunca se le atribuye a una anomalia
+    el candidato mas fuerte de OTRO incidente concurrente en la misma ventana (que como
+    minimo, difiere en el valor de alguna dimension compartida).
+
+    'global' (anomaly_dims vacio) no tiene segmento propio -- acepta cualquier candidato,
+    son todos posibles explicaciones validas del agregado.
+
+    A proposito NO exige que el candidato cubra TODAS las dimensiones de la anomalia: una
+    anomalia de 3 dimensiones (ej. provider+country+payment_method) igual puede quedarse
+    sin ningun candidato si exigieramos cobertura total, porque generate_candidates() busca
+    como maximo `config.rca_max_dimensions` (2 por defecto). Contraparte honesta: un
+    candidato que no comparte NINGUNA dimension con la anomalia (ej. solo payment_method+
+    issuing_bank contra una anomalia de provider+country) queda afuera aunque en los datos
+    reales resulte ser el mismo incidente -- se prefiere sub-cubrir a sobre-atribuir.
+    """
+    if not anomaly_dims:
+        return True
+    shared_keys = anomaly_dims.keys() & candidate_dims.keys()
+    if not shared_keys:
+        return False
+    return all(candidate_dims[k] == anomaly_dims[k] for k in shared_keys)
 
 
 class DetectionPipeline:
@@ -112,14 +144,27 @@ class DetectionPipeline:
         diagnoses: list[AnomalyDiagnosis] = []
         for anomaly in anomalies:
             enriched = _with_mix_shift(anomaly, self.history, current_window)
-            candidates, evidence = generate_candidates(
+            all_candidates, all_evidence = generate_candidates(
                 anomaly_id=enriched.anomaly_id,
                 history=self.history,
                 current_window=current_window,
                 anomaly_window_minutes=window_minutes,
                 config=self.config,
             )
-            diagnoses.append(AnomalyDiagnosis(anomaly=enriched, candidates=candidates, evidence=evidence))
+
+            # ownership: si hay 2+ incidentes en esta ventana, generate_candidates() busca
+            # en TODA la ventana y devuelve los mismos candidatos para cualquier anomalia
+            # que lo pida -- aca se recorta a los que realmente le pertenecen a ESTA
+            # anomalia (ver _owns_candidate), para que Stream C nunca reciba el candidato
+            # mas fuerte de un incidente concurrente distinto.
+            anomaly_dims = _dims_in_key(enriched.dimension_key)
+            own_candidates = [c for c in all_candidates if _owns_candidate(
+                c.dimensions.model_dump(exclude_none=True), anomaly_dims,
+            )]
+            own_evidence_ids = {eid for c in own_candidates for eid in c.evidence_ids}
+            own_evidence = [e for e in all_evidence if e.evidence_id in own_evidence_ids]
+
+            diagnoses.append(AnomalyDiagnosis(anomaly=enriched, candidates=own_candidates, evidence=own_evidence))
 
         return WindowResult(
             window_start=batch.window_start, window_end=batch.window_end, diagnoses=diagnoses,
