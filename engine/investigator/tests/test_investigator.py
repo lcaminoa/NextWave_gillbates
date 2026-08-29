@@ -17,6 +17,76 @@ from engine.investigator.tools import (
 from engine.investigator.validation import ReportValidationError, validate_report
 
 
+def _clear_single_dimension_candidates(
+    *,
+    anomaly_id: str,
+    dimensions: Dimensions,
+    added_dimension: str,
+    added_value: str,
+    confidence: float,
+    rca_score: float,
+) -> tuple[tuple[IncidentCandidate, ...], tuple[Evidence, ...]]:
+    dimension_values = dimensions.model_dump(exclude_none=True)
+    dimension_key = "|".join(
+        f"{key}={value}" for key, value in dimension_values.items()
+    )
+    specific_values = {**dimension_values, added_dimension: added_value}
+    specific_key = "|".join(
+        f"{key}={value}" for key, value in specific_values.items()
+    )
+    evidence = (
+        Evidence(
+            evidence_id=f"ev_{anomaly_id}_baseline",
+            source="baseline_comparison",
+            summary=f"{dimension_key}: rechazo subio de 10% a 45% con volumen suficiente.",
+            value=0.35,
+            dimension_key=dimension_key,
+        ),
+        Evidence(
+            evidence_id=f"ev_{anomaly_id}_specific",
+            source="baseline_comparison",
+            summary=f"{specific_key}: rechazo subio de 10% a 60%.",
+            value=0.50,
+            dimension_key=specific_key,
+        ),
+        Evidence(
+            evidence_id=f"ev_{anomaly_id}_control",
+            source=f"counterfactual_{added_dimension}",
+            summary=f"El control de {added_dimension} permanece saludable.",
+            value=0.90,
+            dimension_key=specific_key,
+        ),
+    )
+    candidates = (
+        IncidentCandidate(
+            candidate_id=f"cand_{anomaly_id}_root",
+            anomaly_id=anomaly_id,
+            dimensions=dimensions,
+            confidence=confidence,
+            affected_count=45,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.45,
+            estimated_revenue_loss_usd_per_hour=12_000,
+            rca_score=rca_score,
+            evidence_ids=[evidence[0].evidence_id],
+        ),
+        IncidentCandidate(
+            candidate_id=f"cand_{anomaly_id}_specific",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(**specific_values),
+            confidence=0.86,
+            affected_count=18,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.60,
+            estimated_revenue_loss_usd_per_hour=5_000,
+            rca_score=0.36,
+            evidence_ids=[evidence[1].evidence_id, evidence[2].evidence_id],
+            counterfactual_check=f"Se comparo {added_dimension} dentro del segmento.",
+        ),
+    )
+    return candidates, evidence
+
+
 def test_clear_case_produces_confirmed_evidence_backed_report() -> None:
     case = clear_provider_country_case()
     result = run_investigation(case.anomaly_id, case.candidates, case.evidence)
@@ -27,6 +97,210 @@ def test_clear_case_produces_confirmed_evidence_backed_report() -> None:
     assert result.report.claims
     assert len(result.steps) >= 5
     assert set(result.report.claims[0].evidence_ids) <= result.consulted_evidence_ids
+
+
+@pytest.mark.parametrize(
+    ("case_name", "dimensions", "added_dimension", "added_value", "confidence", "rca_score"),
+    [
+        (
+            "provider",
+            Dimensions(provider="nova_pay"),
+            "merchant",
+            "TiendaNorte",
+            0.7956,
+            0.7956,
+        ),
+        (
+            "issuing_bank",
+            Dimensions(issuing_bank="itau"),
+            "merchant",
+            "TiendaNorte",
+            0.7883,
+            0.7883,
+        ),
+        (
+            "merchant",
+            Dimensions(merchant="VuelaYa"),
+            "country",
+            "AR",
+            0.7093,
+            0.7093,
+        ),
+    ],
+)
+def test_clear_single_dimension_incident_beats_narrow_high_confidence_segment(
+    case_name: str,
+    dimensions: Dimensions,
+    added_dimension: str,
+    added_value: str,
+    confidence: float,
+    rca_score: float,
+) -> None:
+    anomaly_id = f"anom_calibration_{case_name}"
+    candidates, evidence = _clear_single_dimension_candidates(
+        anomaly_id=anomaly_id,
+        dimensions=dimensions,
+        added_dimension=added_dimension,
+        added_value=added_value,
+        confidence=confidence,
+        rca_score=rca_score,
+    )
+
+    result = run_investigation(anomaly_id, candidates, evidence)
+
+    assert result.report.status in {ReportStatus.confirmed, ReportStatus.probable}
+    assert result.report.winning_candidate_id == f"cand_{anomaly_id}_root"
+
+
+def test_clear_provider_country_incident_uses_incremental_evidence_and_rca_margin() -> None:
+    anomaly_id = "anom_calibration_provider_country"
+    evidence = (
+        Evidence(
+            evidence_id="ev_combo_baseline",
+            source="baseline_comparison",
+            summary="NovaPay en BR: rechazo subio de 10% a 45%.",
+            value=0.35,
+            dimension_key="country=BR|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_provider_control",
+            source="counterfactual_provider",
+            summary="Otro provider en BR mantiene 90% de aprobacion.",
+            value=0.90,
+            dimension_key="country=BR|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_country_control",
+            source="counterfactual_country",
+            summary="NovaPay fuera de BR mantiene 88% de aprobacion.",
+            value=0.88,
+            dimension_key="country=BR|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_competitor",
+            source="baseline_comparison",
+            summary="NovaPay en TiendaNorte: rechazo subio de 10% a 40%.",
+            value=0.30,
+            dimension_key="merchant=TiendaNorte|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_merchant_control",
+            source="counterfactual_merchant",
+            summary="Otro merchant con NovaPay mantiene un desempeno saludable.",
+            value=0.90,
+            dimension_key="merchant=TiendaNorte|provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_provider",
+            source="baseline_comparison",
+            summary="NovaPay global: rechazo subio de 10% a 25%.",
+            value=0.15,
+            dimension_key="provider=nova_pay",
+        ),
+        Evidence(
+            evidence_id="ev_combo_country",
+            source="baseline_comparison",
+            summary="BR global: rechazo subio de 10% a 20%.",
+            value=0.10,
+            dimension_key="country=BR",
+        ),
+    )
+    candidates = (
+        IncidentCandidate(
+            candidate_id="cand_combo_root",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(provider="nova_pay", country="BR"),
+            confidence=0.7566,
+            affected_count=45,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.45,
+            estimated_revenue_loss_usd_per_hour=12_000,
+            rca_score=0.8701,
+            evidence_ids=[
+                "ev_combo_baseline",
+                "ev_combo_provider_control",
+                "ev_combo_country_control",
+            ],
+            counterfactual_check="Otros providers en BR y NovaPay fuera de BR estan saludables.",
+        ),
+        IncidentCandidate(
+            candidate_id="cand_combo_competitor",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(provider="nova_pay", merchant="TiendaNorte"),
+            confidence=0.6812,
+            affected_count=24,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.40,
+            estimated_revenue_loss_usd_per_hour=8_000,
+            rca_score=0.7480,
+            evidence_ids=["ev_combo_competitor", "ev_combo_merchant_control"],
+            counterfactual_check="Otros merchants con NovaPay estan saludables.",
+        ),
+        IncidentCandidate(
+            candidate_id="cand_combo_provider",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(provider="nova_pay"),
+            confidence=0.52,
+            affected_count=50,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.25,
+            estimated_revenue_loss_usd_per_hour=6_000,
+            rca_score=0.52,
+            evidence_ids=["ev_combo_provider"],
+        ),
+        IncidentCandidate(
+            candidate_id="cand_combo_country",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(country="BR"),
+            confidence=0.45,
+            affected_count=40,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.20,
+            estimated_revenue_loss_usd_per_hour=4_000,
+            rca_score=0.30,
+            evidence_ids=["ev_combo_country"],
+        ),
+    )
+
+    result = run_investigation(anomaly_id, candidates, evidence)
+
+    assert result.report.status in {ReportStatus.confirmed, ReportStatus.probable}
+    assert result.report.winning_candidate_id == "cand_combo_root"
+    assert {"ev_combo_provider_control", "ev_combo_country_control"} <= (
+        result.consulted_evidence_ids
+    )
+
+
+def test_high_confidence_low_volume_candidate_remains_inconclusive() -> None:
+    anomaly_id = "anom_low_volume"
+    evidence = (
+        Evidence(
+            evidence_id="ev_low_volume",
+            source="baseline_comparison",
+            summary="NovaPay: 5 rechazos en solo 10 intentos.",
+            value=0.40,
+            dimension_key="provider=nova_pay",
+        ),
+    )
+    candidates = (
+        IncidentCandidate(
+            candidate_id="cand_low_volume",
+            anomaly_id=anomaly_id,
+            dimensions=Dimensions(provider="nova_pay"),
+            confidence=0.95,
+            affected_count=5,
+            baseline_decline_rate=0.10,
+            current_decline_rate=0.50,
+            estimated_revenue_loss_usd_per_hour=800,
+            rca_score=0.90,
+            evidence_ids=["ev_low_volume"],
+        ),
+    )
+
+    result = run_investigation(anomaly_id, candidates, evidence)
+
+    assert result.report.status is ReportStatus.inconclusive
+    assert result.report.winning_candidate_id is None
 
 
 def test_more_specific_candidate_requires_incremental_evidence() -> None:

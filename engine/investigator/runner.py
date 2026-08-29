@@ -29,6 +29,7 @@ MIN_PROBABLE_CONFIDENCE = 0.65
 MIN_WINNER_MARGIN = 0.08
 MIN_CONFIRMED_CONFIDENCE = 0.90
 MIN_CONFIRMED_MARGIN = 0.15
+MIN_ESTIMATED_SEGMENT_VOLUME = 20
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,13 @@ class InvestigationResult:
 def report_loss_per_hour(report: IncidentReport) -> float:
     """Return the report's explicitly hourly revenue-loss estimate."""
     return float(report.estimated_revenue_loss_usd_per_hour)
+
+
+def _estimated_segment_volume(candidate: IncidentCandidate) -> float:
+    """Recover segment attempts from rejected count and current decline rate."""
+    if candidate.current_decline_rate <= 0:
+        return 0.0
+    return candidate.affected_count / candidate.current_decline_rate
 
 
 def _dimensions_text(candidate_data: dict[str, Any]) -> str:
@@ -188,15 +196,18 @@ def run_investigation(
 
     comparison = tools.compare_top_candidates()
     confidence_margin = float(comparison["confidence_margin"])
+    score_margin = float(comparison["score_margin"])
     top_confidence = float(top["confidence"])
+    estimated_segment_volume = _estimated_segment_volume(top_candidate)
     steps.append(
         _step(
             anomaly_id,
             len(steps) + 1,
             "compare_top_candidates()",
             (
-                f"Confianza principal {top_confidence:.0%}; margen contra la alternativa "
-                f"{confidence_margin:.0%}."
+                f"Confianza principal {top_confidence:.0%}; margen de confianza "
+                f"{confidence_margin:.0%}; ventaja RCA {score_margin:.0%}; volumen "
+                f"estimado {estimated_segment_volume:.0f}."
             ),
             top_id,
         )
@@ -216,22 +227,43 @@ def run_investigation(
         )
     )
 
-    ambiguous = (
-        top_confidence < MIN_PROBABLE_CONFIDENCE
-        or confidence_margin < MIN_WINNER_MARGIN
-    )
+    low_confidence = top_confidence < MIN_PROBABLE_CONFIDENCE
+    close_competition = score_margin < MIN_WINNER_MARGIN
+    insufficient_volume = estimated_segment_volume < MIN_ESTIMATED_SEGMENT_VOLUME
+    ambiguous = low_confidence or close_competition or insufficient_volume
     consulted_for_claim = _evidence_ids(top_evidence + alternative_evidence)
 
     if ambiguous:
         status = ReportStatus.inconclusive
         winner_id = None
-        summary = (
-            "La degradacion es real, pero la evidencia actual no permite separar con seguridad "
-            f"{_dimensions_text(top)} de la siguiente hipotesis."
-        )
+        if insufficient_volume:
+            summary = (
+                "La degradacion es real, pero la hipotesis principal todavia no tiene volumen "
+                "suficiente para publicarse."
+            )
+            claim_text = (
+                "La evidencia de la hipotesis principal proviene de un segmento con volumen "
+                "insuficiente."
+            )
+        elif low_confidence:
+            summary = (
+                "La degradacion es real, pero la confianza de la hipotesis principal no alcanza "
+                "el minimo necesario para atribuir la causa."
+            )
+            claim_text = (
+                "La hipotesis principal no alcanza el nivel minimo de confianza para publicarse."
+            )
+        else:
+            summary = (
+                "La degradacion es real, pero la evidencia actual no permite separar con seguridad "
+                f"{_dimensions_text(top)} de la siguiente hipotesis."
+            )
+            claim_text = (
+                "Las principales hipotesis permanecen estadisticamente demasiado cercanas."
+            )
         claims = [
             Claim(
-                claim="Las principales hipotesis permanecen estadisticamente demasiado cercanas.",
+                claim=claim_text,
                 evidence_ids=consulted_for_claim,
                 confidence=round(top_confidence, 4),
             )
@@ -244,7 +276,7 @@ def run_investigation(
         status = (
             ReportStatus.confirmed
             if top_confidence >= MIN_CONFIRMED_CONFIDENCE
-            and confidence_margin >= MIN_CONFIRMED_MARGIN
+            and score_margin >= MIN_CONFIRMED_MARGIN
             else ReportStatus.probable
         )
         winner_id = top_id
