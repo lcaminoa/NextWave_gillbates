@@ -9,6 +9,7 @@ import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal
 import { IncidentTrajectory } from "./incident-trajectory";
 import {
   clamp,
+  getCardSignalStatus,
   getActiveCheckpointIndex,
   getCheckpointVisibility,
   getSignalWaypoint,
@@ -48,6 +49,7 @@ function MaskedLine({ children, progress }: { children: React.ReactNode; progres
 function SignalFallback({ progress }: { progress: number }) {
   const waypoint = getSignalWaypoint(progress);
   const tone = getTrajectoryTone(progress);
+  const cardStatus = getCardSignalStatus(progress);
   const finalUnseal = clamp((progress - 0.958) / 0.042);
   const x = (waypoint.x - 0.5) * 100;
   const y = (waypoint.y - 0.5) * 100;
@@ -63,7 +65,7 @@ function SignalFallback({ progress }: { progress: number }) {
       >
         <i className="landing-payment-card-edge" />
         <i className="landing-payment-card-face" />
-        <i className="landing-payment-card-marking" />
+        <i className="landing-payment-card-marking" data-state={cardStatus.label} data-detail={cardStatus.detail} />
         <i className="landing-payment-card-chip" />
         {finalUnseal > 0.01 ? (
           <>

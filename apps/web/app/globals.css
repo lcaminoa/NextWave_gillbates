@@ -2371,16 +2371,24 @@ a {
 
 .landing-payment-card-marking::after {
   position: absolute;
-  top: 42%;
+  top: 38%;
   left: 0;
-  color: rgba(190, 198, 217, 0.67);
-  content: "CONTROL TOWER\A PAYMENT SIGNAL";
+  color: rgba(203, 211, 230, 0.8);
+  content: attr(data-state) "\A" attr(data-detail);
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: clamp(4px, 0.52vw, 6px);
+  font-size: clamp(5px, 0.64vw, 7px);
   font-weight: 700;
   letter-spacing: 0.09em;
   line-height: 1.6;
   white-space: pre;
+}
+
+.landing-payment-card-fallback-deviation .landing-payment-card-marking::after {
+  color: rgba(240, 189, 119, 0.88);
+}
+
+.landing-payment-card-fallback-evidence .landing-payment-card-marking::after {
+  color: rgba(244, 194, 211, 0.92);
 }
 
 .landing-payment-card-chip {

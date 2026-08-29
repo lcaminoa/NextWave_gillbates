@@ -2,10 +2,10 @@
 
 import { ContactShadows, PerspectiveCamera, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
-import { clamp, getSignalWaypoint, getTrajectoryTone } from "./landing-story";
+import { clamp, getCardSignalStatus, getSignalWaypoint, getTrajectoryTone } from "./landing-story";
 
 export type LandingPointer = { x: number; y: number };
 
@@ -34,49 +34,66 @@ function CameraRig({ pointerRef }: Pick<ApprovalSignalSceneProps, "pointerRef">)
   return <PerspectiveCamera ref={cameraRef} makeDefault fov={41} position={[0, 0, 7.1]} />;
 }
 
+function drawCardMarkings(
+  context: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  status: ReturnType<typeof getCardSignalStatus>,
+  tone: ReturnType<typeof getTrajectoryTone>,
+) {
+  const toneColor = tone === "evidence" ? "#f0a8bf" : tone === "deviation" ? "#f0bd77" : "#dbe3f4";
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(232, 235, 244, 0.92)";
+  context.font = "600 52px Arial, sans-serif";
+  context.fillText("PHAROS", 18, 58);
+  context.fillStyle = toneColor;
+  context.font = "700 118px Arial, sans-serif";
+  context.fillText(status.label, 20, 184);
+  context.fillStyle = tone === "evidence" ? "rgba(244, 194, 211, 0.96)" : "rgba(221, 226, 239, 0.88)";
+  context.font = "700 47px Arial, sans-serif";
+  context.fillText(status.detail, 24, 244);
+}
+
 function createCardMarkingsTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 1280;
-  canvas.height = 300;
+  canvas.height = 360;
   const context = canvas.getContext("2d");
-  if (!context) return new THREE.CanvasTexture(canvas);
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "rgba(232, 235, 244, 0.94)";
-  context.font = "600 92px Arial, sans-serif";
-  context.fillText("PHAROS", 18, 106);
-  context.fillStyle = "rgba(193, 199, 216, 0.82)";
-  context.font = "700 27px Arial, sans-serif";
-  context.fillText("CONTROL TOWER", 22, 159);
-  context.fillStyle = "rgba(180, 186, 204, 0.66)";
-  context.font = "600 22px Arial, sans-serif";
-  context.fillText("PAYMENT SIGNAL", 22, 204);
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 2;
-  return texture;
+  return { canvas, context, texture };
 }
 
 function CardMarkings({ progressRef }: Pick<ApprovalSignalSceneProps, "progressRef">) {
-  const texture = useMemo(() => createCardMarkingsTexture(), []);
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const color = useMemo(() => new THREE.Color("#e8ebf4"), []);
-  const targetColor = useMemo(() => new THREE.Color(), []);
+  const initialStatus = getCardSignalStatus(0);
+  const [cardState, setCardState] = useState<{
+    status: ReturnType<typeof getCardSignalStatus>;
+    tone: ReturnType<typeof getTrajectoryTone>;
+  }>(() => ({ status: initialStatus, tone: "stable" }));
+  const texture = useMemo(() => {
+    const next = createCardMarkingsTexture();
+    if (next.context) drawCardMarkings(next.context, next.canvas, cardState.status, cardState.tone);
+    return next.texture;
+  }, [cardState]);
+  const statusKeyRef = useRef(`stable:${initialStatus.label}:${initialStatus.detail}`);
 
   useEffect(() => () => texture.dispose(), [texture]);
 
-  useFrame((_state, delta) => {
-    const tone = getTrajectoryTone(progressRef.current);
-    targetColor.set(tone === "evidence" ? "#f1c8d7" : "#e8ebf4");
-    color.lerp(targetColor, 1 - Math.exp(-delta * 3.8));
-    if (materialRef.current) materialRef.current.color.copy(color);
+  useFrame(() => {
+    const progress = progressRef.current;
+    const tone = getTrajectoryTone(progress);
+    const status = getCardSignalStatus(progress);
+    const nextKey = `${tone}:${status.label}:${status.detail}`;
+    if (statusKeyRef.current !== nextKey) {
+      statusKeyRef.current = nextKey;
+      setCardState({ status, tone });
+    }
   });
 
   return (
-    <mesh position={[0.56, 0.51, 0.127]} renderOrder={3}>
-      <planeGeometry args={[1.53, 0.36]} />
-      <meshBasicMaterial ref={materialRef} map={texture} transparent opacity={0.74} depthWrite={false} toneMapped={false} />
+    <mesh position={[0.54, 0.4, 0.127]} renderOrder={3}>
+      <planeGeometry args={[1.72, 0.6]} />
+      <meshBasicMaterial map={texture} transparent opacity={0.94} depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }

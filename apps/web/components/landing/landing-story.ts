@@ -158,6 +158,28 @@ export function getTrajectoryTone(progress: number): TrajectoryTone {
   return "stable";
 }
 
+export type CardSignalStatus = {
+  label: string;
+  detail: string;
+};
+
+const cardSignalStatuses: CardSignalStatus[] = [
+  { label: "SIGNAL", detail: "TRACKING" },
+  { label: "BASELINE", detail: "STABLE" },
+  { label: "DEVIATION", detail: "DETECTED" },
+  { label: "COHORT", detail: "ISOLATED" },
+  { label: "CONTROL", detail: "HEALTHY" },
+  { label: "DECLINE SHIFT", detail: "OBSERVED" },
+  { label: "PROBABLE", detail: "HUMAN REVIEW" },
+];
+
+export function getCardSignalStatus(progress: number): CardSignalStatus {
+  const activeIndex = getActiveCheckpointIndex(progress);
+  if (activeIndex >= 0) return cardSignalStatuses[activeIndex + 1];
+  if (progress >= 0.82) return cardSignalStatuses[6];
+  return cardSignalStatuses[0];
+}
+
 export const trajectoryViewBox = { width: 1000, height: 640 };
 
 export const observedTrajectoryPath = `M ${landingCheckpoints.map((checkpoint) => `${checkpoint.x * trajectoryViewBox.width} ${checkpoint.y * trajectoryViewBox.height}`).join(" L ")}`;
