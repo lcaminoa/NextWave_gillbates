@@ -137,3 +137,26 @@ Por qué:
 Tradeoff: el fixture local no puede demostrar un reveal aleatorio real sin conocer dimensiones
 ocultas. Por integridad, el flujo queda sellado y señala el adaptador `POST /api/chaos/reveal`
 hasta que el backend entregue el ground truth autorizado.
+
+## D007 — Navegación global como header de producto y bandeja de investigaciones
+
+Alternativas:
+1. conservar la sidebar solo en Control Tower y usar enlaces de regreso en las demás pantallas
+2. agregar una pill aislada que solo conecte Overview y Chaos Lab
+3. usar un header compacto compartido con `Overview`, `Investigations` y `Chaos Lab`, y crear
+   una bandeja de investigaciones basada en los `IncidentReport` existentes
+
+Decisión: 3
+
+Por qué:
+- los tres destinos se entienden como partes de una sola herramienta de investigación, no como
+  pantallas sueltas de demo
+- un header horizontal preserva el ancho del workspace y el aire de las vistas de evidencia;
+  una sidebar permanente sería desproporcionada para tres destinos
+- `Investigations` deja de ser un enlace artificial hacia un único detalle: ordena los casos por
+  impacto y distingue de forma explícita `probable` de `inconclusive`
+- la nueva ruta es solo una composición de frontend sobre fixtures tipadas y no agrega endpoint,
+  campo de contrato ni capacidad de remediación
+
+Tradeoff: la bandeja muestra los dos incidentes fixture hasta conectar `GET /api/incidents`.
+El badge de navegación también es fixture por ahora y deberá leer la lista real al integrar.

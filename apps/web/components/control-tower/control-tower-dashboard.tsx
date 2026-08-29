@@ -4,21 +4,15 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import {
   Activity,
-  Bell,
   ChevronRight,
-  CircleHelp,
   Clock3,
-  Crosshair,
   Gauge,
   Globe2,
-  LayoutDashboard,
   MonitorUp,
   Network,
   Radio,
-  Settings2,
   ShieldCheck,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApprovalChart } from "@/components/control-tower/approval-chart";
@@ -26,12 +20,6 @@ import RotatingEarth, { type GlobeHotspot } from "@/components/ui/wireframe-dott
 import { anomalies, candidates, evidence, investigationSteps, reports, transactions } from "@/lib/fixtures/control-tower";
 import { deltaPp, integer, percent, time, usd } from "@/lib/format";
 import type { Dimensions } from "@/lib/contracts";
-
-const navigation = [
-  { label: "Control Tower", href: "/", icon: LayoutDashboard, active: true },
-  { label: "Investigations", href: "/incidents/incident-br-novapay", icon: Crosshair },
-  { label: "Chaos Console", href: "/chaos", icon: Zap },
-];
 
 const severityStyles = {
   high: "border-[#fb7185]/30 bg-[#fb7185]/10 text-[#fda4b4]",
@@ -47,7 +35,6 @@ function displayDimensions(dimensions: Dimensions) {
 
 export function ControlTowerDashboard() {
   const [selectedIncidentId, setSelectedIncidentId] = useState(reports[0].incident_id);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const selectedReport = reports.find((report) => report.incident_id === selectedIncidentId) ?? reports[0];
   const selectedCandidate = candidates.find((candidate) => candidate.candidate_id === selectedReport.winning_candidate_id);
@@ -99,49 +86,6 @@ export function ControlTowerDashboard() {
   return (
     <div className={presentationMode ? "control-canvas presentation-mode" : "control-canvas"}>
       <div className="control-shell">
-        <aside className="control-sidebar">
-          <div>
-            <Link href="/" className="flex items-center gap-2.5 px-2.5 pt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#f9f5fa]">
-              <span className="grid size-7 place-items-center rounded-[9px] border border-white/15 bg-white/[0.06] text-[10px] font-bold tracking-[0.18em]">
-                CT
-              </span>
-              CONTROL TOWER
-            </Link>
-            <p className="mt-2 px-2.5 text-[10px] font-medium tracking-[0.13em] text-[#93899b] uppercase">Payment research</p>
-          </div>
-
-          <nav className="mt-10 space-y-1" aria-label="Main navigation">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={
-                    item.active
-                      ? "nav-item nav-item-active"
-                      : "nav-item"
-                  }
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-auto space-y-1">
-            <button className="nav-item w-full" type="button">
-              <Settings2 className="size-4" />
-              Preferences
-            </button>
-            <button className="nav-item w-full" type="button">
-              <CircleHelp className="size-4" />
-              Demo guide
-            </button>
-          </div>
-        </aside>
-
         <main className="control-main">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -167,39 +111,6 @@ export function ControlTowerDashboard() {
               >
                 <MonitorUp className="size-3.5" />
                 {presentationMode ? "Exit presentation" : "Presentation mode"}
-              </Button>
-              <div className="relative">
-                <Button
-                  aria-label="Open notification center"
-                  variant="ghost"
-                  size="icon"
-                  className="relative rounded-full border border-white/10 bg-black/30 text-[#f2eaf3] hover:bg-white/[0.08]"
-                  onClick={() => setNotificationsOpen((value) => !value)}
-                >
-                  <Bell className="size-4" />
-                  <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#fb7185]" />
-                </Button>
-                {notificationsOpen ? (
-                  <div className="notification-popover">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-[#f6f0f7]">Notifications</p>
-                      <span className="text-[10px] font-semibold text-[#f8a3b5]">2 unread</span>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      <div className="rounded-xl border border-[#fb7185]/20 bg-[#fb7185]/[0.07] p-3">
-                        <p className="text-[11px] font-semibold text-[#f8b1c0]">HIGH · investigation started</p>
-                        <p className="mt-1 text-xs leading-5 text-[#d6cad9]">Approval is 31.4 pp below the expected range in Brazil.</p>
-                      </div>
-                      <div className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
-                        <p className="text-[11px] font-semibold text-[#c6b4cf]">EVIDENCE UPDATE</p>
-                        <p className="mt-1 text-xs leading-5 text-[#d6cad9]">Provider control remains healthy. Human review required.</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <Button aria-label="Open settings" variant="ghost" size="icon" className="rounded-full border border-white/10 bg-black/30 text-[#f2eaf3] hover:bg-white/[0.08]">
-                <Settings2 className="size-4" />
               </Button>
             </div>
           </header>

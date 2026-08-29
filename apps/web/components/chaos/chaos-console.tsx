@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Check,
   CircleAlert,
   CircleCheck,
@@ -227,10 +226,7 @@ export function ChaosConsole() {
       <main className="mx-auto w-full max-w-none">
         <header className="chaos-header">
           <div className="relative z-10">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#b9acbe] transition hover:text-white">
-              <ArrowLeft className="size-3.5" /> Control Tower
-            </Link>
-            <div className="mt-7 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="live-pill"><FlaskConical className="size-3" /> CHAOS LAB</span>
               <span className={"chaos-phase-pill chaos-phase-" + phaseMeta.tone}>{phaseMeta.label}</span>
             </div>

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowUpRight,
   CircleAlert,
   FileSearch,
@@ -235,9 +234,11 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
       <main className="mx-auto w-full max-w-none">
         <header className="incident-hero">
           <div className="relative z-10">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#bdb1c1] transition hover:text-white">
-              <ArrowLeft className="size-3.5" /> Control Tower / Investigations
-            </Link>
+            <nav className="flex items-center gap-2 text-[11px] font-medium text-[#9f92a4]" aria-label="Investigation breadcrumb">
+              <Link href="/investigations" className="transition hover:text-white">Investigations</Link>
+              <span aria-hidden="true">/</span>
+              <span className="text-[#d6c8da]">{report.incident_id}</span>
+            </nav>
             <div className="mt-7 flex flex-wrap items-center gap-2">
               <span className={"severity-badge " + severityClass[anomaly.severity]}>{anomaly.severity}</span>
               <span className={isInconclusive ? "incident-status incident-status-inconclusive" : "incident-status"}>
