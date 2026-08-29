@@ -162,3 +162,42 @@ Verificado con: script standalone que corre `generate_candidates` sobre el chaos
 confirma que para el candidato ganador `{provider: nova_pay, country: BR}` aparecen
 `counterfactual_provider` y `counterfactual_country`, ambos con su evidence_id dentro de
 `candidate.evidence_ids`.
+
+## D008 — Pipeline automatico (DetectionEngine -> mix-shift -> generate_candidates)
+
+Contexto: hasta ahora estas 3 piezas se llamaban a mano, una por una, como hace demo.py.
+Un companero (Pancho, tomando simulator/) pidio conectarlas solas para que Stream C consuma
+una sola salida por ventana, sin orquestar el pipeline el mismo. Pidio explicitamente NO
+rehacer el RCA que ya esta en candidates.py, y no tocar contracts/ sin avisar a todos.
+
+Decision: nuevo modulo `engine/detection/pipeline.py` con `DetectionPipeline` (envuelve
+`DetectionEngine`) y dos dataclasses internas -- `WindowResult` (una por ventana cerrada) y
+`AnomalyDiagnosis` (anomalia + candidatos + evidencia) -- construidas 100% con los tipos ya
+compartidos (`Anomaly`, `IncidentCandidate`, `Evidence`). No se toco contracts/schemas.py.
+
+Dos limitaciones a proposito, documentadas para que Stream C las conozca de entrada:
+
+1. `mix_shift.decompose()` explica UNA dimension a la vez (Sec 9.3). Una Anomaly de "global"
+   o de 2+ dimensiones combinadas no tiene una unica dimension que decomponer -- ahi
+   `mix_shift_effect_pp`/`performance_effect_pp` quedan en `None` en vez de inventar a cual
+   dimension aplicarselo.
+2. `generate_candidates()` busca en TODA la ventana, no filtra por la anomalia que lo
+   disparo (asi funcionaba antes de este cambio, no se toco). Si hay 2 incidentes
+   simultaneos en la misma ventana, CADA diagnostico recibe la MISMA lista de candidatos
+   (todos los segmentos problematicos de esa ventana, no solo el propio). Verificado con
+   test que ambos incidentes aparecen en la lista y que no se inventa ninguna combinacion
+   cruzada que no existio en los datos (`tests/detection/test_pipeline.py`).
+
+Ademas se agrego evidencia citable de `decline_code_distribution` (motivo tipico de rechazo
+del segmento, no solo que subieron los rechazos) en `candidates.py`, reusando el calculo que
+ya existia para `dominant_decline_code`.
+
+Riesgo abierto D006 (defaults de produccion sin probar contra un stream real) ahora CERRADO:
+`tests/detection/test_pipeline.py::ProductionDefaultsLongStreamTests` corre un stream real
+via `DetectionPipeline` con los defaults de `config.py` sin calibrar (los mismos que usaria
+produccion) y confirma que un incidente de -35pp se detecta en la ventana 3 de 4 (exactamente
+lo esperado por `persistence_windows=3`).
+
+Verificado con: `uv run python -m unittest discover -s tests/detection -v` (11 tests, OK) y
+`uv run python -m engine.detection.demo` (mismo resultado de siempre, mas evidencia de codigo
+de rechazo).

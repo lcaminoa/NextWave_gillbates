@@ -41,6 +41,28 @@ def _matches(txn: Transaction, dims: dict) -> bool:
     return all(getattr(txn, k, None) == v for k, v in dims.items())
 
 
+def _decline_code_evidence(
+    segment_current: list[Transaction], dims: dict, dominant_code: str | None,
+) -> Evidence | None:
+    """Evidencia citable de CUAL fue el motivo de rechazo dominante en el segmento (no solo
+    "subieron los rechazos", sino "y en general fue por tal codigo"). None si no hay rechazos
+    con codigo (ej. si el segmento no tiene ningun rechazo con canonical_decline_code)."""
+    if dominant_code is None:
+        return None
+    declined_with_code = [t for t in segment_current if not t.approved and t.canonical_decline_code]
+    share = sum(1 for t in declined_with_code if t.canonical_decline_code == dominant_code) / len(declined_with_code)
+    return Evidence(
+        evidence_id=f"ev_{uuid.uuid4().hex[:8]}",
+        source="decline_code_distribution",
+        summary=(
+            f"{dimension_key(dims)}: {share:.0%} de los {len(declined_with_code)} rechazos con "
+            f"codigo son \'{dominant_code}\' -- es el motivo tipico, no casos sueltos"
+        ),
+        value=round(share, 4),
+        dimension_key=dimension_key(dims),
+    )
+
+
 def _estimate_revenue_loss_per_hour(
     segment_txns: list[Transaction], baseline_rate: float, window_minutes: float,
 ) -> float:
@@ -210,6 +232,13 @@ def generate_candidates(
                     counterfactual_texts.append(text)
                 counterfactual = " | ".join(counterfactual_texts) if counterfactual_texts else None
 
+                # una sola vez -- se usa como campo de salida Y como base de la evidencia citable
+                dominant_code = _dominant_decline_code(segment_current)
+                decline_ev = _decline_code_evidence(segment_current, dims, dominant_code)
+                if decline_ev is not None:
+                    evidence.append(decline_ev)
+                    evidence_ids.append(decline_ev.evidence_id)
+
                 revenue_loss = _estimate_revenue_loss_per_hour(segment_current, 1 - baseline_decline, anomaly_window_minutes)
 
                 candidates.append(IncidentCandidate(
@@ -220,7 +249,7 @@ def generate_candidates(
                     affected_count=affected_count,
                     baseline_decline_rate=round(baseline_decline, 4),
                     current_decline_rate=round(current_decline, 4),
-                    dominant_decline_code=_dominant_decline_code(segment_current),
+                    dominant_decline_code=dominant_code,
                     estimated_revenue_loss_usd_per_hour=revenue_loss,
                     rca_score=_rca_score(confidence, coverage, revenue_loss, n_dims, config),
                     evidence_ids=evidence_ids,
