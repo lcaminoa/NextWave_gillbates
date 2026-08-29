@@ -1,4 +1,5 @@
-"""Deteccion secuencial de anomalias sobre el baseline (DECISIONS.md D001; master plan Sec 9.2).
+"""
+Deteccion secuencial de anomalias sobre el baseline (DECISIONS.md D001; master plan Sec 9.2).
 
 Compara la aprobacion observada en una ventana reciente contra el baseline esperado del mismo
 segmento, y solo levanta una Anomaly si la caida es real y se sostiene varias ventanas seguidas
@@ -79,7 +80,8 @@ def detect(
     window_end: datetime,
     persistence_state: dict[str, int] | None = None,
 ) -> list[Anomaly]:
-    """Corre la deteccion a nivel global y por cada valor de cada dimension monitoreada.
+    """
+    Corre la deteccion a nivel global y por cada valor de cada dimension monitoreada.
 
     `persistence_state` se pasa entre llamadas sucesivas (una por ventana de tiempo) para
     contar cuantas ventanas seguidas un segmento viene mal -- inicializalo una vez afuera del

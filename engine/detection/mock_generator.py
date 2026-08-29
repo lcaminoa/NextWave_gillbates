@@ -1,4 +1,5 @@
-"""Generador de transacciones falsas para probar Stream B aislado (AGENTS.md: "cada stream
+"""
+Generador de transacciones falsas para probar Stream B aislado (AGENTS.md: "cada stream
 avanza aislado con mocks"). No depende del simulador real de Stream A todavia.
 
 Aprobacion base por metodo de pago tomada del master plan (Sec 13), mas ruido natural, mas
@@ -64,24 +65,21 @@ def _chaos_active(ts: datetime, chaos: ChaosSpec) -> bool:
     return ts <= chaos.started_at + timedelta(minutes=chaos.duration_minutes)
 
 
-def generate_stream(
-    start: datetime,
-    n: int,
-    interval_seconds: float = 1.0,
-    chaos: ChaosSpec | None = None,
-    seed: int | None = None,
-) -> list[Transaction]:
-    """Genera `n` transacciones consecutivas desde `start`. Si `chaos` esta activo y matchea
+def generate_stream(start: datetime, n: int, interval_seconds: float = 1.0, chaos: ChaosSpec | None = None,
+                    seed: int | None = None) -> list[Transaction]:
+    """
+    Genera `n` transacciones consecutivas desde `start`. Si `chaos` está activo y matchea
     las dimensiones de una transaccion, le baja la probabilidad de aprobacion en
-    `chaos.severity_pp` puntos porcentuales."""
+    `chaos.severity_pp` puntos porcentuales.
+    """
     rng = random.Random(seed)
     transactions: list[Transaction] = []
     ts = start
 
     for _ in range(n):
-        merchant = rng.choice(MERCHANTS)
-        provider = rng.choice(PROVIDERS)
-        country = rng.choice(COUNTRIES)
+        merchant = rng.choice(MERCHANTS) # elige un comercio al azar
+        provider = rng.choice(PROVIDERS) # elige un proveedor al azar
+        country = rng.choice(COUNTRIES) # elige un país al azar
         payment_method = rng.choice(PAYMENT_METHODS_BY_COUNTRY[country])
         issuing_bank = rng.choice(ISSUING_BANKS_BY_COUNTRY[country])
 
@@ -98,7 +96,7 @@ def generate_stream(
             approval_rate = max(0.01, approval_rate - chaos.severity_pp / 100.0)
             forced_code = "issuer_unavailable"
 
-        approved = rng.random() < approval_rate
+        approved = rng.random() < approval_rate # tira una moneda cargada según esa probabilidad
 
         decline_code = raw_code = raw_message = None
         if not approved:
