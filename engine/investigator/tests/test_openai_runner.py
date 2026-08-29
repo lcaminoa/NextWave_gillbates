@@ -1,0 +1,255 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+import engine.investigator.openai_runner as openai_runner
+from contracts.schemas import Evidence, ReportStatus
+from engine.investigator.mock_data import clear_provider_country_case
+from engine.investigator.openai_runner import (
+    AgentClaimDraft,
+    AgentReportDraft,
+    TOOL_DEFINITIONS,
+    run_openai_investigation,
+)
+from engine.investigator.runner import report_loss_per_hour
+from engine.investigator.validation import ReportValidationError
+
+
+@dataclass(frozen=True)
+class FakeCall:
+    name: str
+    arguments: str
+    call_id: str
+    type: str = "function_call"
+
+
+class FakeResponses:
+    def __init__(
+        self,
+        calls: list[FakeCall],
+        draft: AgentReportDraft | list[AgentReportDraft],
+    ) -> None:
+        self._calls = iter(calls)
+        self._drafts = iter(draft if isinstance(draft, list) else [draft])
+        self.create_requests: list[dict[str, Any]] = []
+        self.parse_requests: list[dict[str, Any]] = []
+
+    def create(self, **kwargs: Any) -> SimpleNamespace:
+        self.create_requests.append(kwargs)
+        return SimpleNamespace(output=[next(self._calls)])
+
+    def parse(self, **kwargs: Any) -> SimpleNamespace:
+        self.parse_requests.append(kwargs)
+        return SimpleNamespace(output_parsed=next(self._drafts))
+
+
+def _call(index: int, name: str, **arguments: Any) -> FakeCall:
+    return FakeCall(
+        name=name,
+        arguments=json.dumps(arguments),
+        call_id=f"call_{index}",
+    )
+
+
+def _successful_calls() -> list[FakeCall]:
+    return [
+        _call(1, "rank_candidates", limit=5),
+        _call(2, "get_candidate_evidence", candidate_id="cand_novapay_br"),
+        _call(3, "get_candidate_evidence", candidate_id="cand_novapay"),
+        _call(4, "get_candidate_evidence", candidate_id="cand_br"),
+        _call(5, "compare_top_candidates"),
+        _call(6, "get_financial_impact", candidate_id="cand_novapay_br"),
+        _call(7, "finish_investigation"),
+    ]
+
+
+def _confirmed_draft(evidence_ids: list[str]) -> AgentReportDraft:
+    return AgentReportDraft(
+        status=ReportStatus.confirmed,
+        winning_candidate_id="cand_novapay_br",
+        summary="NovaPay en Brasil explica la degradacion observada.",
+        claims=[
+            AgentClaimDraft(
+                claim="La degradacion esta aislada a NovaPay en Brasil.",
+                evidence_ids=evidence_ids,
+                confidence=0.93,
+            )
+        ],
+        recommended_action="Revisar el routing con aprobacion humana.",
+    )
+
+
+def test_openai_runner_uses_tools_then_validates_structured_report() -> None:
+    case = clear_provider_country_case()
+    responses = FakeResponses(
+        _successful_calls(),
+        _confirmed_draft(["ev_clear_baseline", "ev_clear_control"]),
+    )
+    client = SimpleNamespace(responses=responses)
+
+    result = run_openai_investigation(
+        case.anomaly_id,
+        case.candidates,
+        case.evidence,
+        model="test-model",
+        client=client,
+    )
+
+    assert result.report.status == ReportStatus.confirmed
+    assert result.report.winning_candidate_id == "cand_novapay_br"
+    assert result.report.requires_human_review is True
+    assert report_loss_per_hour(result.report) == 11220.0
+    assert result.consulted_evidence_ids >= {"ev_clear_baseline", "ev_clear_control"}
+    assert result.report.investigation_steps == [step.step_id for step in result.steps]
+    assert len(responses.create_requests) == 7
+    assert len(responses.parse_requests) == 1
+    assert all(request["store"] is False for request in responses.create_requests)
+    assert all(request["timeout"] == 30.0 for request in responses.create_requests)
+    assert responses.parse_requests[0]["timeout"] == 30.0
+    assert responses.parse_requests[0]["text_format"] is AgentReportDraft
+
+
+def test_openai_runner_rejects_structured_claim_with_unconsulted_evidence() -> None:
+    case = clear_provider_country_case()
+    unconsulted = Evidence(
+        evidence_id="ev_unconsulted",
+        source="baseline_comparison",
+        summary="Evidencia valida que ninguna candidata consultada referencia.",
+        value=0.01,
+        dimension_key="provider=nova_pay",
+    )
+    responses = FakeResponses(
+        _successful_calls(),
+        [
+            _confirmed_draft([unconsulted.evidence_id]),
+            _confirmed_draft([unconsulted.evidence_id]),
+        ],
+    )
+
+    with pytest.raises(ReportValidationError, match="not consulted"):
+        run_openai_investigation(
+            case.anomaly_id,
+            case.candidates,
+            (*case.evidence, unconsulted),
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+        )
+
+
+def test_openai_runner_repairs_an_ungrounded_entity_name_once() -> None:
+    case = clear_provider_country_case()
+    invalid = _confirmed_draft(["ev_clear_baseline"])
+    invalid.summary = "La causa principal es nueva_pay en Brasil."
+    repaired = _confirmed_draft(["ev_clear_baseline"])
+    responses = FakeResponses(_successful_calls(), [invalid, repaired])
+
+    result = run_openai_investigation(
+        case.anomaly_id,
+        case.candidates,
+        case.evidence,
+        model="test-model",
+        client=SimpleNamespace(responses=responses),
+    )
+
+    assert "nueva_pay" not in result.report.summary
+    assert len(responses.parse_requests) == 2
+    assert "ungrounded entity tokens" in responses.parse_requests[1]["input"][-1]["content"]
+
+
+def test_openai_runner_rejects_finishing_without_an_investigation() -> None:
+    case = clear_provider_country_case()
+    responses = FakeResponses(
+        [_call(1, "finish_investigation")],
+        AgentReportDraft(
+            status=ReportStatus.inconclusive,
+            winning_candidate_id=None,
+            summary="No se pudo determinar una causa.",
+            claims=[],
+            recommended_action="Mantener revision humana.",
+        ),
+    )
+
+    with pytest.raises(ReportValidationError, match="without ranking candidates"):
+        run_openai_investigation(
+            case.anomaly_id,
+            case.candidates,
+            case.evidence,
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+        )
+
+
+def test_openai_runner_requires_simpler_alternatives_for_specific_winner() -> None:
+    case = clear_provider_country_case()
+    calls_without_country_control = [
+        _call(1, "rank_candidates", limit=5),
+        _call(2, "get_candidate_evidence", candidate_id="cand_novapay_br"),
+        _call(3, "get_candidate_evidence", candidate_id="cand_novapay"),
+        _call(4, "compare_top_candidates"),
+        _call(5, "get_financial_impact", candidate_id="cand_novapay_br"),
+        _call(6, "finish_investigation"),
+    ]
+    responses = FakeResponses(
+        calls_without_country_control,
+        _confirmed_draft(["ev_clear_baseline", "ev_clear_control"]),
+    )
+
+    with pytest.raises(ReportValidationError, match="cand_br"):
+        run_openai_investigation(
+            case.anomaly_id,
+            case.candidates,
+            case.evidence,
+            model="test-model",
+            client=SimpleNamespace(responses=responses),
+        )
+
+
+def test_openai_runner_returns_safe_inconclusive_report_at_turn_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = clear_provider_country_case()
+    monkeypatch.setattr(openai_runner, "MAX_MODEL_TURNS", 2)
+    responses = FakeResponses(
+        [
+            _call(1, "rank_candidates", limit=5),
+            _call(2, "rank_candidates", limit=5),
+        ],
+        _confirmed_draft(["ev_clear_baseline"]),
+    )
+
+    result = run_openai_investigation(
+        case.anomaly_id,
+        case.candidates,
+        case.evidence,
+        model="test-model",
+        client=SimpleNamespace(responses=responses),
+    )
+
+    assert result.report.status == ReportStatus.inconclusive
+    assert result.report.winning_candidate_id is None
+    assert result.report.claims == []
+    assert result.report.estimated_revenue_loss_usd_per_hour == 0.0
+    assert result.report.requires_human_review is True
+    assert result.steps[-1].action == "turn_limit_fallback()"
+    assert result.report.investigation_steps == [step.step_id for step in result.steps]
+    assert len(responses.create_requests) == 2
+    assert responses.parse_requests == []
+
+
+def test_tool_definitions_are_strict_and_read_only() -> None:
+    names = {tool["name"] for tool in TOOL_DEFINITIONS}
+
+    assert names == {
+        "rank_candidates",
+        "get_candidate_evidence",
+        "compare_top_candidates",
+        "get_financial_impact",
+        "finish_investigation",
+    }
+    assert all(tool["strict"] is True for tool in TOOL_DEFINITIONS)
+    assert all(tool["parameters"]["additionalProperties"] is False for tool in TOOL_DEFINITIONS)
