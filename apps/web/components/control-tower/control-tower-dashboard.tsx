@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
@@ -23,8 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ApprovalChart } from "@/components/control-tower/approval-chart";
 import RotatingEarth, { type GlobeHotspot } from "@/components/ui/wireframe-dotted-globe";
-import { anomalies, candidates, investigationSteps, reports, transactions } from "@/lib/fixtures/control-tower";
-import { deltaPp, time, usd } from "@/lib/format";
+import { anomalies, candidates, evidence, investigationSteps, reports, transactions } from "@/lib/fixtures/control-tower";
+import { deltaPp, integer, percent, time, usd } from "@/lib/format";
 import type { Dimensions } from "@/lib/contracts";
 
 const navigation = [
@@ -56,6 +56,7 @@ export function ControlTowerDashboard() {
   const globeHotspots = useMemo<GlobeHotspot[]>(
     () => [
       {
+        incidentId: "incident-br-novapay",
         country: "Brazil",
         countryCode: "BR",
         longitude: -51.9253,
@@ -64,6 +65,7 @@ export function ControlTowerDashboard() {
         severity: "high",
       },
       {
+        incidentId: "incident-mx-review",
         country: "Mexico",
         countryCode: "MX",
         longitude: -102.5528,
@@ -75,13 +77,24 @@ export function ControlTowerDashboard() {
     [],
   );
   const selectedHotspot = globeHotspots.find((hotspot) => hotspot.countryCode === selectedCountry) ?? globeHotspots[0];
+  const geographicReport = reports.find((report) => report.incident_id === selectedHotspot.incidentId) ?? selectedReport;
+  const geographicCandidate = candidates.find((candidate) => candidate.anomaly_id === geographicReport.anomaly_id);
+  const geographicAnomaly = anomalies.find((anomaly) => anomaly.anomaly_id === geographicReport.anomaly_id);
+  const geographicEvidenceIds = geographicReport.claims.flatMap((claim) => claim.evidence_ids);
+  const geographicEvidence = evidence.find((item) => geographicEvidenceIds.includes(item.evidence_id));
 
   const selectIncident = (incidentId: string) => {
     const report = reports.find((item) => item.incident_id === incidentId);
     const candidate = candidates.find((item) => item.candidate_id === report?.winning_candidate_id);
+    const hotspot = globeHotspots.find((item) => item.incidentId === incidentId);
     setSelectedIncidentId(incidentId);
-    if (candidate?.dimensions.country) setSelectedCountry(candidate.dimensions.country);
+    if (hotspot?.countryCode) setSelectedCountry(hotspot.countryCode);
+    else if (candidate?.dimensions.country) setSelectedCountry(candidate.dimensions.country);
   };
+  const selectHotspot = useCallback((hotspot: GlobeHotspot) => {
+    setSelectedCountry(hotspot.countryCode);
+    setSelectedIncidentId(hotspot.incidentId);
+  }, []);
 
   return (
     <div className={presentationMode ? "control-canvas presentation-mode" : "control-canvas"}>
@@ -243,7 +256,7 @@ export function ControlTowerDashboard() {
               </article>
             </div>
 
-            <article className="control-card min-h-[318px] p-5 xl:col-span-4">
+            <article className="control-card min-h-[318px] p-5 xl:col-span-8">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="eyebrow">Active investigations</p>
@@ -287,31 +300,82 @@ export function ControlTowerDashboard() {
               </div>
             </article>
 
-            <article className="control-card relative min-h-[318px] overflow-hidden p-5 xl:col-span-4">
-              <div className="relative z-10 flex items-start justify-between">
-                <div>
-                  <p className="eyebrow">Impact geography</p>
-                  <h2 className="mt-1 text-[17px] font-medium tracking-[-0.03em] text-[#f5eef7]">Global payment footprint</h2>
-                </div>
-                <Globe2 className="size-4 text-[#c8b4d0]" />
+          </section>
+
+          <section className="globe-stage control-card mt-3 overflow-hidden">
+            <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 p-5 md:p-6">
+              <div>
+                <p className="eyebrow">Impact geography</p>
+                <h2 className="mt-1 text-[22px] font-medium tracking-[-0.04em] text-[#f7f0f8]">
+                  Incidents, <span className="text-[#dca6dd]">located.</span>
+                </h2>
+                <p className="mt-1 text-xs text-[#aea2b4]">Select a signal to inspect its evidence-backed regional story.</p>
               </div>
-              <RotatingEarth
-                height={234}
-                className="-mx-3 -mt-1"
-                hotspots={globeHotspots}
-                selectedCountryCode={selectedCountry}
-                onHotspotSelect={(hotspot) => setSelectedCountry(hotspot.countryCode)}
-              />
-              <div className="absolute bottom-4 left-5 right-5 z-10 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-[#171119]/80 px-3 py-2 backdrop-blur">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-[#f7edf8]">{selectedHotspot.country}</p>
-                  <p className="truncate text-[10px] text-[#a99eaf]">{selectedHotspot.label}</p>
+              <Globe2 className="mt-1 size-4 text-[#c8b4d0]" />
+            </div>
+
+            <RotatingEarth
+              height={530}
+              className="globe-hero"
+              hotspots={globeHotspots}
+              selectedCountryCode={selectedCountry}
+              onHotspotSelect={selectHotspot}
+            />
+
+            <div className="globe-location-list" aria-label="Incident locations">
+              {globeHotspots.map((hotspot) => (
+                <button
+                  key={hotspot.countryCode}
+                  type="button"
+                  onClick={() => selectHotspot(hotspot)}
+                  className={hotspot.countryCode === selectedCountry ? "globe-location-card globe-location-card-selected" : "globe-location-card"}
+                >
+                  <span className={"globe-location-dot globe-location-dot-" + hotspot.severity} />
+                  <span>
+                    <strong>{hotspot.country}</strong>
+                    <small>{hotspot.severity === "high" ? "High-impact investigation" : "Evidence under review"}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <aside className="globe-detail-card" aria-live="polite">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Selected location</p>
+                  <h3 className="mt-1 text-lg font-medium tracking-[-0.035em] text-[#f9f2fa]">{selectedHotspot.country}</h3>
                 </div>
                 <span className={"severity-badge shrink-0 " + severityStyles[selectedHotspot.severity]}>
                   {selectedHotspot.severity}
                 </span>
               </div>
-            </article>
+              <p className="mt-3 text-xs leading-5 text-[#c9bdce]">{geographicReport.summary}</p>
+              <dl className="globe-facts">
+                <div>
+                  <dt>Approval gap</dt>
+                  <dd>{geographicAnomaly ? deltaPp(geographicAnomaly.observed_approval_rate, geographicAnomaly.expected_approval_rate) : "—"}</dd>
+                </div>
+                <div>
+                  <dt>Confidence</dt>
+                  <dd>{geographicCandidate ? percent(geographicCandidate.confidence) : "Inconclusive"}</dd>
+                </div>
+                <div>
+                  <dt>At-risk payments</dt>
+                  <dd>{geographicCandidate ? integer(geographicCandidate.affected_count) : "—"}</dd>
+                </div>
+                <div>
+                  <dt>Business impact</dt>
+                  <dd>{usd(geographicReport.estimated_revenue_loss_usd)}/hr</dd>
+                </div>
+              </dl>
+              <div className="mt-3 border-t border-white/8 pt-3">
+                <p className="eyebrow">Evidence in view</p>
+                <p className="mt-1 text-[11px] leading-4 text-[#afa4b4]">{geographicEvidence?.summary ?? "No evidence citation is available yet."}</p>
+              </div>
+              <Link href={"/incidents/" + geographicReport.incident_id} className="premium-action mt-3 inline-flex">
+                Open investigation <ChevronRight className="size-3.5" />
+              </Link>
+            </aside>
           </section>
 
           <section className="control-card mt-3 flex min-h-[332px] flex-col overflow-hidden p-5">

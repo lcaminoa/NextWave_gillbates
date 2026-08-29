@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { candidates, evidence, investigationSteps, reports } from "@/lib/fixtures/control-tower";
-import { percent, time, usd } from "@/lib/format";
+import { integer, percent, time, usd } from "@/lib/format";
 
 export function IncidentDetail({ incidentId }: { incidentId: string }) {
   const report = reports.find((item) => item.incident_id === incidentId) ?? reports[0];
@@ -66,7 +66,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
               </div>
               <div className="rounded-xl border border-white/[0.08] bg-black/15 p-3">
                 <p className="eyebrow">Affected</p>
-                <p className="mt-2 text-xl font-semibold text-[#f3edf4]">{candidate?.affected_count.toLocaleString() ?? "—"}</p>
+                <p className="mt-2 text-xl font-semibold text-[#f3edf4]">{candidate ? integer(candidate.affected_count) : "—"}</p>
                 <p className="mt-1 text-[11px] text-[#a99eaf]">Transactions / min</p>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { percent } from "@/lib/format";
+import { integer, percent } from "@/lib/format";
 
 type RatePoint = {
   time: string;
@@ -108,28 +108,15 @@ export function ApprovalChart() {
         {points.map((point, index) => (
           <g key={point.time}>
             {point.detected || point.investigating ? (
-              <>
-                <line
-                  x1={x(index)}
-                  x2={x(index)}
-                  y1={inset.top}
-                  y2={height - inset.bottom}
-                  stroke={point.investigating ? "#fb7185" : "#e7acd7"}
-                  strokeDasharray="3 4"
-                  strokeOpacity="0.65"
-                />
-                <text
-                  x={x(index)}
-                  y={inset.top + 10}
-                  textAnchor={point.investigating ? "end" : "start"}
-                  dx={point.investigating ? -5 : 5}
-                  fill={point.investigating ? "#fb9aae" : "#e7c0df"}
-                  fontSize="9"
-                  fontWeight="600"
-                >
-                  {point.investigating ? "INVESTIGATION" : "DETECTED"}
-                </text>
-              </>
+              <line
+                x1={x(index)}
+                x2={x(index)}
+                y1={inset.top}
+                y2={height - inset.bottom}
+                stroke={point.investigating ? "#fb7185" : "#e7acd7"}
+                strokeDasharray="3 4"
+                strokeOpacity="0.65"
+              />
             ) : null}
             <circle
               cx={x(index)}
@@ -156,7 +143,7 @@ export function ApprovalChart() {
           <g transform={"translate(" + Math.min(activeX + 15, width - 174) + " " + Math.max(y(active.observed) - 83, 16) + ")"}>
             <rect width="160" height="66" rx="10" fill="#1a131d" stroke="rgba(237,215,240,0.18)" />
             <text x="12" y="18" fill="#f8f0fa" fontSize="10" fontWeight="700">
-              {active.time} · {active.volume.toLocaleString()} tx/min
+              {active.time} · {integer(active.volume)} tx/min
             </text>
             <text x="12" y="37" fill="#eeb5db" fontSize="10">
               Observed {percent(active.observed)}

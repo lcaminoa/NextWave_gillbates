@@ -14,12 +14,17 @@ export function usd(value: number, maximumFractionDigits = 0) {
   }).format(value);
 }
 
+export function integer(value: number) {
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 export function time(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone: "America/Sao_Paulo",
   }).format(new Date(value));
 }
 

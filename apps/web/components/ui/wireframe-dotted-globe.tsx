@@ -6,6 +6,7 @@ import { feature } from "topojson-client";
 import landTopology from "world-atlas/land-110m.json";
 
 export type GlobeHotspot = {
+  incidentId: string;
   country: string;
   countryCode: string;
   longitude: number;

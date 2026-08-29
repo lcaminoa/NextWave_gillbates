@@ -87,7 +87,8 @@ Por qué:
 - en random_unknown no se alimenta el globo con ground truth ni se muestran dimensiones antes
   de que el backend confirme el reveal
 
-Tradeoff: suma una dependencia visual y carga de render. Se mantiene secundario frente al
-approval chart, las incident cards y el timeline, sin arcos decorativos ni telemetría inventada.
+Tradeoff: suma una dependencia visual y carga de render. Se usa como pieza principal de
+orientación geográfica, con una card de detalle por marcador; aun así no reemplaza el approval
+chart ni la evidencia citable, y no incluye arcos decorativos ni telemetría inventada.
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
