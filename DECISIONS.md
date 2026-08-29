@@ -162,3 +162,37 @@ Verificado con: script standalone que corre `generate_candidates` sobre el chaos
 confirma que para el candidato ganador `{provider: nova_pay, country: BR}` aparecen
 `counterfactual_provider` y `counterfactual_country`, ambos con su evidence_id dentro de
 `candidate.evidence_ids`.
+
+## D008 — Normalizar el signo de `ChaosSpec.severity_pp` en el simulador
+
+Contexto: `contracts/CONTRACTS.md` describe la severidad como una degradación negativa (por
+ejemplo, `-35` pp), mientras que el mock de detección y la consola interactiva existente usan
+`35` y luego lo restan. Ambas convenciones ya estaban presentes y la API/UI todavía se integran.
+
+Alternativas:
+1. elegir solo una convención ahora y rechazar la otra;
+2. aceptar ambos signos dentro del simulador y convertirlos a una caída usando su valor absoluto.
+
+Decisión: 2.
+
+Por qué: el significado de producto es inequívoco — una severidad representa una caída — y
+aceptar ambas formas evita romper los flujos de test ya existentes o forzar a Valen/Franco a
+conocer una inconsistencia histórica. La salida conserva el valor original para que la API pueda
+mostrar exactamente lo que recibió.
+
+Límite: el simulador valida una magnitud entre 1 y 95 pp y aplica una tasa de aprobación mínima
+de 1 %, incluso si se superponen dos ChaosSpec.
+
+## D009 — Chaos aleatorio sobre segmentos detectables, no sobre el cruce total
+
+Alternativas:
+1. elegir al azar las cinco dimensiones disponibles (merchant, provider, país, método y emisor);
+2. elegir un segmento aleatorio de una a tres dimensiones con volumen suficiente.
+
+Decisión: 2.
+
+Por qué: un cruce de cinco dimensiones aparece muy pocas veces incluso con 1.200 transacciones
+por minuto, por lo que puede quedar debajo de `min_volume` y la prueba a ciegas parecería un
+falso negativo del producto. El injector elige proveedor, proveedor × país, proveedor × país ×
+método, emisor o comercio. Sigue siendo desconocido para el equipo, pero es estadísticamente
+observable y permite evaluar de verdad detección y RCA.
