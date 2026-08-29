@@ -30,9 +30,10 @@ from engine.investigator.runner import (
     MIN_PROBABLE_CONFIDENCE,
     MIN_WINNER_MARGIN,
     InvestigationResult,
+    filter_publishable_candidates,
 )
 from engine.investigator.specificity import (
-    filter_specificity_supported_candidates,
+    is_strict_refinement,
     maximal_simpler_candidates,
 )
 from engine.investigator.tools import ReadOnlyInvestigationTools
@@ -330,10 +331,15 @@ def _validate_decision_policy(
         raise ReportValidationError("probable/confirmed report selected an unknown winner")
 
     runner_up = next(
-        (candidate for candidate in ranked if candidate.candidate_id != winner.candidate_id),
+        (
+            candidate
+            for candidate in ranked
+            if candidate.candidate_id != winner.candidate_id
+            and not is_strict_refinement(candidate, winner)
+        ),
         None,
     )
-    margin = winner.confidence - runner_up.confidence if runner_up else 1.0
+    margin = winner.rca_score - runner_up.rca_score if runner_up else winner.rca_score
     if draft.status == ReportStatus.confirmed and (
         winner.confidence < MIN_CONFIRMED_CONFIDENCE or margin < MIN_CONFIRMED_MARGIN
     ):
@@ -385,6 +391,7 @@ def _validate_tool_workflow(
                 reverse=True,
             )
             if candidate.candidate_id != winner.candidate_id
+            and not is_strict_refinement(candidate, winner)
         ),
         None,
     )
@@ -498,7 +505,7 @@ def run_openai_investigation(
 
         client = OpenAI(timeout=request_timeout_seconds, max_retries=0)
 
-    eligible_candidates = filter_specificity_supported_candidates(candidates, evidence)
+    eligible_candidates = filter_publishable_candidates(candidates, evidence)
     read_tools = ReadOnlyInvestigationTools(anomaly_id, eligible_candidates, evidence)
     steps: list[InvestigationStep] = []
     input_items: list[Any] = [
