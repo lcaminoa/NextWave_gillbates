@@ -26,13 +26,13 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 |---|---|---|---|
 | Contratos compartidos | ✅ | Ocho entidades en `contracts/types.ts` y `contracts/schemas.py`; endpoints definidos. | Fixtures compartidos y validación cruzada TS/Python. |
 | Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`, incluida la recuperacion al vencer el chaos. | -- |
-| Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos. | Integrarlo al servicio/API real. |
-| Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`. | Estacionalidad efectiva, fallback jerárquico y calibración con stream continuo. |
+| Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos; está conectado a `DetectionPipeline` y al runtime API. | -- |
+| Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia, segmentos y calibración con stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
 | Mix shift | 🟡 | `mix_shift.py` descompone mezcla vs. performance; hay test. | Usarlo como filtro real antes de abrir un incidente. |
-| RCA / evidencia | 🟡 | Candidatos 1D/2D, score, impacto por hora, decline code dominante y controles contrafácticos. | Orquestación automática desde `Anomaly`, distribución de decline codes y separación de residuos. |
-| Tests | 🟡 | 9 tests y consola interactiva; normal/noise, bajo volumen, persistencia, mix shift y `provider × country`. | Casos del brief, tests de integración y suite repetible de evaluación. |
-| Investigador OpenAI | ❌ | Contratos preparados. | Tools de solo lectura, `InvestigationStep[]`, Structured Outputs e `IncidentReport`. |
-| API / stream | ❌ | Rutas congeladas en contratos. | FastAPI `engine.main`, SSE y endpoints de incidentes/chaos. |
+| RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y controles contrafácticos. | Separación por residuos y ampliar cobertura RCA si se quieren explicar anomalías 3D. |
+| Tests | 🟡 | 65 tests: Stream A/B/C, API, caos oculto, simultáneos, recuperación, dedupe, abstención y fallos seguros. | Completar los escenarios P1 que siguen abiertos y la evaluación con OpenAI real. |
+| Investigador OpenAI | 🟡 | Runner determinista y runner OpenAI con tools de solo lectura, Structured Outputs, validadores, fallback, Evidence Auditor y worker que no bloquea SSE; tests con mocks. | Elegir el modo de runtime y hacer el primer smoke real auditado. |
+| API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store y deduplicación; tests API y flujo real. | Conectar el modo OpenAI auditado cuando UI defina cómo muestra el audit. |
 | Dashboard / Chaos Console | ❌ | Especificación y mocks. | Next.js, `/chaos`, flujo en vivo, detalle de incidente y reveal. |
 | Demo / deploy | ❌ | Demo local de Stream B y REPL. | Una demo end-to-end que arranque desde cero y un despliegue estable. |
 
@@ -50,7 +50,7 @@ completas.
   - Pendiente: usarlo como filtro para NO abrir incidente si el mix-shift explica la caida (hoy solo se informa, no se usa como gate).
 - [x] Orquestador creado en `engine/detection/pipeline.py` (`DetectionPipeline`), no en `engine/rootcause/` -- envuelve `DetectionEngine` y llama a `generate_candidates()` sin tocarlo. `Anomaly + history + ventana -> IncidentCandidate[] + Evidence[]`, expuesto como `WindowResult`/`AnomalyDiagnosis` por ventana.
 - [x] `candidates.py` agrega `Evidence(source="decline_code_distribution", ...)` por candidato (que % de los rechazos son del codigo dominante), ademas del campo `dominant_decline_code`.
-- [ ] Definir el criterio determinista para `confirmed`, `probable` e `inconclusive`.
+- [x] Definir el criterio determinista para `confirmed`, `probable` e `inconclusive`.
 - [x] Calibracion verificada contra un stream continuo real (no la demo sintetica de 2 ventanas): con los defaults de `config.py` sin tocar, un incidente de -35pp se confirma en la ventana 3 de 4. Ver DECISIONS.md D009 (resuelto) y D011.
 - [x] `tests/detection/test_pipeline.py`: pipeline completo detector -> mix-shift -> RCA -> evidencia, mas 2 incidentes simultaneos sin mezclarse.
 
@@ -74,25 +74,25 @@ el pipeline solo recibe las transacciones, nunca el `ChaosSpec` oculto.
 
 ### 3. Exponer el backend mínimo
 
-- [ ] Crear `engine/main.py` con `GET /api/health`.
-- [ ] Implementar `GET /api/stream` por SSE.
-- [ ] Implementar `GET /api/incidents` y `GET /api/incidents/:id` usando los contratos actuales.
-- [ ] Implementar `POST /api/chaos/inject`, `/random` y `/reveal`.
-- [ ] Mantener el estado de un incidente para no crear un reporte duplicado por cada ventana.
+- [x] Crear `engine/main.py` con `GET /api/health`.
+- [x] Implementar `GET /api/stream` por SSE.
+- [x] Implementar `GET /api/incidents` y `GET /api/incidents/:id` usando los contratos actuales.
+- [x] Implementar `POST /api/chaos/inject`, `/random` y `/reveal`.
+- [x] Mantener el estado de un incidente para no crear un reporte duplicado por cada ventana.
 
 **Criterio de aceptación:** desde cero, un cliente recibe pagos por SSE, inyecta caos y consulta
 el incidente sin tocar el proceso Python manualmente.
 
 ### 4. Implementar el investigador OpenAI
 
-- [ ] Crear `engine/investigator/`.
-- [ ] Exponer 4–6 tools **solo de lectura**: baseline, ranking dimensional, controles,
+- [x] Crear `engine/investigator/`.
+- [x] Exponer 4–6 tools **solo de lectura**: baseline, ranking dimensional, controles,
   decline mix, impacto y candidatos.
-- [ ] Generar pasos públicos `InvestigationStep[]`; no exponer chain-of-thought.
-- [ ] Generar `IncidentReport` con Structured Outputs.
-- [ ] Validar que cada `Claim` tenga `evidence_ids` existentes.
-- [ ] Incluir resumen, costo, estado de confianza y acción humana recomendada.
-- [ ] No permitir tools de escritura ni remediación automática.
+- [x] Generar pasos públicos `InvestigationStep[]`; no exponer chain-of-thought.
+- [x] Generar `IncidentReport` con Structured Outputs.
+- [x] Validar que cada `Claim` tenga `evidence_ids` existentes.
+- [x] Incluir resumen, costo, estado de confianza y acción humana recomendada.
+- [x] No permitir tools de escritura ni remediación automática.
 
 **Criterio de aceptación:** ante candidatos y evidencia reales, el agente produce una explicación
 legible que no inventa métricas ni referencias.
@@ -122,11 +122,11 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
 - [ ] `provider × issuing_bank`.
 - [ ] Regresión de un merchant.
 - [ ] Caída de issuing bank a través de proveedores.
-- [ ] Surge de decline code como evidencia visible.
+- [x] Surge de decline code como evidencia visible.
 - [ ] Mix shift + degradación real: reportar ambos efectos.
-- [ ] Dos incidentes simultáneos: separar, rankear y no mezclar evidencia.
-- [ ] Incidente que termina: recuperación sin incidente duplicado.
-- [ ] Evidencia insuficiente: estado `inconclusive` con explicación de qué falta.
+- [x] Dos incidentes simultáneos: separar, rankear y no mezclar evidencia.
+- [x] Incidente que termina: recuperación sin incidente duplicado.
+- [x] Evidencia insuficiente: estado `inconclusive` con explicación de qué falta.
 - [ ] Incidente inyectado al azar: coincidencia contra la verdad revelada.
 
 ## P2 — Pre-flight de hackathon
@@ -162,7 +162,7 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
   error del costo estimado.
 - [ ] **Chaos en lenguaje natural.** Transformar la instrucción del juez en `ChaosSpec` validado;
   mantener los controles estructurados como fallback.
-- [ ] **Auditor de evidencia.** Segunda validación que rechace claims sin IDs válidos o con una
+- [x] **Auditor de evidencia.** Segunda validación que rechace claims sin IDs válidos o con una
   confianza que exceda la evidencia.
 - [ ] **Suite de evaluación de 100 escenarios.** Métricas reales de detección, FPR, exactitud RCA,
   abstención y latencia; mostrar solo valores medidos.

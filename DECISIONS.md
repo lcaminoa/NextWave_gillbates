@@ -339,6 +339,7 @@ solo confirmaba que no se inventaba una combinacion cruzada), y que la evidencia
 diagnosis es exactamente la citada por sus propios candidatos. Los 18 tests del repo siguen
 pasando; `demo.py` no cambia (llama a `generate_candidates()` directo, sin pipeline, a
 proposito no filtra -- es una demo de UN solo incidente).
+
 ## D015 — Agregar un Evidence Auditor independiente, sin tools ni capacidad de reparacion
 
 Contexto: los validadores deterministas comprueban que cada claim cite evidencia existente y
@@ -368,3 +369,94 @@ el backend/UI definan como representar el estado de publicacion.
 Verificado con `gpt-5.6-terra`: el Auditor rechazo correctamente una afirmacion de "aislamiento"
 demasiado fuerte y aprobo el mismo caso al reformularla como "hipotesis con mayor respaldo",
 sin cambiar los datos ni el ganador.
+
+## D016 — Un unico runtime en memoria y SSE de solo transacciones para el primer flujo API
+
+Contexto: simulador, deteccion/RCA e investigador ya existian, pero faltaba conectarlos a los
+siete endpoints congelados. Crear un simulador por cliente SSE avanzaria el RNG y el pipeline
+varias veces, produciria transacciones distintas para cada pantalla y podria desordenar el
+detector. Tampoco esta definido en contratos un envelope para el detalle del incidente.
+
+Alternativas:
+1. crear el simulador y el pipeline dentro de cada request o conexion SSE;
+2. mantener un unico runtime del proceso con un productor, un pipeline y un store en memoria;
+3. agregar desde ahora un broker externo y persistencia distribuida.
+
+Decision: 2. `ControlTowerService` posee una instancia live de `PaymentSimulator`, una de
+`DetectionPipeline` y un store en memoria. Un broker local distribuye cada `Transaction` por
+SSE con colas acotadas, sin dejar que un cliente lento frene al detector. Un simulador separado
+genera solamente el historial bootstrap. El endpoint de detalle usa el envelope local
+`{report, candidates, evidence, investigation_steps}` sin agregar campos a las ocho entidades
+compartidas. El SSE transporta solamente `Transaction`; no mezcla pasos del agente en una ruta
+que el contrato ya congelo para pagos.
+
+La inyeccion manual se normaliza al reloj virtual actual para que el click signifique "empezar
+ahora" aun cuando la demo acelera el tiempo. `random_unknown` responde exclusivamente con
+`public_spec(chaos_id)`; el `ChaosSpec` interno nunca se serializa, almacena como incidente ni se
+entrega al detector o al investigador.
+
+Como el replay acelera el reloj de transacciones, el adaptador alinea `generated_at` y los
+timestamps de `InvestigationStep` con `Anomaly.detected_at` cuando el reloj virtual ya avanzo por
+delante del reloj de pared. Sin esa normalizacion, la UI podria mostrar un reporte "anterior" al
+incidente que lo genero.
+
+Tradeoffs: el estado se pierde al reiniciar el proceso y el replay SSE es corto. Es suficiente
+para la hackathon y evita infraestructura sin valor de producto. La primera integracion usa el
+investigador determinista para probar el recorrido sin llamadas reales. El runtime ya ejecuta la
+generacion y deteccion/RCA en un productor dedicado, y la investigacion en otro worker, para que
+un cierre de ventana costoso o una llamada lenta no congelen SSE ni endpoints. Activar OpenAI y el
+Evidence Auditor requiere elegir la configuracion de runtime y una decision de UI sobre el estado
+de publicacion del audit.
+
+Los endpoints de caos admiten un `CONTROL_TOWER_JUDGE_TOKEN` opcional y, cuando esta configurado,
+exigen el header `X-Control-Tower-Judge-Key`. Tambien limitan cada duracion a 60 minutos, rechazan
+IDs repetidos y aceptan como maximo 20 inyecciones por sesion. Antes de exponer el backend en una
+URL publica, `CONTROL_TOWER_PUBLIC_MODE=true` obliga a configurar un token no vacio de al menos 16
+caracteres y el proceso se niega a iniciar si falta; sin ese modo, el flujo local sigue siendo facil
+de usar. El despliegue debe correr un solo worker/replica mientras el estado sea en memoria.
+
+## D017 — Deduplicar por episodio y abstenerse ante cobertura RCA incompleta
+
+Contexto: Stream B crea un `anomaly_id` nuevo en cada ventana sostenida, por lo que derivar el
+`incident_id` solamente de ese campo duplicaria el mismo incidente. Ademas, el detector puede
+emitir una anomalia de tres dimensiones mientras el RCA busca candidatos de hasta dos; un
+candidato parcial podria parecer convincente sin explicar todo el segmento detectado.
+
+Decision: el runtime considera activo un episodio por un fingerprint canonico de la raiz RCA
+directa; cuando todavia no existe una raiz defendible, conserva la clave observada de la
+`Anomaly` como identidad provisional. Ventanas consecutivas compatibles reutilizan el incidente;
+dos ventanas sin evidencia que identifique ese episodio liberan la clave y permiten que una
+recurrencia posterior cree otro. Ese margen evita confundir una ventana de bajo volumen con
+recuperacion. Antes de publicar una ganadora se exige que al menos un candidato cubra todas las
+dimensiones fijadas por la anomalia, y la ganadora elegida tambien debe cumplirlo. Si no ocurre,
+se publica un reporte valido `inconclusive`, sin ganador ni claims inventados, y los candidatos
+parciales quedan visibles solo como material de revision en el detalle.
+
+La salida del investigador se vuelve a validar en el limite de publicacion. Un error transitorio
+o una salida invalida genera un fallback `inconclusive`, pero queda marcado internamente para
+reintentar en la siguiente ventana del mismo episodio; si el reintento es valido reemplaza el
+fallback en vez de crear un segundo incidente.
+
+Antes de deduplicar entre ventanas, cada diagnostico propone como raiz solamente su candidato con
+mayor `rca_score` que tenga toda su evidencia presente. Un diagnostico es ancla directa si esa raiz
+coincide exactamente con el segmento de su `Anomaly`; los sintomas cuya propuesta contiene una
+sola ancla se absorben en ella. Un candidato secundario nunca une grupos, y un sintoma compatible
+con dos anclas se descarta para el agrupamiento en vez de fusionar causas independientes. Si hay
+diagnosticos segmentados, `global` no participa porque su pool amplio tampoco permite asignar
+ownership con seguridad.
+
+El fingerprint queda atado a la raiz, no al impacto del representante. Entre ventanas, una
+proyeccion nueva solo reutiliza un episodio activo cuando tiene un unico match jerarquico; si puede
+corresponder a dos episodios activos, conserva ambos y no crea un tercero. Asi una caida de provider
+no se publica tambien por country, bank, merchant e intersecciones, mientras dos incidentes
+cruzados no quedan unidos por una hipotesis puente debil.
+
+Por que: preferimos sub-atribuir y pedir revision humana antes que presentar una proyeccion 1D/2D
+como explicacion completa de una anomalia 3D. No cambia `contracts/` ni obliga a Stream B a ampliar
+`rca_max_dimensions` durante la integracion.
+
+Verificado con tests API de deduplicacion, recurrencia, cambio de proyeccion jerarquica, incidentes
+cruzados, dos diagnosticos simultaneos, ambiguedad entre episodios activos y fallback 3D, mas
+corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> investigador ->
+endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
+muchos sintomas publicables, queda en un reporte.
