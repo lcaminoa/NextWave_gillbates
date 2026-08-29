@@ -24,12 +24,14 @@ REVENUE_NORMALIZER_USD_PER_HOUR = 5000.0  # a partir de aca el peso de negocio y
 
 
 def _decline_rate(transactions: list[Transaction]) -> float:
+    """Fraccion de transacciones rechazadas (0 si la lista esta vacia)."""
     if not transactions:
         return 0.0
     return sum(1 for t in transactions if not t.approved) / len(transactions)
 
 
 def _dominant_decline_code(transactions: list[Transaction]) -> str | None:
+    """El canonical_decline_code que mas se repite entre las rechazadas."""
     codes = [t.canonical_decline_code for t in transactions if not t.approved and t.canonical_decline_code]
     if not codes:
         return None
@@ -43,6 +45,8 @@ def _matches(txn: Transaction, dims: dict) -> bool:
 def _estimate_revenue_loss_per_hour(
     segment_txns: list[Transaction], baseline_rate: float, window_minutes: float,
 ) -> float:
+    """Plata perdida por hora si este segmento sigue asi: cuantas aprobaciones "de mas" hubiera
+    habido con la tasa normal, multiplicado por el monto promedio de las que si se aprobaron."""
     if not segment_txns:
         return 0.0
     attempts = len(segment_txns)
@@ -54,7 +58,7 @@ def _estimate_revenue_loss_per_hour(
     avg_order_value = sum(amounts) / len(amounts)
 
     loss_in_window = lost_approvals * avg_order_value
-    hours = max(window_minutes / 60.0, 1 / 60.0)
+    hours = max(window_minutes / 60.0, 1 / 60.0)  # evita dividir por (casi) cero en ventanas cortas
     return round(loss_in_window / hours, 2)
 
 
@@ -77,7 +81,7 @@ def _counterfactual_check(all_current: list[Transaction], dims: dict) -> str | N
     valor distinto en la UNICA dimension del candidato -- evidencia de interaccion especifica,
     no de una caida generica de todo el trafico (master plan Sec 9.5)."""
     if len(dims) != 1:
-        return None
+        return None  # el control solo tiene sentido para candidatos de 1 dimension
     (dim_name, dim_value), = dims.items()
     other_values = {getattr(t, dim_name) for t in all_current if getattr(t, dim_name, None) != dim_value}
     if not other_values:
@@ -113,6 +117,8 @@ def generate_candidates(
     candidates: list[IncidentCandidate] = []
     evidence: list[Evidence] = []
 
+    # recorre todas las combinaciones de 1 y 2 dimensiones (ej. solo "provider", despues
+    # "provider"+"country", etc.) y dentro de cada una, todos los valores que aparecen
     for n_dims in range(1, max_dims + 1):
         for dims_combo in itertools.combinations(SEGMENT_DIMENSIONS, n_dims):
             values_per_dim = {
@@ -141,8 +147,10 @@ def generate_candidates(
                     continue
 
                 affected_count = sum(1 for t in segment_current if not t.approved)
+                # confianza: cuanto crecio el rechazo respecto al propio baseline del segmento
                 confidence = round(min(0.99, (current_decline - baseline_decline) / max(current_decline, 0.01)), 4)
 
+                # cobertura: que fraccion del exceso de rechazos GLOBAL explica este segmento
                 segment_excess = max(0.0, affected_count - baseline_decline * len(segment_current))
                 coverage = round(min(1.0, segment_excess / total_excess), 4)
 

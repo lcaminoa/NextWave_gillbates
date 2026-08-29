@@ -43,6 +43,8 @@ def main() -> None:
     chaos_window = mock_generator.generate_stream(chaos.started_at, n=500, interval_seconds=1.0, chaos=chaos, seed=3)
     chaos_end = chaos_window[-1].timestamp
 
+    # se llama detect() dos veces (primera mitad, segunda mitad) para simular 2 ventanas
+    # consecutivas -- asi se cumple PERSISTENCE_REQUIRED antes de esperar una Anomaly
     half = len(chaos_window) // 2
     detect(history + quiet_window, chaos_window[:half], chaos.started_at, chaos_window[half - 1].timestamp, persistence_state)
     anomalies = detect(history + quiet_window, chaos_window[half:], chaos_window[half].timestamp, chaos_end, persistence_state)

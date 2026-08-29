@@ -1,9 +1,7 @@
-"""
-Baseline estadistico Beta-Binomial (DECISIONS.md D001; master plan Sec 9.1).
+"""Baseline estadistico Beta-Binomial (DECISIONS.md D001; master plan Sec 9.1).
 
-La aprobacion es una proporcion (aprobados/intentados), no un valor puntual
-El baseline es una distribucion Beta actualizada con los datos historicos del segmento, no un
-promedio simple.
+La aprobacion es una proporcion (aprobados/intentados), no un valor puntual. El baseline es una
+distribucion Beta actualizada con los datos historicos del segmento, no un promedio simple.
 Segmentos con poco volumen quedan con intervalos de credibilidad mas anchos en vez de una falsa
 certeza; segmentos con mucho volumen quedan con intervalos angostos.
 """
@@ -20,12 +18,11 @@ from contracts.schemas import BaselinePoint, Transaction
 # unas pocas decenas de transacciones.
 PRIOR_ALPHA = 2.0
 PRIOR_BETA = 2.0
-CREDIBLE_INTERVAL = (0.05, 0.95) # percentiles de la posterior
+CREDIBLE_INTERVAL = (0.05, 0.95)  # percentiles de la posterior (90% de confianza)
 
 
 def dimension_key(dims: dict) -> str:
-    """
-    Clave canonica de un segmento, ej. 'country=BR|provider=nova_pay'. Ordena las claves
+    """Clave canonica de un segmento, ej. 'country=BR|provider=nova_pay'. Ordena las claves
     para que el mismo segmento siempre produzca el mismo string sin importar el orden del dict.
     """
     if not dims:
@@ -34,15 +31,15 @@ def dimension_key(dims: dict) -> str:
 
 
 def _matches(txn: Transaction, dims: dict) -> bool:
+    """True si la transaccion pertenece al segmento `dims`."""
     return all(getattr(txn, k, None) == v for k, v in dims.items())
 
 
 def compute_baseline(
     history: list[Transaction], dims: dict, window_start: datetime, window_end: datetime,
 ) -> BaselinePoint:
-    """
-    Calcula el baselline (tasa de aprobación normal) esperado para un segmento a partir de
-    transacciones historicas.
+    """Calcula el baseline (tasa de aprobacion normal + intervalo de confianza) para un segmento
+    a partir de transacciones historicas.
 
     `history` deberia ser anterior al periodo evaluado (para no medir la anomalia contra si
     misma). Mejora simple pendiente: filtrar `history` por el mismo bucket de hora del dia /
@@ -52,6 +49,7 @@ def compute_baseline(
     approved = sum(1 for t in segment_txns if t.approved)
     total = len(segment_txns)
 
+    # actualizacion Beta-Binomial: sumar aprobados/rechazados directo al prior
     alpha_post = PRIOR_ALPHA + approved
     beta_post = PRIOR_BETA + (total - approved)
 
@@ -70,9 +68,8 @@ def compute_baseline(
 
 
 def group_by_segment(transactions: list[Transaction], dimension: str) -> dict[str, list[Transaction]]:
-    """
-    Agrupa transacciones por el valor de UNA dimension (ej. 'provider') -- base para barrer
-    segmentos en deteccion y RCA.
+    """Agrupa transacciones por el valor de UNA dimension (ej. 'provider' -> {"nova_pay": [...],
+    "stripe": [...]}) -- base para barrer segmentos en deteccion y RCA.
     """
     groups: dict[str, list[Transaction]] = defaultdict(list)
     for t in transactions:

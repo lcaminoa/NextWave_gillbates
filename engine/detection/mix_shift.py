@@ -21,7 +21,10 @@ def _segment_stats(transactions: list[Transaction], dimension: str) -> dict[str,
             counts[value][0] += 1
 
     total = sum(c[1] for c in counts.values()) or 1
-    return {value: (c[1] / total, (c[0] / c[1]) if c[1] else 0.0) for value, c in counts.items()}
+    return {
+        value: (c[1] / total, (c[0] / c[1]) if c[1] else 0.0)  # (peso, tasa de aprobacion)
+        for value, c in counts.items()
+    }
 
 
 def decompose(
@@ -46,7 +49,7 @@ def decompose(
     for segment in segments:
         base_weight, base_rate = baseline_stats.get(segment, (0.0, 0.0))
         cur_weight, cur_rate = current_stats.get(segment, (0.0, base_rate))
-        mix_effect += (cur_weight - base_weight) * base_rate
-        performance_effect += cur_weight * (cur_rate - base_rate)
+        mix_effect += (cur_weight - base_weight) * base_rate  # cambio de peso, a tasa constante
+        performance_effect += cur_weight * (cur_rate - base_rate)  # cambio de tasa, a peso actual
 
     return round(mix_effect * 100, 2), round(performance_effect * 100, 2)
