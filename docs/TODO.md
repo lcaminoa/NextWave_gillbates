@@ -25,7 +25,7 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Área | Estado | Qué existe hoy | Qué falta para considerarlo terminado |
 |---|---|---|---|
 | Contratos compartidos | ✅ | Ocho entidades en `contracts/types.ts` y `contracts/schemas.py`; endpoints definidos. | Fixtures compartidos y validación cruzada TS/Python. |
-| Datos sintéticos | 🟡 | `engine/detection/mock_generator.py` genera transacciones y aplica `ChaosSpec`. | Simulador real en `simulator/`, stream continuo y verdad oculta/reveal. |
+| Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`. | Verificar recuperacion del detector al vencer `duration_minutes` (test de integracion, ver seccion 2). |
 | Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos. | Integrarlo al servicio/API real. |
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`. | Estacionalidad efectiva, fallback jerárquico y calibración con stream continuo. |
 | Mix shift | 🟡 | `mix_shift.py` descompone mezcla vs. performance; hay test. | Usarlo como filtro real antes de abrir un incidente. |
@@ -59,12 +59,14 @@ correcto con evidencia; un mix shift puro no crea incidente.
 
 ### 2. Construir el simulador y la prueba a ciegas
 
-- [ ] Crear `simulator/` como productor continuo de `Transaction`.
-- [ ] Mantener historia bootstrap + stream vivo con estacionalidad, ruido y volúmenes realistas.
-- [ ] Implementar `ChaosSpec` manual: dimensiones, severidad, inicio y duración.
-- [ ] Implementar `random_unknown`: selecciona dimensiones al azar y las oculta al equipo.
-- [ ] Implementar reveal de la verdad inyectada al finalizar.
-- [ ] Verificar que un incidente termina al vencer `duration_minutes` y que el detector se recupera.
+- [x] Crear `simulator/` como productor continuo de `Transaction` (`PaymentSimulator`).
+- [x] Mantener historia bootstrap + stream vivo con estacionalidad, ruido y volúmenes realistas.
+- [x] Implementar `ChaosSpec` manual: dimensiones, severidad, inicio y duración.
+- [x] Implementar `random_unknown`: selecciona dimensiones al azar (1-3 dims) y las oculta hasta `reveal()`.
+- [x] Implementar reveal de la verdad inyectada al finalizar.
+- [ ] Verificar que un incidente termina al vencer `duration_minutes` y que el detector se recupera
+  (el simulador ya deja de aplicar el chaos solo -- falta el test de integracion end-to-end que
+  confirme que `DetectionPipeline` deja de reportar la anomalia despues).
 
 **Criterio de aceptación:** un juez puede cambiar una combinación no ensayada sin editar código;
 el pipeline solo recibe las transacciones, nunca el `ChaosSpec` oculto.
