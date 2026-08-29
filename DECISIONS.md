@@ -70,7 +70,68 @@ se probo contra el chaos simulado y encontro el segmento correcto en primer luga
 
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
 
-## D004 — Renombrar estimated_revenue_loss_usd a estimated_revenue_loss_usd_per_hour
+## D004 — Construir el investigador contra mocks y guardrails antes de conectar OpenAI
+
+Alternativas:
+1. integrar la API primero y validar los reportes despues
+2. congelar primero tools de solo lectura, casos mock, timeline, evidencia consultada y validacion
+   determinista; luego reemplazar solamente la politica de investigacion por el agente real
+
+Decision: 2
+
+Por qué:
+- permite avanzar Stream C sin API key ni bloquearse por disponibilidad de un modelo
+- prueba el limite Stream B -> Stream C usando los contratos reales
+- obliga a que cada claim cite evidencia existente y realmente consultada
+- entrega un fallback determinista si la API falla durante la demo
+- deja tools, timeline y `IncidentReport` iguales cuando se conecte Agents SDK o Responses API
+
+Tradeoff: el runner inicial usa una politica simple por confianza y margen; sirve como harness y
+fallback, pero no reemplaza la exploracion adaptativa del futuro investigador OpenAI.
+
+## D005 — Un solo investigador con tools directas y Structured Outputs
+
+Alternativas:
+1. un enjambre de agentes especializados
+2. un investigador con Responses API, tools de solo lectura y salida estructurada
+3. Programmatic Tool Calling desde la primera version
+
+Decision: 2
+
+Por qué:
+- cada consulta puede cambiar el siguiente paso, y los resultados intermedios son chicos
+- mantiene una sola superficie de tools acotada, auditable y sin efectos secundarios
+- Pydantic/Structured Outputs controla la forma; la validacion local controla evidencia,
+  umbrales, impacto financiero y revision humana
+- permite comparar mas adelante tools directas contra Programmatic Tool Calling con los mismos
+  casos de evaluacion, sin agregar complejidad antes de demostrar una mejora
+
+Tradeoff: requiere varias vueltas de API por investigacion. Se limita a 8 tools y 10 turnos de
+modelo; el runner determinista queda disponible como fallback para la demo.
+
+## D006 — Validar nombres tecnicos generados y permitir una sola reparacion
+
+Contexto: en la primera integracion real Stream B -> OpenAI, el reporte eligio correctamente
+`nova_pay x BR` y cito evidencia valida, pero escribio `nueva_pay` al nombrar una alternativa.
+La validacion de citas no alcanza para detectar una entidad tecnica deformada en el texto.
+
+Alternativas:
+1. confiar en la salida estructurada y las citas
+2. renderizar todo el texto de forma determinista
+3. validar tokens tecnicos contra candidatos/evidencia y permitir un unico reintento acotado
+
+Decision: 3
+
+Por qué:
+- conserva la explicacion adaptativa del modelo sin permitir nombres tecnicos inventados
+- el error se detecta localmente antes de publicar el reporte
+- un solo reintento evita loops y gasto impredecible; si vuelve a fallar, el reporte se rechaza
+
+Verificado con cuatro corridas reales usando `gpt-5.6-terra`: caso claro `confirmed`, caso
+ambiguo `inconclusive`, caso sin candidatos `inconclusive` y pipeline Stream B -> C `probable`
+con ganador `provider=nova_pay x country=BR`.
+
+## D007 — Renombrar estimated_revenue_loss_usd a estimated_revenue_loss_usd_per_hour
 
 Contexto: Valentin (Stream C) pregunto si `IncidentReport.estimated_revenue_loss_usd` es un
 total acumulado o una tasa por hora, porque `IncidentCandidate` ya tenia el campo analogo
@@ -89,7 +150,7 @@ tal cual al `IncidentReport`.
 
 Archivos: contracts/schemas.py, contracts/types.ts.
 
-## D005 — Evidencia contrafactual tambien para candidatos de 2 dimensiones
+## D008 — Evidencia contrafactual tambien para candidatos de 2 dimensiones
 
 Contexto: Valentin señalo que `_counterfactual_check` en `engine/rootcause/candidates.py`
 solo generaba evidencia contrafactica para candidatos de 1 dimension (`if len(dims) != 1:
@@ -112,7 +173,7 @@ Verificado con: `uv run python -m engine.detection.demo` -- mismos rca_score/con
 que antes del cambio (no se toco el scoring), ahora con lineas "contrafactico:" en el candidato
 ganador de 2 dimensiones.
 
-## D006 — Calibrar ewma_lambda en la demo (no en el default de produccion)
+## D009 — Calibrar ewma_lambda en la demo (no en el default de produccion)
 
 Contexto: al mergear "connect configurable detection pipeline" (nueva capa de deteccion con
 DetectionConfig, WindowAggregator, DetectionEngine y suavizado EWMA sobre el residuo), la demo
@@ -147,12 +208,12 @@ y confirmar que detecta en un tiempo aceptable, no solo que la demo sintetica pa
 Verificado con: `uv run python -m engine.detection.demo` -- vuelve a detectar el incidente
 inyectado (provider=nova_pay, country=BR) con el mismo rca_score que antes de este merge.
 
-## D007 — Nombrar el `source` del contrafactual por dimension (no siempre "counterfactual_provider")
+## D010 — Nombrar el `source` del contrafactual por dimension (no siempre "counterfactual_provider")
 
 Contexto: Valentin (Stream C) pidio confirmar como se van a llamar los `source` de los controles
 contrafactuales antes de integrar. Al revisar, el codigo generaba SIEMPRE `source="counterfactual_provider"`
 para cualquier control, aunque el control fuera de `country` o `payment_method` -- resabio de
-cuando el contrafactual solo existia para `provider` (antes de D005).
+cuando el contrafactual solo existia para `provider` (antes de D008).
 
 Decision: nombrar cada `source` dinamicamente como `counterfactual_<dimension>` (ej.
 `counterfactual_provider`, `counterfactual_country`). Cada Evidence de control ya estaba (y sigue
@@ -163,7 +224,7 @@ confirma que para el candidato ganador `{provider: nova_pay, country: BR}` apare
 `counterfactual_provider` y `counterfactual_country`, ambos con su evidence_id dentro de
 `candidate.evidence_ids`.
 
-## D008 — Pipeline automatico (DetectionEngine -> mix-shift -> generate_candidates)
+## D011 — Pipeline automatico (DetectionEngine -> mix-shift -> generate_candidates)
 
 Contexto: hasta ahora estas 3 piezas se llamaban a mano, una por una, como hace demo.py.
 Un companero (Pancho, tomando simulator/) pidio conectarlas solas para que Stream C consuma
@@ -192,7 +253,7 @@ Ademas se agrego evidencia citable de `decline_code_distribution` (motivo tipico
 del segmento, no solo que subieron los rechazos) en `candidates.py`, reusando el calculo que
 ya existia para `dominant_decline_code`.
 
-Riesgo abierto D006 (defaults de produccion sin probar contra un stream real) ahora CERRADO:
+Riesgo abierto D009 (defaults de produccion sin probar contra un stream real) ahora CERRADO:
 `tests/detection/test_pipeline.py::ProductionDefaultsLongStreamTests` corre un stream real
 via `DetectionPipeline` con los defaults de `config.py` sin calibrar (los mismos que usaria
 produccion) y confirma que un incidente de -35pp se detecta en la ventana 3 de 4 (exactamente
@@ -202,7 +263,7 @@ Verificado con: `uv run python -m unittest discover -s tests/detection -v` (11 t
 `uv run python -m engine.detection.demo` (mismo resultado de siempre, mas evidencia de codigo
 de rechazo).
 
-## D009 — Normalizar el signo de `ChaosSpec.severity_pp` en el simulador
+## D012 — Normalizar el signo de `ChaosSpec.severity_pp` en el simulador
 
 Contexto: `contracts/CONTRACTS.md` describe la severidad como una degradación negativa (por
 ejemplo, `-35` pp), mientras que el mock de detección y la consola interactiva existente usan
@@ -222,7 +283,7 @@ mostrar exactamente lo que recibió.
 Límite: el simulador valida una magnitud entre 1 y 95 pp y aplica una tasa de aprobación mínima
 de 1 %, incluso si se superponen dos ChaosSpec.
 
-## D010 — Chaos aleatorio sobre segmentos detectables, no sobre el cruce total
+## D013 — Chaos aleatorio sobre segmentos detectables, no sobre el cruce total
 
 Alternativas:
 1. elegir al azar las cinco dimensiones disponibles (merchant, provider, país, método y emisor);
@@ -237,9 +298,9 @@ método, emisor o comercio. Sigue siendo desconocido para el equipo, pero es est
 observable y permite evaluar de verdad detección y RCA.
 
 
-## D011 — Ownership de candidatos por anomalia (filtro pedido por Stream C)
+## D014 — Ownership de candidatos por anomalia (filtro pedido por Stream C)
 
-Contexto: D008 dejo documentado que `generate_candidates()` busca en TODA la ventana y
+Contexto: D011 dejo documentado que `generate_candidates()` busca en TODA la ventana y
 devuelve la MISMA lista para cualquier anomalia que la pida -- con 2+ incidentes
 concurrentes en la misma ventana, un `AnomalyDiagnosis` podia terminar mostrando el
 candidato mas fuerte de OTRO incidente. Valentin (Stream C) lo detecto: su Investigator
@@ -278,3 +339,32 @@ solo confirmaba que no se inventaba una combinacion cruzada), y que la evidencia
 diagnosis es exactamente la citada por sus propios candidatos. Los 18 tests del repo siguen
 pasando; `demo.py` no cambia (llama a `generate_candidates()` directo, sin pipeline, a
 proposito no filtra -- es una demo de UN solo incidente).
+## D015 — Agregar un Evidence Auditor independiente, sin tools ni capacidad de reparacion
+
+Contexto: los validadores deterministas comprueban que cada claim cite evidencia existente y
+consultada, pero no pueden decidir si el texto de esa evidencia realmente alcanza para sostener
+la interpretacion escrita por el modelo. Un ID valido podria citarse para justificar una
+conclusion semanticamente mas fuerte que los datos.
+
+Alternativas:
+1. confiar solo en el Investigator y los validadores deterministas
+2. crear varios agentes especializados que repitan la investigacion
+3. agregar un segundo agente acotado que reciba el reporte terminado y su paquete auditable, y
+   emita una decision estructurada de aprobar o rechazar
+
+Decision: 3
+
+Por qué:
+- cubre el hueco semantico sin duplicar el acceso a datos ni la exploracion de hipotesis
+- no tiene tools, no modifica el reporte y no ejecuta acciones
+- usa una sola llamada estructurada y solo ve evidencia que el Investigator consulto
+- su salida tambien se valida localmente: no puede referenciar evidencias o claims inexistentes
+- un rechazo queda explicito para revision humana; no dispara loops autonomos impredecibles
+
+Tradeoff: agrega latencia y costo de una llamada por reporte auditado. Por eso el runner
+determinista sigue disponible y la auditoria se mantiene separada de `IncidentReport` hasta que
+el backend/UI definan como representar el estado de publicacion.
+
+Verificado con `gpt-5.6-terra`: el Auditor rechazo correctamente una afirmacion de "aislamiento"
+demasiado fuerte y aprobo el mismo caso al reformularla como "hipotesis con mayor respaldo",
+sin cambiar los datos ni el ganador.

@@ -46,12 +46,12 @@ completas.
 ### 1. Convertir Stream B en un pipeline de incidente
 
 - [x] Conectar `DetectionEngine` al mix-shift (`engine/detection/pipeline.py`).
-  - Completa `Anomaly.mix_shift_effect_pp` y `performance_effect_pp` automaticamente para anomalias de 1 dimension (ver DECISIONS.md D008 para el caso de 2+ dimensiones / global, que no aplica).
+  - Completa `Anomaly.mix_shift_effect_pp` y `performance_effect_pp` automaticamente para anomalias de 1 dimension (ver DECISIONS.md D011 para el caso de 2+ dimensiones / global, que no aplica).
   - Pendiente: usarlo como filtro para NO abrir incidente si el mix-shift explica la caida (hoy solo se informa, no se usa como gate).
 - [x] Orquestador creado en `engine/detection/pipeline.py` (`DetectionPipeline`), no en `engine/rootcause/` -- envuelve `DetectionEngine` y llama a `generate_candidates()` sin tocarlo. `Anomaly + history + ventana -> IncidentCandidate[] + Evidence[]`, expuesto como `WindowResult`/`AnomalyDiagnosis` por ventana.
 - [x] `candidates.py` agrega `Evidence(source="decline_code_distribution", ...)` por candidato (que % de los rechazos son del codigo dominante), ademas del campo `dominant_decline_code`.
 - [ ] Definir el criterio determinista para `confirmed`, `probable` e `inconclusive`.
-- [x] Calibracion verificada contra un stream continuo real (no la demo sintetica de 2 ventanas): con los defaults de `config.py` sin tocar, un incidente de -35pp se confirma en la ventana 3 de 4. Ver DECISIONS.md D006 (resuelto) y D008.
+- [x] Calibracion verificada contra un stream continuo real (no la demo sintetica de 2 ventanas): con los defaults de `config.py` sin tocar, un incidente de -35pp se confirma en la ventana 3 de 4. Ver DECISIONS.md D009 (resuelto) y D011.
 - [x] `tests/detection/test_pipeline.py`: pipeline completo detector -> mix-shift -> RCA -> evidencia, mas 2 incidentes simultaneos sin mezclarse.
 
 **Criterio de aceptación:** un caos manual `provider × country` se detecta y genera el candidato

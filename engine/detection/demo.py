@@ -36,7 +36,7 @@ def main() -> None:
     # default más robusto de tres ventanas mediante DetectionConfig().
     # ewma_lambda mas alto (0.7 en vez del default 0.3) porque con solo 2 ventanas el EWMA
     # no llega a "calentar" a tiempo con el lambda por defecto y la demo no detecta nada
-    # (ver DECISIONS.md D006) -- el default de config.py queda como esta para produccion,
+    # (ver DECISIONS.md D009) -- el default de config.py queda como esta para produccion,
     # donde hay muchas mas ventanas reales para que el suavizado tenga sentido.
     demo_config = DetectionConfig(persistence_windows=2, ewma_lambda=0.7)
     detector_state = DetectionState()
