@@ -11,7 +11,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from engine.detection import mock_generator
-from engine.detection.anomaly import detect
+from engine.detection.anomaly import DetectionState, detect
+from engine.detection.config import DetectionConfig
 from engine.detection.mix_shift import decompose
 from engine.rootcause.candidates import generate_candidates
 
@@ -31,8 +32,17 @@ def main() -> None:
     quiet_window = mock_generator.generate_stream(quiet_start, n=300, interval_seconds=1.0, seed=2)
     quiet_end = quiet_window[-1].timestamp
 
-    persistence_state: dict[str, int] = {}
-    anomalies = detect(history, quiet_window, quiet_start, quiet_end, persistence_state)
+    # La demo usa dos ventanas largas para terminar rápido; el runtime conserva el
+    # default más robusto de tres ventanas mediante DetectionConfig().
+    # ewma_lambda mas alto (0.7 en vez del default 0.3) porque con solo 2 ventanas el EWMA
+    # no llega a "calentar" a tiempo con el lambda por defecto y la demo no detecta nada
+    # (ver DECISIONS.md D009) -- el default de config.py queda como esta para produccion,
+    # donde hay muchas mas ventanas reales para que el suavizado tenga sentido.
+    demo_config = DetectionConfig(persistence_windows=2, ewma_lambda=0.7)
+    detector_state = DetectionState()
+    anomalies = detect(
+        history, quiet_window, quiet_start, quiet_end, detector_state, demo_config,
+    )
     print(f"historicas: {len(history)} | ventana actual: {len(quiet_window)}")
     print(f"anomalias detectadas (deberia ser ~0): {len(anomalies)}")
     for a in anomalies:
@@ -43,9 +53,25 @@ def main() -> None:
     chaos_window = mock_generator.generate_stream(chaos.started_at, n=500, interval_seconds=1.0, chaos=chaos, seed=3)
     chaos_end = chaos_window[-1].timestamp
 
+    # Se llama detect() dos veces (primera mitad, segunda mitad) para simular dos
+    # ventanas consecutivas y alcanzar la persistencia configurada para esta demo.
     half = len(chaos_window) // 2
-    detect(history + quiet_window, chaos_window[:half], chaos.started_at, chaos_window[half - 1].timestamp, persistence_state)
-    anomalies = detect(history + quiet_window, chaos_window[half:], chaos_window[half].timestamp, chaos_end, persistence_state)
+    detect(
+        history + quiet_window,
+        chaos_window[:half],
+        chaos.started_at,
+        chaos_window[half - 1].timestamp,
+        detector_state,
+        demo_config,
+    )
+    anomalies = detect(
+        history + quiet_window,
+        chaos_window[half:],
+        chaos_window[half].timestamp,
+        chaos_end,
+        detector_state,
+        demo_config,
+    )
 
     print(f"anomalias detectadas: {len(anomalies)}")
     for a in anomalies:

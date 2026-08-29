@@ -17,6 +17,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+# --- Enums: estos campos solo pueden valer una de las opciones listadas ---
+
 class Severity(str, Enum):
     low = "low"
     medium = "medium"
@@ -27,15 +29,18 @@ class Severity(str, Enum):
 class ReportStatus(str, Enum):
     confirmed = "confirmed"
     probable = "probable"
-    inconclusive = "inconclusive"
+    inconclusive = "inconclusive"  # respuesta valida, no un error (Sec 9.9)
 
 
 class ChaosMode(str, Enum):
-    manual = "manual"
-    random_unknown = "random_unknown"
+    manual = "manual"  # el juez elige a mano que romper
+    random_unknown = "random_unknown"  # se rompe algo al azar y queda oculto hasta el reveal
 
 
 class Dimensions(BaseModel):
+    """Combo de hasta 6 campos, todos opcionales. Se usa para decir "el problema esta en ESTA
+    combinacion", ej. Dimensions(provider="nova_pay", country="BR")."""
+
     merchant: Optional[str] = None
     provider: Optional[str] = None
     payment_method: Optional[str] = None
@@ -47,7 +52,7 @@ class Dimensions(BaseModel):
 class Transaction(BaseModel):
     """Un pago individual del stream simulado (Stream A). MUST."""
 
-    transaction_id: str
+    transaction_id: str  # id unico
     timestamp: datetime
     merchant: str
     provider: str
@@ -57,17 +62,19 @@ class Transaction(BaseModel):
     approved: bool
     amount: float
     currency: str  # ISO 4217, ej. "USD"
+
     # Los 3 siguientes solo estan presentes si approved is False:
-    raw_provider_code: Optional[str] = None  # ej. "05"
+    raw_provider_code: Optional[str] = None  # codigo crudo tal cual lo manda el proveedor, ej. "05"
     raw_provider_message: Optional[str] = None  # ej. "DO NOT HONOR"
-    canonical_decline_code: Optional[str] = None  # normalizado, ver CONTRACTS.md
+    canonical_decline_code: Optional[str] = None  # normalizado, ver lista en CONTRACTS.md
     latency_ms: int
 
 
 class BaselinePoint(BaseModel):
     """El baseline esperado para un segmento en una ventana (Stream B). MUST.
 
-    Modelo Beta-Binomial: la aprobacion es una proporcion, no un valor puntual.
+    Modelo Beta-Binomial: la aprobacion es una proporcion, no un valor puntual -- por eso lleva
+    intervalo de credibilidad, no solo un numero.
     """
 
     dimension_key: str  # ej. "provider=nova_pay|country=BR|payment_method=card"
@@ -79,7 +86,7 @@ class BaselinePoint(BaseModel):
 
 
 class Anomaly(BaseModel):
-    """Senal estadistica cruda de que algo cambio (Stream B). MUST.
+    """Señal estadistica cruda de que algo cambio (Stream B). MUST.
 
     A proposito no dice todavia la causa -- eso lo arma IncidentCandidate.
     """
@@ -91,7 +98,7 @@ class Anomaly(BaseModel):
     window_end: datetime
     observed_approval_rate: float = Field(ge=0, le=1)
     expected_approval_rate: float = Field(ge=0, le=1)
-    persistence_windows: int  # ventanas consecutivas sostenidas
+    persistence_windows: int  # ventanas consecutivas sostenidas (evita alarmar por 1 pago suelto)
     volume: int
     severity: Severity
     # SHOULD -- descomposicion de mezcla de trafico (master plan Sec 9.3)
@@ -117,14 +124,14 @@ class IncidentCandidate(BaseModel):
 
     candidate_id: str
     anomaly_id: str
-    dimensions: Dimensions
+    dimensions: Dimensions  # ej. {provider: "nova_pay", country: "BR"}
     confidence: float = Field(ge=0, le=1)
     affected_count: int
     baseline_decline_rate: float = Field(ge=0, le=1)
     current_decline_rate: float = Field(ge=0, le=1)
     dominant_decline_code: Optional[str] = None
     estimated_revenue_loss_usd_per_hour: float
-    # impacto_de_negocio x confianza_estadistica x cobertura x especificidad - penalizacion (Sec 9.4)
+    # confianza x cobertura x impacto_de_negocio x especificidad (Sec 9.4)
     rca_score: float
     evidence_ids: list[str]
     # SHOULD -- control contrafactico entre proveedores/emisores (Sec 9.5)
@@ -142,7 +149,7 @@ class InvestigationStep(BaseModel):
 
 
 class Claim(BaseModel):
-    """Una afirmacion del reporte, siempre atada a evidencia (Sec 9.8)."""
+    """Una afirmacion del reporte, siempre atada a evidencia -- nunca una frase suelta (Sec 9.8)."""
 
     claim: str
     evidence_ids: list[str]
@@ -163,7 +170,7 @@ class IncidentReport(BaseModel):
     winning_candidate_id: Optional[str] = None  # ausente si status == inconclusive
     summary: str  # en lenguaje humano
     claims: list[Claim]
-    estimated_revenue_loss_usd: float
+    estimated_revenue_loss_usd_per_hour: float  # tasa, no un acumulado (ver DECISIONS.md)
     recommended_action: str  # sugerida, nunca ejecutada por el sistema
     requires_human_review: bool
     investigation_steps: list[str]  # ids de InvestigationStep, en orden
@@ -171,7 +178,8 @@ class IncidentReport(BaseModel):
 
 
 class ChaosSpec(BaseModel):
-    """Lo que maneja el Chaos Injector / judge console (Stream D <-> Stream A). MUST."""
+    """Lo que maneja el Chaos Injector / judge console cuando quiere romper algo a proposito
+    (Stream D <-> Stream A). MUST."""
 
     chaos_id: str
     mode: ChaosMode

@@ -134,7 +134,7 @@ export interface IncidentReport {
   winning_candidate_id?: string; // ausente si status === "inconclusive"
   summary: string; // en lenguaje humano
   claims: Claim[];
-  estimated_revenue_loss_usd: number;
+  estimated_revenue_loss_usd_per_hour: number; // tasa, no un acumulado (ver DECISIONS.md)
   recommended_action: string; // sugerida, nunca ejecutada por el sistema
   requires_human_review: boolean;
   investigation_steps: string[]; // ids de InvestigationStep, en orden

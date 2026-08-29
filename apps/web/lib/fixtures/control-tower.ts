@@ -244,7 +244,7 @@ export const reports: IncidentReport[] = [
         confidence: 0.91,
       },
     ],
-    estimated_revenue_loss_usd: 11220,
+    estimated_revenue_loss_usd_per_hour: 11220,
     recommended_action:
       "Ask NovaPay to investigate the Brazil card decline-code spike and validate an issuer-side response with Itaú.",
     requires_human_review: true,
@@ -264,7 +264,7 @@ export const reports: IncidentReport[] = [
         confidence: 0.56,
       },
     ],
-    estimated_revenue_loss_usd: 2370,
+    estimated_revenue_loss_usd_per_hour: 2370,
     recommended_action:
       "Review issuer availability with Banco Azteca and compare the same cohort across providers before changing traffic.",
     requires_human_review: true,
