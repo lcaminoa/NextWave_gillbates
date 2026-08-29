@@ -1180,3 +1180,56 @@ def test_real_simulator_pipeline_and_investigator_reach_incident_api() -> None:
         for claim in detail["report"]["claims"]
         for evidence_id in claim["evidence_ids"]
     )
+
+
+def test_real_issuer_incident_is_published_through_the_api() -> None:
+    """Regression for a sufficient-volume issuer incident rejected by the old policy."""
+    history = PaymentSimulator(seed=100).generate(
+        START - timedelta(hours=1), count=1_500, interval_seconds=0.2
+    )
+    live = PaymentSimulator(seed=200)
+    live.chaos.inject_manual(
+        Dimensions(issuing_bank="nubank"),
+        severity_pp=35,
+        started_at=START,
+        duration_minutes=4,
+    )
+    service = ControlTowerService(
+        simulator=live,
+        pipeline=DetectionPipeline(history=history),
+        start_at=START,
+    )
+    for transaction in live.generate(START, count=2_400, interval_seconds=0.1):
+        service.process_transaction(transaction)
+
+    app = create_app(service, start_background=False)
+    with TestClient(app) as client:
+        reports = client.get("/api/incidents").json()
+        details = [
+            client.get(f"/api/incidents/{report['incident_id']}").json()
+            for report in reports
+        ]
+
+    issuer_details = [
+        detail
+        for detail in details
+        if any(
+            candidate["dimensions"].get("issuing_bank") == "nubank"
+            for candidate in detail["candidates"]
+        )
+    ]
+    assert issuer_details
+    assert any(
+        detail["report"]["status"] in {"probable", "confirmed"}
+        and any(
+            candidate["candidate_id"] == detail["report"]["winning_candidate_id"]
+            and {
+                key: value
+                for key, value in candidate["dimensions"].items()
+                if value is not None
+            }
+            == {"issuing_bank": "nubank"}
+            for candidate in detail["candidates"]
+        )
+        for detail in issuer_details
+    )
