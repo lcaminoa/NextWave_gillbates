@@ -6,7 +6,7 @@ import { Bell, FlaskConical, LayoutDashboard, Radio, SearchCheck } from "lucide-
 import { reports } from "@/lib/fixtures/control-tower";
 
 const navigationItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard, matches: (pathname: string) => pathname === "/" },
+  { href: "/control-room", label: "Overview", icon: LayoutDashboard, matches: (pathname: string) => pathname === "/control-room" },
   { href: "/investigations", label: "Investigations", icon: SearchCheck, matches: (pathname: string) => pathname.startsWith("/investigations") || pathname.startsWith("/incidents") },
   { href: "/chaos", label: "Chaos Lab", icon: FlaskConical, matches: (pathname: string) => pathname.startsWith("/chaos") },
 ];
@@ -14,10 +14,12 @@ const navigationItems = [
 export function AppNavigation() {
   const pathname = usePathname();
 
+  if (pathname === "/") return null;
+
   return (
     <header className="app-navigation">
       <div className="app-navigation-frame">
-        <Link href="/" className="app-nav-brand" aria-label="Go to Control Tower overview">
+        <Link href="/control-room" className="app-nav-brand" aria-label="Go to Control Tower overview">
           <span className="app-nav-mark">CT</span>
           <span>Control Tower</span>
         </Link>

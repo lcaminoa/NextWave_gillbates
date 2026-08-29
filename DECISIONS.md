@@ -160,3 +160,29 @@ Por qué:
 
 Tradeoff: la bandeja muestra los dos incidentes fixture hasta conectar `GET /api/incidents`.
 El badge de navegación también es fixture por ahora y deberá leer la lista real al integrar.
+
+## D008 — Landing pública con señal procedimental y scroll nativo
+
+Alternativas:
+1. resolver la landing como una hero estática o un video de fondo
+2. importar un modelo 3D externo o un iframe para recrear la referencia
+3. construir una única señal de aprobación procedimental en Three.js, cargada solo en cliente,
+   y coreografiarla con el scroll nativo de la página
+
+Decisión: 3
+
+Por qué:
+- la pieza puede representar el dato de producto (salud, desviación, control y evidencia) sin
+  reutilizar el producto, la marca ni los assets de la referencia
+- no depende de una GLB, CDN ni video; la señal, sus capas y sus fragmentos se construyen con
+  geometría y materiales locales, y la experiencia conserva un fallback DOM cuando WebGL no
+  está disponible
+- el progreso se amortigua mediante `requestAnimationFrame` sobre scroll nativo, por lo que el
+  objeto conserva inercia sin secuestrar la barra de desplazamiento ni interferir con rutas del
+  producto
+- `three` y React Three Fiber se cargan con `ssr: false` dentro de la landing: el dashboard y
+  el resto de la aplicación no pagan ni arriesgan render WebGL en servidor
+
+Tradeoff: agrega peso de JavaScript solo a `/` y una escena de render que debe seguir siendo
+sobria. Se limita a una única pieza focal, DPR acotado, sombras moderadas y una composición
+estática accesible para `prefers-reduced-motion`.
