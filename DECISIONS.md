@@ -108,3 +108,25 @@ Por qué:
 
 Tradeoff: requiere varias vueltas de API por investigacion. Se limita a 8 tools y 10 turnos de
 modelo; el runner determinista queda disponible como fallback para la demo.
+
+## D006 — Validar nombres tecnicos generados y permitir una sola reparacion
+
+Contexto: en la primera integracion real Stream B -> OpenAI, el reporte eligio correctamente
+`nova_pay x BR` y cito evidencia valida, pero escribio `nueva_pay` al nombrar una alternativa.
+La validacion de citas no alcanza para detectar una entidad tecnica deformada en el texto.
+
+Alternativas:
+1. confiar en la salida estructurada y las citas
+2. renderizar todo el texto de forma determinista
+3. validar tokens tecnicos contra candidatos/evidencia y permitir un unico reintento acotado
+
+Decision: 3
+
+Por qué:
+- conserva la explicacion adaptativa del modelo sin permitir nombres tecnicos inventados
+- el error se detecta localmente antes de publicar el reporte
+- un solo reintento evita loops y gasto impredecible; si vuelve a fallar, el reporte se rechaza
+
+Verificado con cuatro corridas reales usando `gpt-5.6-terra`: caso claro `confirmed`, caso
+ambiguo `inconclusive`, caso sin candidatos `inconclusive` y pipeline Stream B -> C `probable`
+con ganador `provider=nova_pay x country=BR`.

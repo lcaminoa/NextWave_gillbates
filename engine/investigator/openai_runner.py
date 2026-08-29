@@ -32,6 +32,7 @@ from engine.investigator.tools import ReadOnlyInvestigationTools
 from engine.investigator.validation import ReportValidationError, validate_report
 
 MAX_MODEL_TURNS = 10
+MAX_REPORT_ATTEMPTS = 2
 
 
 class AgentClaimDraft(BaseModel):
@@ -397,32 +398,53 @@ def run_openai_investigation(
     if not finished:
         raise RuntimeError(f"investigation did not finish within {MAX_MODEL_TURNS} model turns")
 
-    structured_response = client.responses.parse(
-        model=model,
-        instructions=(
-            INVESTIGATOR_INSTRUCTIONS
-            + "\nAhora devolve exclusivamente el IncidentReport parcial solicitado por el schema."
-        ),
-        input=input_items,
-        text_format=AgentReportDraft,
-        store=False,
-    )
-    draft = structured_response.output_parsed
-    if draft is None:
-        raise RuntimeError("model did not produce a parsed incident report")
+    report_input = list(input_items)
+    for attempt in range(MAX_REPORT_ATTEMPTS):
+        structured_response = client.responses.parse(
+            model=model,
+            instructions=(
+                INVESTIGATOR_INSTRUCTIONS
+                + "\nAhora devolve exclusivamente el IncidentReport parcial solicitado por el schema. "
+                "Copia literalmente los nombres tecnicos y valores de dimensiones obtenidos por tools."
+            ),
+            input=report_input,
+            text_format=AgentReportDraft,
+            store=False,
+        )
+        draft = structured_response.output_parsed
+        if draft is None:
+            raise RuntimeError("model did not produce a parsed incident report")
 
-    _validate_tool_workflow(draft, read_tools, len(candidates))
-    report = _build_report(anomaly_id, draft, candidates, steps)
-    validate_report(
-        report,
-        candidates=candidates,
-        evidence=evidence,
-        steps=steps,
-        consulted_evidence_ids=read_tools.consulted_evidence_ids,
-    )
-    return InvestigationResult(
-        report=report,
-        steps=tuple(steps),
-        consulted_evidence_ids=read_tools.consulted_evidence_ids,
-        tool_calls=read_tools.call_records,
-    )
+        _validate_tool_workflow(draft, read_tools, len(candidates))
+        try:
+            report = _build_report(anomaly_id, draft, candidates, steps)
+            validate_report(
+                report,
+                candidates=candidates,
+                evidence=evidence,
+                steps=steps,
+                consulted_evidence_ids=read_tools.consulted_evidence_ids,
+            )
+        except ReportValidationError as exc:
+            if attempt + 1 >= MAX_REPORT_ATTEMPTS:
+                raise
+            report_input.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "El validador rechazo tu reporte anterior: "
+                        f"{exc}. Corregilo sin agregar hechos ni evidencia. Reporte rechazado: "
+                        f"{draft.model_dump_json()}"
+                    ),
+                }
+            )
+            continue
+
+        return InvestigationResult(
+            report=report,
+            steps=tuple(steps),
+            consulted_evidence_ids=read_tools.consulted_evidence_ids,
+            tool_calls=read_tools.call_records,
+        )
+
+    raise RuntimeError("structured report retry loop ended unexpectedly")

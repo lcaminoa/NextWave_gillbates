@@ -83,6 +83,22 @@ def test_validator_rejects_evidence_that_was_not_consulted() -> None:
         )
 
 
+def test_validator_rejects_an_ungrounded_technical_entity_name() -> None:
+    case = clear_provider_country_case()
+    result = run_investigation(case.anomaly_id, case.candidates, case.evidence)
+    invalid_report = result.report.model_copy(deep=True)
+    invalid_report.summary = "La alternativa nueva_pay no explica el incidente."
+
+    with pytest.raises(ReportValidationError, match="ungrounded entity tokens: nueva_pay"):
+        validate_report(
+            invalid_report,
+            candidates=case.candidates,
+            evidence=case.evidence,
+            steps=result.steps,
+            consulted_evidence_ids=result.consulted_evidence_ids,
+        )
+
+
 def test_tools_return_detached_data_and_reject_foreign_ids() -> None:
     case = clear_provider_country_case()
     tools = ReadOnlyInvestigationTools(case.anomaly_id, case.candidates, case.evidence)

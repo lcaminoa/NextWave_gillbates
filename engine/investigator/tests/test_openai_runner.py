@@ -28,9 +28,13 @@ class FakeCall:
 
 
 class FakeResponses:
-    def __init__(self, calls: list[FakeCall], draft: AgentReportDraft) -> None:
+    def __init__(
+        self,
+        calls: list[FakeCall],
+        draft: AgentReportDraft | list[AgentReportDraft],
+    ) -> None:
         self._calls = iter(calls)
-        self._draft = draft
+        self._drafts = iter(draft if isinstance(draft, list) else [draft])
         self.create_requests: list[dict[str, Any]] = []
         self.parse_requests: list[dict[str, Any]] = []
 
@@ -40,7 +44,7 @@ class FakeResponses:
 
     def parse(self, **kwargs: Any) -> SimpleNamespace:
         self.parse_requests.append(kwargs)
-        return SimpleNamespace(output_parsed=self._draft)
+        return SimpleNamespace(output_parsed=next(self._drafts))
 
 
 def _call(index: int, name: str, **arguments: Any) -> FakeCall:
@@ -110,7 +114,10 @@ def test_openai_runner_rejects_structured_claim_with_unconsulted_evidence() -> N
     case = clear_provider_country_case()
     responses = FakeResponses(
         _successful_calls(),
-        _confirmed_draft(["ev_country_baseline"]),
+        [
+            _confirmed_draft(["ev_country_baseline"]),
+            _confirmed_draft(["ev_country_baseline"]),
+        ],
     )
 
     with pytest.raises(ReportValidationError, match="not consulted"):
@@ -121,6 +128,26 @@ def test_openai_runner_rejects_structured_claim_with_unconsulted_evidence() -> N
             model="test-model",
             client=SimpleNamespace(responses=responses),
         )
+
+
+def test_openai_runner_repairs_an_ungrounded_entity_name_once() -> None:
+    case = clear_provider_country_case()
+    invalid = _confirmed_draft(["ev_clear_baseline"])
+    invalid.summary = "La causa principal es nueva_pay en Brasil."
+    repaired = _confirmed_draft(["ev_clear_baseline"])
+    responses = FakeResponses(_successful_calls(), [invalid, repaired])
+
+    result = run_openai_investigation(
+        case.anomaly_id,
+        case.candidates,
+        case.evidence,
+        model="test-model",
+        client=SimpleNamespace(responses=responses),
+    )
+
+    assert "nueva_pay" not in result.report.summary
+    assert len(responses.parse_requests) == 2
+    assert "ungrounded entity tokens" in responses.parse_requests[1]["input"][-1]["content"]
 
 
 def test_openai_runner_rejects_finishing_without_an_investigation() -> None:

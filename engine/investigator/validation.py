@@ -6,6 +6,7 @@ actually consulted by the investigation, and must respect the status/winner inva
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 
 from contracts.schemas import Evidence, IncidentCandidate, IncidentReport, InvestigationStep, ReportStatus
@@ -13,6 +14,37 @@ from contracts.schemas import Evidence, IncidentCandidate, IncidentReport, Inves
 
 class ReportValidationError(ValueError):
     """Raised when a report is structurally valid but unsupported by its evidence."""
+
+
+ENTITY_TOKEN_PATTERN = re.compile(r"\b[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+\b")
+
+
+def _allowed_entity_tokens(
+    candidates: Sequence[IncidentCandidate], evidence: Sequence[Evidence]
+) -> set[str]:
+    allowed = {
+        "payment_method",
+        "issuing_bank",
+        "canonical_decline_code",
+        "candidate_id",
+        "evidence_id",
+        "evidence_ids",
+    }
+    for candidate in candidates:
+        allowed.add(candidate.candidate_id)
+        allowed.add(candidate.anomaly_id)
+        allowed.update(
+            str(value)
+            for value in candidate.dimensions.model_dump(exclude_none=True).values()
+        )
+        if candidate.dominant_decline_code:
+            allowed.add(candidate.dominant_decline_code)
+    for item in evidence:
+        allowed.add(item.evidence_id)
+        allowed.add(item.source)
+        if item.dimension_key:
+            allowed.update(ENTITY_TOKEN_PATTERN.findall(item.dimension_key))
+    return allowed
 
 
 def validate_report(
@@ -28,6 +60,7 @@ def validate_report(
     evidence_ids = {item.evidence_id for item in evidence}
     consulted_ids = set(consulted_evidence_ids)
     actual_step_ids = [step.step_id for step in steps]
+    allowed_entity_tokens = _allowed_entity_tokens(candidates, evidence)
 
     if report.status == ReportStatus.inconclusive:
         if report.winning_candidate_id is not None:
@@ -57,6 +90,20 @@ def validate_report(
                 f"claim[{index}] cites evidence not consulted: "
                 f"{', '.join(sorted(unconsulted_ids))}"
             )
+
+    grounded_texts = [report.summary, report.recommended_action]
+    grounded_texts.extend(claim.claim for claim in report.claims)
+    unknown_entity_tokens = {
+        token
+        for text in grounded_texts
+        for token in ENTITY_TOKEN_PATTERN.findall(text)
+        if token not in allowed_entity_tokens
+    }
+    if unknown_entity_tokens:
+        errors.append(
+            "report contains ungrounded entity tokens: "
+            + ", ".join(sorted(unknown_entity_tokens))
+        )
 
     if report.winning_candidate_id is not None:
         winner = candidate_by_id.get(report.winning_candidate_id)
