@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="1020" viewBox="-150 0 350 340" role="img" aria-label="PHAROS">
+
+  <g>
+    <path d="M88 74 L-150 34 V150 L88 100 Z" fill="#F4F0EA" opacity="0.24"></path>
+    <path d="M88 82 L-150 66 V118 L88 96 Z" fill="#F4F0EA" opacity="0.56"></path>
+  </g>
+  <circle cx="97" cy="92" r="7" fill="#F4F0EA"></circle>
+  <g fill="none" stroke="#F4F0EA" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="100" cy="14" r="4"></circle>
+    <path d="M100 18 V34"></path>
+    <path d="M91 25 L100 21 L111 16"></path>
+    <path d="M100 34 L94 45"></path>
+    <path d="M100 34 L106 45"></path>
+    <path d="M90 45 H110"></path>
+    <path d="M62 66 Q100 40 138 66"></path>
+    <path d="M56 66 H144 V72 H56 Z"></path>
+    <rect x="62" y="72" width="7" height="32"></rect>
+    <rect x="78" y="72" width="7" height="32"></rect>
+    <rect x="115" y="72" width="7" height="32"></rect>
+    <rect x="131" y="72" width="7" height="32"></rect>
+    <path d="M52 104 H148 V111 H52 Z"></path>
+    <path d="M48 111 H152 V116 H48 Z"></path>
+    <path d="M60 111 V116 M76 111 V116 M92 111 V116 M108 111 V116 M124 111 V116 M140 111 V116" opacity="0.45"></path>
+    <path d="M74 116 H126 L129 160 H71 Z"></path>
+    <path d="M84 121 V155 M94 121 V155 M106 121 V155 M116 121 V155" opacity="0.4"></path>
+    <path d="M64 160 H136 V166 H64 Z"></path>
+    <path d="M58 166 H142 V171 H58 Z" opacity="0.7"></path>
+    <path d="M70 171 H130 L136 232 H64 Z"></path>
+    <path d="M67 202 H133" opacity="0.4"></path>
+    <rect x="82" y="180" width="6" height="10"></rect><rect x="97" y="180" width="6" height="10"></rect><rect x="112" y="180" width="6" height="10"></rect>
+    <rect x="82" y="211" width="6" height="10"></rect><rect x="97" y="211" width="6" height="10"></rect><rect x="112" y="211" width="6" height="10"></rect>
+    <path d="M56 232 H144 V239 H56 Z"></path>
+    <path d="M64 239 H136 L142 300 H58 Z"></path>
+    <path d="M70 244 V296 M130 244 V296" opacity="0.3"></path>
+    <rect x="76" y="248" width="6" height="9"></rect><rect x="97" y="248" width="6" height="9"></rect><rect x="118" y="248" width="6" height="9"></rect>
+    <rect x="76" y="263" width="6" height="9"></rect><rect x="97" y="263" width="6" height="9"></rect><rect x="118" y="263" width="6" height="9"></rect>
+    <path d="M92 284 H108 V300 H92 Z"></path>
+    <path d="M52 300 H148 V307 H52 Z"></path>
+    <path d="M28 307 H172 L178 322 H22 Z" opacity="0.7"></path>
+  </g><path d="M-100 322 H194" fill="none" stroke="#F4F0EA" stroke-width="1.7" stroke-linecap="round" opacity="0.3"></path>
+</svg>

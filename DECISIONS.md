@@ -68,8 +68,207 @@ absoluto quede opacado por uno mas grande pero menos preciso -- exactamente el t
 negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer. La opcion 2
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
+## D019 — Geografía de impacto como globo 3D orientado a evidencia
+
+Alternativas:
+1. omitir geografía del Control Tower
+2. usar un mapa 2D estático
+3. usar un globo 3D interactivo, limitado a países que ya cuentan con evidencia del incidente
+
+Decisión: 3
+
+Por qué:
+- el alcance internacional de los pagos se entiende de un vistazo y aporta una señal de producto
+  útil durante la demo
+- el país es una dimensión ya definida en Evidence, IncidentCandidate y Transaction; el globo
+  no requiere campos ni endpoints nuevos
+- drag y zoom permiten inspección, pero los marcadores enlazan siempre a una investigación
+  existente y no reemplazan la evidencia citable
+- en random_unknown no se alimenta el globo con ground truth ni se muestran dimensiones antes
+  de que el backend confirme el reveal
+
+Tradeoff: suma una dependencia visual y carga de render. Se usa como pieza principal de
+orientación geográfica, con una card de detalle por marcador; aun así no reemplaza el approval
+chart ni la evidencia citable, y no incluye arcos decorativos ni telemetría inventada.
+
+## D020 — Detail de incidente como workspace de evidencia
+
+Alternativas:
+1. una grilla de muchos KPIs y mini-cards
+2. un chat o resumen generado como pantalla principal
+3. un hero narrativo seguido por un workspace 68/32: evidencia y diagnóstico a la izquierda,
+   timeline de investigación sticky a la derecha
+
+Decisión: 3
+
+Por qué:
+- el producto debe defender qué ocurrió y por qué, no solo listar métricas
+- los tres bloques de evidencia conservan legibilidad y permiten citar baseline, control de
+  proveedor y cambio de decline code sin diluirlos en widgets pequeños
+- la timeline muestra únicamente Anomaly e InvestigationStep; construye una historia verificable
+  sin exponer razonamiento interno
+- el estado inconclusive puede mantener el mismo flujo con hipótesis cercanas y evidencia no
+  establecida, sin fingir una causa raíz
+
+Tradeoff: la pantalla es más larga que un resumen de una vista. La jerarquía del hero, el panel
+sticky y la recomendación final mantienen el recorrido claro y la acción sigue siendo humana.
+
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
 
+## D021 — Chaos Console separa configuración, ejecución ciega y comparación verificable
+
+Alternativas:
+1. mostrar siempre el escenario completo para simplificar la demo
+2. construir un panel tipo terminal con logs técnicos y un resultado de match único
+3. modelar tres fases explícitas: configuración, ejecución con verdad sellada y comparación por campo
+
+Decisión: 3
+
+Por qué:
+- el modo `random_unknown` debe demostrar que el investigador no recibe una respuesta
+  hardcodeada; por eso no representa dimensiones ni parcialmente hasta que el backend revele
+  el ground truth
+- el operador puede revisar y confirmar un escenario manual sin convertir la consola en una
+  herramienta de remediación: inyectar no desvía tráfico ni ejecuta cambios externos
+- la comparación final conserva los matices de la investigación: cada dimensión, severidad y
+  tiempo se califica como match, partial o mismatch, sin ocultar un resultado parcial detrás de
+  un indicador global
+
+Tradeoff: el flujo real depende de que el backend entregue el ground truth autorizado mediante
+`POST /api/chaos/reveal`. El contrato todavía no vincula `chaos_id` con `incident_id`, por lo que
+la comparación nunca afirma una correlación automática entre la inyección y un reporte.
+
+## D022 — Navegación global como header de producto y bandeja de investigaciones
+
+Alternativas:
+1. conservar la sidebar solo en Control Tower y usar enlaces de regreso en las demás pantallas
+2. agregar una pill aislada que solo conecte Overview y Chaos Lab
+3. usar un header compacto compartido con `Overview`, `Investigations` y `Chaos Lab`, y crear
+   una bandeja de investigaciones basada en los `IncidentReport` existentes
+
+Decisión: 3
+
+Por qué:
+- los tres destinos se entienden como partes de una sola herramienta de investigación, no como
+  pantallas sueltas de demo
+- un header horizontal preserva el ancho del workspace y el aire de las vistas de evidencia;
+  una sidebar permanente sería desproporcionada para tres destinos
+- `Investigations` deja de ser un enlace artificial hacia un único detalle: ordena los casos por
+  impacto y distingue de forma explícita `probable` de `inconclusive`
+- la nueva ruta compone `GET /api/incidents` sin agregar endpoint, campo de contrato ni capacidad
+  de remediación
+
+Tradeoff: la bandeja y el badge dependen del runtime; si este no está disponible, la UI muestra
+ese estado explícitamente en vez de sustituir reportes live por fixtures.
+
+## D023 — Landing pública con señal procedimental y scroll nativo
+
+Alternativas:
+1. resolver la landing como una hero estática o un video de fondo
+2. importar un modelo 3D externo o un iframe para recrear la referencia
+3. construir una única señal de aprobación procedimental en Three.js, cargada solo en cliente,
+   y coreografiarla con el scroll nativo de la página
+
+Decisión: 3
+
+Por qué:
+- la pieza puede representar el dato de producto (salud, desviación, control y evidencia) sin
+  reutilizar el producto, la marca ni los assets de la referencia
+- no depende de una GLB, CDN ni video; la señal, sus capas y sus fragmentos se construyen con
+  geometría y materiales locales, y la experiencia conserva un fallback DOM cuando WebGL no
+  está disponible
+- el progreso se amortigua mediante `requestAnimationFrame` sobre scroll nativo, por lo que el
+  objeto conserva inercia sin secuestrar la barra de desplazamiento ni interferir con rutas del
+  producto
+- `three` y React Three Fiber se cargan con `ssr: false` dentro de la landing: el dashboard y
+  el resto de la aplicación no pagan ni arriesgan render WebGL en servidor
+
+Tradeoff: agrega peso de JavaScript solo a `/` y una escena de render que debe seguir siendo
+sobria. Se limita a una única pieza focal, DPR acotado, sombras moderadas y una composición
+estática accesible para `prefers-reduced-motion`.
+
+## D024 — Hero PHAROS como trayectoria de incidente sincronizada
+
+Alternativas:
+1. conservar la caída libre de la señal y agregar captions independientes
+2. convertir el hero en un gráfico tradicional sin objeto físico
+3. sincronizar una trayectoria SVG de seis hitos con el objeto WebGL y las captions de evidencia
+
+Decisión: 3
+
+Por qué:
+- los seis hitos hacen legible la investigación completa: baseline, caída sostenida, alcance,
+  control de proveedor, patrón de decline y explicación probable
+- el SVG provee un rail esperado, una ruta observada, nodos y conectores sin reemplazar la señal
+  física como foco de la composición
+- DOM, SVG, WebGL y fallback leen el mismo modelo de checkpoints, por lo que la narrativa no
+  puede desalinearse entre animación, valores y accesibilidad
+- el scroll nativo amortiguado conserva masa visual sin impedir scrub manual ni accesibilidad
+
+Tradeoff: la sección pinned pasa a 740vh para dar tiempo a cada conclusión. La superficie
+adicional se compensa con una sola caption visible por vez, trayectoria central y un handoff
+final sobrio hacia la evidencia ya existente.
+
+## D025 — Timeline central como protagonista del hero PHAROS
+
+Alternativas:
+1. dejar que la señal 3D recorra físicamente el mismo espacio que la trayectoria
+2. ubicar la trayectoria como un detalle lateral y mantener la señal como protagonista
+3. separar zonas: señal lateral, rail de investigación central y estado que nace del nodo activo
+
+Decisión: 3
+
+Por qué:
+- el rail central vuelve visible el método de investigación, no solo el resultado visual de la
+  anomalía
+- cada checkpoint extiende un conector corto hacia su estado, haciendo explícita la relación
+  entre evidencia, etapa y conclusión sin atravesar la señal
+- la señal permanece sincronizada en métrica, luz, profundidad y apertura final, pero deja de
+  competir espacialmente con el timeline
+
+Tradeoff: la señal deja de recorrer la línea de forma literal. La progresión compartida conserva
+la causalidad visual y gana legibilidad en desktop y mobile.
+
+## D026 — Evidence spine en vez de pseudo-gráfico dentro del hero PHAROS
+
+Alternativas:
+1. mantener un rail con etiquetas `expected` y `observed`, banda de rango y nodos numerados
+2. convertir la secuencia en un gráfico de aprobación completo dentro del hero
+3. usar un único spine de investigación con nodos silenciosos y un conector sólido al estado activo
+
+Decisión: 3
+
+Por qué:
+- sin eje ni escala, el rail anterior parecía telemetría decorativa y no explicaba la diferencia
+  entre baseline y caída observada
+- los valores viven ahora en las primeras dos conclusiones, con lenguaje directo; el spine solo
+  comunica la progresión de la investigación
+- quitar números duplicados y líneas punteadas conserva la jerarquía: estado, evidencia y luego
+  la señal física
+
+Tradeoff: el hero renuncia a simular un gráfico. La comparación cuantitativa completa sigue en
+las vistas de producto, donde tiene contexto y evidencia citable.
+
+## D027 — Tarjeta física como señal de aprobación de la landing
+
+Alternativas:
+1. conservar el dispositivo abstracto con display de métricas
+2. usar una tarjeta plana o un modelo externo descargado
+3. construir una tarjeta de pago de grafito con geometría local, chip EMV y capas contenidas de evidencia
+
+Decisión: 3
+
+Por qué:
+- una tarjeta es el objeto físico correcto para una investigación de pagos y elimina la lectura de
+  pager, POS o hardware inventado
+- mantiene los datos en el spine y en captions DOM, donde son legibles y auditables; el objeto solo
+  comunica materialidad, estado y el origen del signal en el chip
+- la geometría local conserva carga cliente, fallback y la coreografía existente sin importar modelos,
+  marcas ni contenido de terceros
+
+Tradeoff: la tarjeta solo lleva la identidad física `PHAROS` y microcopy de producto; no lleva
+números, titular, banco, métricas ni marcas de red. La identificación del incidente permanece
+en la narrativa y no en la tarjeta.
 ## D004 — Construir el investigador contra mocks y guardrails antes de conectar OpenAI
 
 Alternativas:
@@ -460,6 +659,47 @@ cruzados, dos diagnosticos simultaneos, ambiguedad entre episodios activos y fal
 corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> investigador ->
 endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
 muchos sintomas publicables, queda en un reporte.
+
+## D028 — Conectar el dashboard al runtime mediante CORS con allowlist explícita
+
+Contexto: el dashboard Next.js corre localmente en `http://localhost:3000` y el engine FastAPI
+en `http://localhost:8000`. Para que el navegador pueda consumir reportes, detalle, SSE y Chaos
+Lab sin copiar fixtures ni exponer el engine a cualquier origen, el runtime necesita una política
+de origen explícita.
+
+Alternativas:
+1. usar `Access-Control-Allow-Origin: *`;
+2. crear un proxy Next.js nuevo;
+3. habilitar CORS en FastAPI con una allowlist configurable.
+
+Decisión: 3. `CONTROL_TOWER_CORS_ORIGINS` acepta una lista separada por comas y por defecto
+admite solamente el dashboard local. Los métodos permitidos son `GET` y `POST`; el SSE continúa
+siendo el endpoint congelado `/api/stream`. No se agregan rutas ni campos de contrato.
+
+Tradeoff: en cada entorno se debe declarar el origen público exacto. Es preferible a usar un
+comodín porque los endpoints de caos pueden estar protegidos por `CONTROL_TOWER_JUDGE_TOKEN`.
+Esa clave sigue siendo exclusivamente server-side; nunca se expone como `NEXT_PUBLIC_*`.
+
+## D029 — Sistema de marca PHAROS como fuente única de identidad visual
+
+Alternativas:
+1. conservar las siglas y lockups ad-hoc de cada pantalla;
+2. redibujar una marca nueva dentro de la UI;
+3. integrar el paquete aprobado de PHAROS en navegación, iconos de plataforma y metadata.
+
+Decisión: 3.
+
+Por qué:
+- el lighthouse y su beam orientado a la izquierda resuelven la identidad del producto sin sumar
+  otro lenguaje visual al control room ni a la landing;
+- el lighthouse completo aprobado es la marca visible en desktop; el mark simplificado queda
+  reservado para anchos compactos;
+- favicon, app icons, manifest y social preview comparten los assets del mismo paquete, de modo
+  que el navegador y los enlaces compartidos reconocen PHAROS igual que la aplicación.
+
+Tradeoff: se preservan las tipografías de producto existentes para no remaquetar pantallas ya
+validadas; el wordmark acompaña la torre sin aplicarse como logo decorativo dentro de métricas,
+evidencia o la tarjeta 3D.
 
 ## D018 — Auditor como gate y evidencia incremental para publicar causas especificas
 

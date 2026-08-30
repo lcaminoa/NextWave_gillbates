@@ -29,11 +29,19 @@ uv sync && uv run uvicorn engine.main:app --reload --port 8000
 uv run python simulator/run.py
 
 # dashboard + consola de caos (Next.js)
+cd apps/web
+Copy-Item .env.example .env.local # una vez; apunta al engine local por defecto
 pnpm install && pnpm dev
 ```
 
 La consola de caos vive en `/chaos` del dashboard — ahí el jurado dispara un incidente
 desconocido en vivo para la prueba a ciegas.
+
+El frontend consume `GET /api/incidents`, el detalle, y el SSE de transacciones directamente
+del engine configurado en `NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN`. El engine permite el origen
+local del dashboard mediante `CONTROL_TOWER_CORS_ORIGINS`; en un deploy se configura el origen
+exacto, nunca `*`. Si `CONTROL_TOWER_JUDGE_TOKEN` está configurado, los POST de Chaos Lab deben
+pasar por un control server-side: la clave no se expone en una variable `NEXT_PUBLIC_`.
 
 ## Equipo y streams
 
