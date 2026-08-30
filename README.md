@@ -19,6 +19,7 @@ incidente que el equipo nunca vio.
 - **Mapa de arquitectura** (streams -> carpetas -> entidades): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Contratos y endpoints congelados**: [`contracts/CONTRACTS.md`](contracts/CONTRACTS.md)
 - **Decisiones y sus alternativas** (entregable oficial): [`DECISIONS.md`](DECISIONS.md)
+- **Alertas reales por email + WhatsApp y configuración de demo**: [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md)
 - **Reglas para Codex / cómo dividimos el trabajo**: [`AGENTS.md`](AGENTS.md)
 
 ## Cómo correrlo
@@ -43,8 +44,14 @@ solo una auditoría independiente aprobada puede presentarse como `PHAROS VERIFI
 El frontend consume `GET /api/incidents`, el detalle, y el SSE de transacciones directamente
 del engine configurado en `NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN`. El engine permite el origen
 local del dashboard mediante `CONTROL_TOWER_CORS_ORIGINS`; en un deploy se configura el origen
-exacto, nunca `*`. Si `CONTROL_TOWER_JUDGE_TOKEN` está configurado, los POST de Chaos Lab deben
-pasar por un control server-side: la clave no se expone en una variable `NEXT_PUBLIC_`.
+exacto, nunca `*`.
+
+Los `POST /api/chaos/*` llegan al mismo path en Next.js, pero se reenvían server-side al engine.
+La ruta agrega `CONTROL_TOWER_JUDGE_TOKEN` sin exponerlo y protege tanto `/chaos` como esos POST
+con Basic Auth de operador (`PHAROS_CHAOS_OPERATOR_USERNAME` y
+`PHAROS_CHAOS_OPERATOR_PASSWORD`). En Vercel se configuran además
+`CONTROL_TOWER_API_ORIGIN` y `NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN`; el segundo es solo para
+lecturas/SSE. Todos los secretos quedan sin prefijo `NEXT_PUBLIC_`.
 
 ## Equipo y streams
 

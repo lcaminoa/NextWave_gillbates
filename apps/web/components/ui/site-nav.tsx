@@ -92,7 +92,7 @@ function PublicLinks() {
       <nav className="site-nav-links" aria-label="PHAROS">
         <a href="#evidence">Evidence model</a>
         <a href="#pipeline">How it works</a>
-        <Link href="/chaos">Chaos Lab</Link>
+        <a href="/chaos">Chaos Lab</a>
       </nav>
       <div className="site-nav-utilities">
         <Link href="/control-room" className="site-nav-cta">
@@ -112,16 +112,28 @@ function ProductLinks({ pathname }: { pathname: string }) {
         {productLinks.map((item) => {
           const active = item.matches(pathname);
           const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={active ? "site-nav-link site-nav-link-active" : "site-nav-link"}
-            >
+          const className = active ? "site-nav-link site-nav-link-active" : "site-nav-link";
+          const content = (
+            <>
               <Icon className="size-3.5" aria-hidden="true" />
               <span>{item.label}</span>
               {item.label === "Investigations" && openCaseCount ? <em>{openCaseCount}</em> : null}
+            </>
+          );
+
+          // The Chaos Lab is behind Basic Auth: the browser only raises its native
+          // prompt on a document navigation, so this one link cannot be a <Link>.
+          if (item.href === "/chaos") {
+            return (
+              <a key={item.href} href={item.href} className={className} aria-current={active ? "page" : undefined}>
+                {content}
+              </a>
+            );
+          }
+
+          return (
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={className}>
+              {content}
             </Link>
           );
         })}

@@ -309,7 +309,7 @@ verificada. La UI no intenta volver a asociar reportes por similitud después de
 
 ### Regla de disparo
 
-La notificación se dispara cuando existe una **anomalía confirmada** (volumen + persistencia), no por cada transacción rechazada ni por una señal de una ventana. El primer mensaje dice “investigación iniciada”; la causa se comunica solo en una actualización cuando el `IncidentReport` esté listo.
+La notificación externa se dispara solo cuando existe un `IncidentReport` **`probable` o `confirmed`**, con causa directa y evidencia publicada; no por cada transacción rechazada, señal de ventana ni reporte `inconclusive`. La alerta in-app sí puede mostrar la investigación antes, pero nunca se inventa una causa para un canal externo.
 
 ### Canales y prioridad
 
@@ -317,13 +317,13 @@ La notificación se dispara cuando existe una **anomalía confirmada** (volumen 
 |---|---|---|---|
 | In-app | obligatorio | toda anomalía confirmada | estado real de investigación. |
 | Email con Resend | recomendación fuerte | `high` / `critical`; opcional `medium` | “email send accepted” si la API respondió; “delivered” solo con evento de entrega real. |
-| WhatsApp con Twilio Sandbox | bonus de demo | primer incidente `high`/`critical` | mostrarlo en un teléfono solo si el sandbox fue validado antes. |
+| WhatsApp Cloud API de Meta (número de prueba) | demo real | primer reporte elegible, dentro de la ventana de prueba de 24 h | “accepted” solo después de recibir ID de Meta; fuera de esa ventana requiere template aprobado. |
 | Browser notification | opcional | si el navegador tiene permiso | nunca depender de ella para la demo. |
 
 ### Secuencia de mensajes
 
-1. **Detección:** “Approval drop confirmed; investigation started”.
-2. **Resultado:** “Probable cause found” o “Investigation remains inconclusive”.
+1. **Resultado elegible:** “Probable cause found” o “Confirmed cause found”, con enlace a la investigación y evidencia.
+2. **Inconclusive:** queda visible en la interfaz, pero no dispara email ni WhatsApp.
 3. **Resolución:** solo cuando el backend tenga una señal real de recuperación; no inventarla desde el frontend.
 
 Evitar mandar actualizaciones en cada `InvestigationStep`. Una alerta bien priorizada es más creíble que seis mensajes de bot.
@@ -344,10 +344,10 @@ No incluir una causa específica hasta que haya evidencia. No exponer secretos, 
 
 ### Implementación segura y realista
 
-- El envío externo es server-side: nunca exponer `RESEND_API_KEY`, `TWILIO_ACCOUNT_SID` ni tokens en el browser o el repositorio.
-- Variables de entorno esperadas, sin valores: `RESEND_API_KEY`, `ALERT_EMAIL_TO`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `ALERT_WHATSAPP_TO`.
-- Usar una clave de idempotencia por `incident_id + notification_type` para no duplicar envíos.
-- Resend permite enviar email por API y soporta claves de idempotencia. Twilio Sandbox permite probar WhatsApp sin registrar un sender comercial, pero cada dispositivo receptor debe unirse al sandbox antes de la demo. [Resend Send Email](https://resend.com/docs/api-reference/emails/send-email), [Twilio WhatsApp Sandbox](https://www.twilio.com/docs/whatsapp/sandbox?display=embedded)
+- El envío externo es server-side: nunca exponer `RESEND_API_KEY`, `PHAROS_WA_ACCESS_TOKEN` ni tokens en el browser o el repositorio.
+- Variables de entorno esperadas, sin valores: `RESEND_API_KEY`, `PHAROS_NOTIFICATION_EMAIL_TO`, `PHAROS_WA_ACCESS_TOKEN`, `PHAROS_WA_PHONE_NUMBER_ID` y `PHAROS_NOTIFICATION_WHATSAPP_TO`.
+- Usar una clave de idempotencia por `episode + event + channel` para no duplicar envíos de ventanas del mismo incidente.
+- Resend permite enviar email por API y soporta claves de idempotencia. La Cloud API de Meta permite un número y destinatario de prueba aislados; la respuesta dinámica requiere que el destinatario haya escrito dentro de las últimas 24 horas. [Resend Send Email](https://resend.com/docs/api-reference/emails/send-email), [Meta Cloud API quickstart](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/)
 - Las rutas públicas están congeladas. El envío debe engancharse internamente donde se crea la anomalía/reporte; no crear un endpoint nuevo sin acuerdo de equipo.
 - Mientras no exista callback de proveedor, el centro de notificaciones puede decir `sending` o `send accepted`; no mostrar `delivered` como ficción.
 
@@ -474,7 +474,7 @@ No se necesita para renderizar el dashboard ni enviar notificaciones. La fuente 
 
 ### P2 — bonus solo si el núcleo es estable
 
-1. Twilio WhatsApp Sandbox y un teléfono del equipo ya unido al sandbox.
+1. Meta WhatsApp Cloud API con número de prueba y un teléfono del equipo que haya abierto la ventana de 24 horas.
 2. Browser notification opcional.
 3. Replay / incidente similar si el backend entrega memoria.
 4. Vista ejecutiva resumida dentro del mismo detalle, no una app paralela.
@@ -499,7 +499,7 @@ No se necesita para renderizar el dashboard ni enviar notificaciones. La fuente 
 | Decisión | Propuesta | Responsable para acordar |
 |---|---|---|
 | Email real | Resend como MVP y una casilla de demo compartida. | Stream D + quien gestione Vercel/secretos. |
-| WhatsApp real | Twilio Sandbox solo después de estabilizar P1. | Stream D + dueño de la cuenta/teléfono. |
+| WhatsApp real | Cloud API de Meta con activos PHAROS separados; test number para demo y template aprobado para producción proactiva. | Stream D + dueño de la cuenta/teléfono. |
 | Disparador server-side | Handler interno al crear anomalía confirmada; idempotencia por incidente/evento. | Stream B/C + backend owner. |
 | Actualización de incidentes | polling temporal de `/api/incidents`; evaluar evento dedicado solo si todos acuerdan un cambio de contrato. | Streams C/D. |
 | Recuperación | definir quién marca un incidente resuelto y con qué evidencia. | Streams B/C. |

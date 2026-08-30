@@ -834,3 +834,61 @@ permanecen en toda evaluacion.
 Tradeoff: ante dos trials o episodios compatibles se pierde un score potencial y se informa
 `ambiguous`. Esa abstencion verificable es preferible a contaminar la prueba ciega con una
 asociacion elegida por similitud a la verdad.
+
+## D032 — Vercel protege Chaos Lab y reenvía solo sus POST al runtime
+
+Contexto: en producción el browser puede leer reportes y el SSE del engine mediante CORS, pero
+los tres POST de Chaos Lab necesitan `X-Control-Tower-Judge-Key`. Esa clave no puede llegar al
+browser. Un proxy público que la agregara resolvería el secreto pero permitiría a cualquier
+visitante inyectar o revelar escenarios.
+
+Alternativas:
+1. publicar la clave como `NEXT_PUBLIC_*`;
+2. dejar los POST directos y desactivar la protección del engine;
+3. proxyear todo el runtime por Next.js;
+4. conservar lecturas/SSE directos con CORS y usar un BFF mínimo, protegido, solo para los tres
+   POST de Chaos.
+
+Decisión: 4. `apps/web/app/api/chaos/[operation]/route.ts` acepta únicamente `inject`, `random`
+y `reveal`, reenvía el body y status al mismo endpoint congelado del engine y agrega el token
+solo server-side. `apps/web/proxy.ts` y el handler aplican Basic Auth de operador sobre `/chaos`
+y `/api/chaos/*`; si faltan las credenciales, fallan cerrados. Los enlaces a Chaos Lab fuerzan
+una navegación de documento para que el navegador pueda presentar el challenge Basic Auth.
+
+Tradeoff: CORS sigue siendo necesario para las lecturas y el SSE, y el operador recibe un
+challenge nativo del navegador en vez de una pantalla propia. Es un límite explícito de demo,
+no una sesión multiusuario. No agrega endpoints al contrato: conserva método, path, body y
+respuesta de los tres endpoints de Chaos ya congelados.
+
+## D033 — Alertas externas duales, por episodio y con outbox durable
+
+Contexto: la demo necesita mostrar que un incidente investigado llega realmente a un operador por
+email y WhatsApp, sin convertir al navegador en emisor ni mezclar activos de un proyecto personal.
+El detector puede publicar varias ventanas del mismo episodio y una llamada externa puede quedar
+en estado ambiguo después de salir del proceso.
+
+Alternativas:
+1. llamar a Resend y WhatsApp directamente desde el endpoint o desde el frontend;
+2. usar solo un canal para simplificar la demo;
+3. persistir un outbox SQLite local tras la publicación validada y drenarlo con un worker separado,
+   con un trabajo independiente para Resend y WhatsApp.
+
+Decisión: 3.
+
+Por qué:
+- el runtime ya consolida anomalías en episodios; una clave opaca por episodio, evento y canal evita
+  alertas repetidas en cada ventana sin confundir una recurrencia posterior;
+- el outbox registra `queued`, `sending`, `accepted`, `failed` y `unknown`. Una respuesta sin ID o
+  un timeout queda en `unknown` y no se reintenta a ciegas, porque WhatsApp no ofrece una garantía
+  equivalente de idempotencia para ese caso; Resend recibe además su `Idempotency-Key` oficial;
+- ambos jobs nacen juntos pero se consumen de forma aislada: una falla de email no cancela WhatsApp;
+- el hook ocurre solo después de validar/publicar un reporte con raíz directa y estado `probable` o
+  `confirmed`. Un `inconclusive` sigue visible dentro del producto, pero no interrumpe al operador;
+- SQLite evita una base de datos adicional para la hackathon y el worker nunca bloquea SSE,
+  detección, investigación ni la publicación del incidente. En Railway se ubica en un Volume
+  persistente con una única réplica; sin ese mount las alertas se mantienen desactivadas, porque
+  un filesystem efímero no cumpliría la promesa de outbox durable.
+
+Tradeoff: inicialmente solo sabemos que el proveedor aceptó el mensaje, no que fue entregado o
+leído. Para esos estados se agregan webhooks con una URL HTTPS y un campo acordado en el detalle de
+incidente; no se inventa una ruta nueva mientras los contratos de API sigan congelados.

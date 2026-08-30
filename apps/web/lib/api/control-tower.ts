@@ -133,19 +133,19 @@ export function connectTransactionStream(
 }
 
 export function injectChaos(spec: ChaosSpec) {
-  return postJson<ChaosSpec>("/api/chaos/inject", spec);
+  return postChaosJson<ChaosSpec>("/api/chaos/inject", spec);
 }
 
 export function injectRandomChaos(spec: RandomChaosRequest) {
-  return postJson<ChaosSpec>("/api/chaos/random", spec);
+  return postChaosJson<ChaosSpec>("/api/chaos/random", spec);
 }
 
 export function revealChaos(chaosId?: string) {
-  return postJson<ChaosRevealResponse>("/api/chaos/reveal", chaosId ? { chaos_id: chaosId } : undefined);
+  return postChaosJson<ChaosRevealResponse>("/api/chaos/reveal", chaosId ? { chaos_id: chaosId } : undefined);
 }
 
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(apiOrigin + path, {
+async function postChaosJson<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowUpRight, Check, EyeOff, Lock } from "lucide-react";
 import { useIncidentReports } from "@/lib/api/use-control-tower";
 import { usd } from "@/lib/format";
@@ -121,19 +120,22 @@ export function LandingBlindTest() {
             </div>
           </dl>
 
-          {/* The contract exposes no link between a chaos run and an incident, so the
-              match is left for a person to read rather than asserted by the page. */}
+          {/* The runtime now binds the trial to an episode before the reveal, so a
+              report cannot be picked afterwards for resembling the answer. The
+              scoreboard in the Chaos Lab reports that outcome. */}
           <p className="landing-blind-note">
-            PHAROS does not claim this match automatically — no field ties a chaos run to an incident.
-            The two columns are printed side by side so a person makes the call.
+            The trial is bound to an episode <strong>before</strong> the reveal, so no report can be
+            chosen after the fact for resembling the answer. The Chaos Lab scores each run against
+            the truth it was never shown.
           </p>
         </article>
 
         <aside className="landing-blind-aside">
           <RuntimeTile />
-          <Link href="/chaos" className="landing-action landing-action-primary">
+          {/* Document navigation on purpose: the Chaos Lab is behind Basic Auth. */}
+          <a href="/chaos" className="landing-action landing-action-primary">
             Run your own blind test <ArrowUpRight className="size-4" aria-hidden="true" />
-          </Link>
+          </a>
           <p>
             Pick a severity, inject, and watch the queue. The dimensions stay sealed until you press
             reveal — including from us.
