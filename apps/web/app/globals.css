@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -46,6 +46,24 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* PHAROS semantic tokens â€” the single source of truth for the product surfaces.
+     Exposed through @theme so `text-pharos-muted`, `border-signal-critical`, etc.
+     replace the hardcoded hex literals that used to drift between screens. */
+  --color-pharos-canvas: var(--pharos-canvas);
+  --color-pharos-surface: var(--pharos-surface);
+  --color-pharos-raised: var(--pharos-raised);
+  --color-pharos-line: var(--pharos-line);
+  --color-pharos-ink: var(--pharos-ink);
+  --color-pharos-strong: var(--pharos-strong);
+  --color-pharos-muted: var(--pharos-muted);
+  --color-pharos-faint: var(--pharos-faint);
+  --color-pharos-accent: var(--pharos-accent);
+  --color-signal-healthy: var(--signal-healthy);
+  --color-signal-warning: var(--signal-warning);
+  --color-signal-critical: var(--signal-critical);
+  --color-signal-uncertain: var(--signal-uncertain);
+  --color-signal-info: var(--signal-info);
 }
 
 :root {
@@ -81,6 +99,25 @@
   --sidebar-accent-foreground: oklch(0.98 0.016 321);
   --sidebar-border: oklch(0.9 0.01 321 / 10%);
   --sidebar-ring: oklch(0.79 0.1 326);
+
+  /* Surfaces and text tiers, extracted from the values the screens already used. */
+  --pharos-canvas: #09070d;
+  --pharos-surface: #1a1220;
+  --pharos-raised: #241a2a;
+  --pharos-line: rgba(245, 232, 247, 0.11);
+  --pharos-ink: #f5eef7;
+  --pharos-strong: #fbf7fc;
+  --pharos-muted: #b8adbd;
+  --pharos-faint: #9c91a2;
+  --pharos-accent: #dca6dd;
+
+  /* Signal colours â€” FRONTEND_UI_UX_SPEC Â§10. Never the only carrier of meaning:
+     every use is paired with a label, an icon or a shape. */
+  --signal-healthy: #2dd4a7;
+  --signal-warning: #fbbf24;
+  --signal-critical: #fb7185;
+  --signal-uncertain: #a78bfa;
+  --signal-info: #60a5fa;
 }
 
 .dark {
@@ -336,17 +373,6 @@ a {
   backdrop-filter: blur(20px);
 }
 
-.control-sidebar {
-  display: flex;
-  min-height: 100%;
-  flex-direction: column;
-  padding: 24px 16px 20px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at 10% 10%, rgba(185, 118, 190, 0.12), transparent 14rem),
-    rgba(11, 8, 13, 0.72);
-}
-
 .control-main {
   min-width: 0;
   padding: clamp(24px, 2.2vw, 40px);
@@ -363,33 +389,6 @@ a {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.035) inset,
     0 18px 40px rgba(0, 0, 0, 0.12);
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 10px;
-  border-radius: 10px;
-  color: #b5abb9;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-}
-
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.045);
-  color: #f5eff7;
-}
-
-.nav-item-active {
-  color: #f7eefd;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(225, 159, 225, 0.2), transparent 65%),
-    rgba(175, 107, 178, 0.16);
-  box-shadow: 0 0 24px rgba(198, 123, 199, 0.1) inset;
 }
 
 .live-pill {
@@ -494,76 +493,6 @@ a {
   position: relative;
   z-index: 1;
   margin-top: -48px;
-}
-
-.globe-location-list {
-  position: absolute;
-  z-index: 4;
-  top: 116px;
-  left: 24px;
-  display: grid;
-  width: 190px;
-  gap: 8px;
-}
-
-.globe-location-card {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(19, 13, 23, 0.78);
-  color: #b9aebd;
-  text-align: left;
-  backdrop-filter: blur(14px);
-  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
-}
-
-.globe-location-card:hover,
-.globe-location-card-selected {
-  border-color: rgba(232, 183, 227, 0.3);
-  background: rgba(77, 42, 77, 0.62);
-  color: #f8f0fa;
-}
-
-.globe-location-card:hover {
-  transform: translateY(-1px);
-}
-
-.globe-location-card strong,
-.globe-location-card small {
-  display: block;
-}
-
-.globe-location-card strong {
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.globe-location-card small {
-  margin-top: 2px;
-  color: #a69aa9;
-  font-size: 9px;
-}
-
-.globe-location-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
-}
-
-.globe-location-dot-high {
-  background: #fb7185;
-  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
-}
-
-.globe-location-dot-medium {
-  background: #fbbf24;
-  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
 }
 
 .globe-detail-card {
@@ -677,17 +606,6 @@ a {
   color: #c7adf7;
 }
 
-.chart-window {
-  border-radius: 999px;
-  padding: 5px 9px;
-  color: #a89dac;
-}
-
-.chart-window-active {
-  color: #f7edf8;
-  background: rgba(199, 140, 202, 0.26);
-}
-
 .timeline-dot {
   position: relative;
   z-index: 1;
@@ -725,19 +643,6 @@ a {
 .stream-declined {
   color: #fba0b4;
   background: rgba(251, 113, 133, 0.12);
-}
-
-.notification-popover {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 292px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 16px;
-  background: rgba(24, 17, 27, 0.98);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
 }
 
 .incident-canvas {
@@ -829,41 +734,6 @@ a {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 18px 40px rgba(0, 0, 0, 0.1);
 }
 
-.incident-chart {
-  position: relative;
-}
-
-.incident-chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 13px;
-  padding: 0 0 1px 12px;
-  color: #a79baa;
-  font-size: 10px;
-}
-
-.incident-chart-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.incident-chart-legend i {
-  display: inline-block;
-  width: 13px;
-  height: 2px;
-}
-
-.incident-chart-legend i.bg-\[\#efbfdc\] {
-  height: 6px;
-  border-radius: 999px;
-}
-
-.incident-chart-legend i.border-l {
-  width: 1px;
-  height: 10px;
-}
-
 .incident-cause-path {
   display: flex;
   flex-wrap: wrap;
@@ -928,29 +798,12 @@ a {
   color: #efc1e9;
 }
 
-.incident-hypothesis-close {
-  border-left-color: #c4aff0;
-  background: linear-gradient(90deg, rgba(167, 139, 250, 0.1), rgba(10, 8, 13, 0.2));
-}
-
-.incident-hypothesis-close .uppercase {
-  color: #cdbcf3;
-}
-
 .incident-hypothesis-less-evidence {
   border-left-color: #d6b777;
 }
 
 .incident-hypothesis-less-evidence .uppercase {
   color: #e3c98c;
-}
-
-.incident-hypothesis-insufficient {
-  border-left-color: #807583;
-}
-
-.incident-hypothesis-insufficient .uppercase {
-  color: #a59aa8;
 }
 
 .incident-recommendation {
@@ -996,11 +849,6 @@ a {
   border: 3px solid #251a28;
   border-radius: 999px;
   background: #a99aac;
-}
-
-.incident-timeline-entry-alert .incident-timeline-dot {
-  background: #fb7185;
-  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.1);
 }
 
 .incident-timeline-dot-live {
@@ -1087,23 +935,10 @@ a {
   text-transform: uppercase;
 }
 
-.queue-severity-high,
-.queue-severity-critical {
-  border-color: rgba(251, 113, 133, 0.3);
-  background: rgba(251, 113, 133, 0.1);
-  color: #fca4b4;
-}
-
 .queue-severity-medium {
   border-color: rgba(251, 191, 36, 0.3);
   background: rgba(251, 191, 36, 0.09);
   color: #fbd46e;
-}
-
-.queue-severity-low {
-  border-color: rgba(96, 165, 250, 0.3);
-  background: rgba(96, 165, 250, 0.1);
-  color: #a4c9ff;
 }
 
 .queue-status {
@@ -1205,7 +1040,7 @@ a {
   margin-top: 2px;
 }
 
-/* Chaos Lab — experiment configuration and proof, not a terminal. */
+/* Chaos Lab â€” experiment configuration and proof, not a terminal. */
 .chaos-canvas {
   min-height: 100vh;
 }
@@ -1376,8 +1211,7 @@ a {
 }
 
 .chaos-blind-state,
-.chaos-running-blind,
-.chaos-reveal-sealed {
+.chaos-running-blind {
   display: flex;
   gap: 12px;
   border: 1px solid rgba(196, 181, 253, 0.2);
@@ -1389,15 +1223,13 @@ a {
   padding: 17px;
 }
 
-.chaos-blind-state p,
-.chaos-reveal-sealed p {
+.chaos-blind-state p {
   color: #f1eafa;
   font-size: 14px;
   font-weight: 700;
 }
 
-.chaos-blind-state span,
-.chaos-reveal-sealed span {
+.chaos-blind-state span {
   display: block;
   margin-top: 4px;
   color: #b8adc3;
@@ -1747,12 +1579,6 @@ a {
   padding: clamp(21px, 3vw, 31px);
 }
 
-.chaos-reveal-sealed {
-  align-items: flex-start;
-  margin-top: 22px;
-  padding: 17px;
-}
-
 .chaos-compare-header,
 .chaos-compare-row {
   display: grid;
@@ -1821,12 +1647,6 @@ a {
   color: #f1c77f;
 }
 
-.chaos-compare-mismatch {
-  border-color: rgba(245, 121, 152, 0.3);
-  background: rgba(245, 121, 152, 0.09);
-  color: #f69ab6;
-}
-
 .persistent-alert {
   position: fixed;
   z-index: 20;
@@ -1857,31 +1677,6 @@ a {
   .control-shell {
     grid-template-columns: 1fr;
     border-radius: 22px;
-  }
-
-  .control-sidebar {
-    min-height: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .control-sidebar nav {
-    display: flex;
-    margin: 0;
-    gap: 2px;
-  }
-
-  .control-sidebar .mt-auto,
-  .control-sidebar p {
-    display: none;
-  }
-
-  .globe-location-list {
-    left: 18px;
   }
 
   .globe-detail-card {
@@ -1962,28 +1757,6 @@ a {
     padding: 24px 16px 90px;
   }
 
-  .control-sidebar {
-    overflow-x: auto;
-  }
-
-  .control-sidebar > div:first-child {
-    display: none;
-  }
-
-  .control-sidebar nav {
-    width: 100%;
-  }
-
-  .nav-item {
-    flex: 1;
-    justify-content: center;
-    white-space: nowrap;
-  }
-
-  .nav-item svg {
-    display: none;
-  }
-
   .globe-stage {
     min-height: 0;
   }
@@ -1992,7 +1765,6 @@ a {
     margin-top: -24px;
   }
 
-  .globe-location-list,
   .globe-detail-card {
     position: relative;
     top: auto;
@@ -2000,10 +1772,6 @@ a {
     left: auto;
     width: auto;
     margin: 0 16px 12px;
-  }
-
-  .globe-location-list {
-    grid-template-columns: 1fr;
   }
 
   .globe-detail-card {
@@ -2023,11 +1791,6 @@ a {
   .incident-evidence-row > :last-child {
     grid-column: 2;
     text-align: left;
-  }
-
-  .incident-chart-legend {
-    gap: 8px;
-    padding-left: 0;
   }
 
   .investigations-hero {
@@ -2144,7 +1907,7 @@ a {
   }
 }
 
-/* Public landing — all selectors stay inside this namespace so the product UI remains untouched. */
+/* Public landing â€” all selectors stay inside this namespace so the product UI remains untouched. */
 .landing-page {
   --landing-ink: #f5f0f6;
   --landing-muted: #a9a0ad;
