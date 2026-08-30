@@ -171,7 +171,7 @@ export function LandingHero() {
           />
           <div className="landing-nav-links">
             <a href="#evidence">Evidence model</a>
-            <Link href="/chaos">Chaos Lab</Link>
+            <a href="/chaos">Chaos Lab</a>
           </div>
           <Link href="/control-room" className="landing-nav-cta">
             Open control room <ArrowUpRight className="size-3.5" />

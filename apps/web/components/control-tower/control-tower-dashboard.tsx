@@ -52,7 +52,7 @@ export function ControlTowerDashboard() {
 
         {reportsStatus === "unavailable" ? <div className="mt-4 rounded-xl border border-[#fb7185]/20 bg-[#fb7185]/[0.07] p-4 text-sm text-[#f4c5ce]">PHAROS runtime is unavailable. Set <code>NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN</code> and start the engine. {reportsError}</div> : null}
 
-        <div className="mt-7 flex flex-wrap items-center justify-between gap-4"><div className="segmented-control" aria-label="Dashboard view"><button type="button" className="segmented-active">Overview</button><Link href="/investigations" className="px-3 py-1.5 text-[11px] text-[#bcb0c0]">Research lane</Link><Link href="/chaos" className="px-3 py-1.5 text-[11px] text-[#bcb0c0]">Chaos lab</Link></div><div className="flex items-center gap-2 text-[11px] text-[#a79dab]"><Clock3 className="size-3.5" />Transactions retained in browser: {transactions.length}</div></div>
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-4"><div className="segmented-control" aria-label="Dashboard view"><button type="button" className="segmented-active">Overview</button><Link href="/investigations" className="px-3 py-1.5 text-[11px] text-[#bcb0c0]">Research lane</Link><a href="/chaos" className="px-3 py-1.5 text-[11px] text-[#bcb0c0]">Chaos lab</a></div><div className="flex items-center gap-2 text-[11px] text-[#a79dab]"><Clock3 className="size-3.5" />Transactions retained in browser: {transactions.length}</div></div>
 
         <section className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-12">
           <div className="grid gap-3 md:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
