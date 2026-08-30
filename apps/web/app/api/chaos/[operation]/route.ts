@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { chaosOperatorAccess, chaosOperatorAccessResponse } from "@/lib/server/chaos-operator";
+import {
+  CHAOS_SESSION_COOKIE,
+  chaosOperatorAccess,
+  chaosOperatorAccessResponse,
+} from "@/lib/server/chaos-operator";
 
 const MAX_CHAOS_REQUEST_BYTES = 16_384;
 const UPSTREAM_TIMEOUT_MS = 10_000;
@@ -28,7 +32,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const access = chaosOperatorAccess(request.headers.get("authorization"));
+  const access = chaosOperatorAccess(
+    request.headers.get("authorization"),
+    request.cookies.get(CHAOS_SESSION_COOKIE)?.value,
+  );
   if (access !== "authorized") {
     return chaosOperatorAccessResponse(access);
   }
