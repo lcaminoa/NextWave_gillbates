@@ -1601,6 +1601,226 @@ a {
   color: var(--pharos-ink);
 }
 
+/* ------------------------------------------------- affected corridors */
+
+.corridors-card {
+  padding: clamp(18px, 2.2vw, 26px);
+}
+
+.corridors-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.corridors-head h2 {
+  margin: 4px 0 0;
+  color: var(--pharos-ink);
+  font-size: var(--text-section);
+  font-weight: 500;
+}
+
+.corridors-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* The globe anchors; the ledger carries the finding. If the canvas never
+   painted, nothing on this card would be lost. */
+.corridors-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+  gap: clamp(14px, 2vw, 26px);
+  margin-top: 16px;
+}
+
+.corridors-globe {
+  overflow: hidden;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+}
+
+.corridors-canvas {
+  display: block;
+}
+
+/* Capped to the globe's height so an expanded row grows a scroll area rather
+   than the card. This section is secondary and must not claim three quarters of
+   the viewport the way the old globe did. */
+.corridors-ledger {
+  display: flex;
+  max-height: 302px;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.corridor-row {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 7px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.corridor-row:hover {
+  border-color: var(--line);
+  background: var(--surface-overlay);
+}
+
+.corridor-row-active {
+  border-color: color-mix(in srgb, var(--pharos-accent) 38%, transparent);
+  background: var(--fill-accent-wash);
+}
+
+.corridor-row-top {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.corridor-row-top strong {
+  color: var(--pharos-strong);
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.corridor-row-top em {
+  color: var(--signal-critical-ink);
+  font-size: var(--text-caption);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* The corridor, not the country, is the actual claim. */
+.corridor-segment {
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.45;
+}
+
+.corridor-detail {
+  margin-top: 8px;
+  padding: 13px 14px;
+  border: 1px solid var(--line-subtle);
+  border-left: 2px solid color-mix(in srgb, var(--pharos-accent) 50%, transparent);
+  border-radius: var(--radius-field);
+  background: var(--surface-overlay);
+}
+
+.corridor-detail dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px;
+  margin: 11px 0 0;
+}
+
+.corridor-detail dt {
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.corridor-detail dd {
+  margin: 5px 0 0;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.corridor-caveat {
+  margin: 12px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+.corridor-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 11px;
+  color: var(--pharos-accent);
+  font-size: var(--text-micro);
+  font-weight: 700;
+}
+
+.corridor-open:hover {
+  color: var(--pharos-accent-ink);
+}
+
+/* Not an apology for missing data: a statement that the cause is not a place. */
+.corridors-empty {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+}
+
+.corridors-empty p {
+  margin: 0;
+  max-width: 74ch;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.65;
+}
+
+.corridors-empty strong {
+  color: var(--pharos-ink);
+  font-weight: 600;
+}
+
+.corridors-foot {
+  margin: 14px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .corridors-body {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stacked, the ledger has the page to grow into and no cap is needed. */
+  .corridors-ledger {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
 .control-canvas {
   min-height: 100vh;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */

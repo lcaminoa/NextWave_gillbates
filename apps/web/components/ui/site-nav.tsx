@@ -75,9 +75,9 @@ export function SiteNav() {
     <header className={scrolled ? "site-nav site-nav-condensed" : "site-nav"}>
       <div className="site-nav-frame">
         <PharosBrand
-          href={isPublic ? "/" : "/control-room"}
+          href="/"
           className="site-nav-brand"
-          label={isPublic ? "PHAROS — home" : "PHAROS — open Control Room"}
+          label="PHAROS — home"
           priority={isPublic}
         />
         {isPublic ? <PublicLinks /> : <ProductLinks pathname={pathname} />}

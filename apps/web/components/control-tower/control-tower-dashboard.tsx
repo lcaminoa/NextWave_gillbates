@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Activity,
   Banknote,
   ChevronRight,
   Gauge,
-  Globe2,
   MonitorUp,
   Network,
   SearchCheck,
@@ -18,19 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { IncidentCard } from "@/components/incidents/incident-card";
 import { Metric } from "@/components/ui/metric";
+import { AffectedCorridors } from "./affected-corridors";
 import { EmptyState, RuntimeUnavailableState } from "@/components/ui/states";
 import { RuntimeIndicator } from "@/components/ui/status";
-import RotatingEarth, { type GlobeHotspot } from "@/components/ui/wireframe-dotted-globe";
 import { useIncidentDetail, useIncidentReports, useTransactionStream } from "@/lib/api/use-control-tower";
 import { actionLabel, dimensionValueLabel, segmentLabel } from "@/lib/dimensions";
 import { DISPLAY_TIME_ZONE_LABEL, integer, percent, ratePerMinute, time, usd } from "@/lib/format";
 
-const countryCoordinates: Record<string, Pick<GlobeHotspot, "latitude" | "longitude" | "country" | "countryCode">> = {
-  AR: { country: "Argentina", countryCode: "AR", latitude: -38.4161, longitude: -63.6167 },
-  BR: { country: "Brazil", countryCode: "BR", latitude: -14.235, longitude: -51.9253 },
-  CO: { country: "Colombia", countryCode: "CO", latitude: 4.5709, longitude: -74.2973 },
-  MX: { country: "Mexico", countryCode: "MX", latitude: 23.6345, longitude: -102.5528 },
-};
 
 /**
  * Below this many streamed transactions an approval rate is noise, not a signal.
@@ -69,21 +62,6 @@ export function ControlTowerDashboard() {
   const atRisk = reports.reduce((total, report) => total + report.estimated_revenue_loss_usd_per_hour, 0);
   const inconclusiveCount = reports.filter((report) => report.status === "inconclusive").length;
 
-  const globeHotspots: GlobeHotspot[] = reports.flatMap((report) => {
-    const country = report.incident_id === activeReport?.incident_id ? activeCandidate?.dimensions.country : undefined;
-    const coordinates = country ? countryCoordinates[country] : undefined;
-    if (!coordinates) return [];
-    return [
-      {
-        ...coordinates,
-        incidentId: report.incident_id,
-        label: `${coordinates.country} · ${report.status} report`,
-        severity: report.status === "inconclusive" ? "medium" : "high",
-      },
-    ];
-  });
-  const selectedHotspot = globeHotspots.find((hotspot) => hotspot.incidentId === activeReport?.incident_id);
-  const selectHotspot = useCallback((hotspot: GlobeHotspot) => setSelectedIncidentId(hotspot.incidentId), []);
 
   const activeSegment = segmentLabel(activeCandidate?.dimensions);
   const steps = activeDetail?.investigation_steps ?? [];
@@ -290,48 +268,8 @@ export function ControlTowerDashboard() {
           </section>
           ) : null}
 
-          {/* Supporting context, not the headline. The globe renders only when a
-              live candidate actually carries a country we can place. */}
-          {globeHotspots.length ? (
-            <section className="globe-stage control-card mt-3 overflow-hidden">
-              <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 p-5">
-                <div>
-                  <p className="eyebrow">Impact geography</p>
-                  <h2 className="mt-1 text-section font-medium text-pharos-ink">
-                    Incidents, <span className="text-pharos-accent">located.</span>
-                  </h2>
-                </div>
-                <Globe2 className="mt-1 size-4 text-pharos-faint" aria-hidden="true" />
-              </div>
-              <RotatingEarth
-                height={360}
-                className="globe-hero"
-                hotspots={globeHotspots}
-                selectedCountryCode={selectedHotspot?.countryCode}
-                onHotspotSelect={selectHotspot}
-              />
-              <aside className="globe-detail-card" aria-live="polite">
-                <p className="eyebrow">Selected location</p>
-                <h3 className="mt-1 text-lg font-medium text-pharos-strong">
-                  {selectedHotspot?.country ?? "No supported location"}
-                </h3>
-                <dl className="globe-facts">
-                  <div>
-                    <dt>Affected</dt>
-                    <dd>{activeCandidate ? integer(activeCandidate.affected_count) : "—"}</dd>
-                  </div>
-                  <div>
-                    <dt>Decline rate</dt>
-                    <dd>{activeCandidate ? percent(activeCandidate.current_decline_rate) : "—"}</dd>
-                  </div>
-                  <div>
-                    <dt>At risk</dt>
-                    <dd>{activeReport ? `${usd(activeReport.estimated_revenue_loss_usd_per_hour)}/hr` : "—"}</dd>
-                  </div>
-                </dl>
-              </aside>
-            </section>
-          ) : null}
+          {/* Secondary by placement: it sits below the evidence, never above it. */}
+          <AffectedCorridors reports={reports} transactions={transactions} />
 
           <section className="control-card mt-3 p-5">
             <div className="flex items-start justify-between gap-3">
