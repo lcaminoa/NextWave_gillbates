@@ -28,6 +28,7 @@ from engine.investigator import (
     EvidenceAuditError,
     run_investigation,
 )
+from engine.investigator.memory import SQLiteIncidentMemory
 from engine.investigator.runner import InvestigationResult
 from engine.main import create_app
 from simulator import PaymentSimulator
@@ -644,6 +645,78 @@ def test_persistent_segment_is_investigated_once_until_a_healthy_window() -> Non
     service.process_transaction(_transaction(4))
     assert len(service.list_reports()) == 2
     assert calls == ["anom_episode_1", "anom_episode_3"]
+
+
+def test_recovered_incident_is_stored_and_a_strict_recurrence_gets_history_context(tmp_path) -> None:
+    first = _diagnosis(
+        "memory_first",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    recurrence = _diagnosis(
+        "memory_recurrence",
+        dimensions=Dimensions(provider="nova_pay", country="BR"),
+        dimension_key="country=BR|provider=nova_pay",
+    )
+    memory = SQLiteIncidentMemory(tmp_path / "incident-memory.sqlite3")
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(first), _window(), _window(recurrence)]),
+        incident_memory=memory,
+        episode_grace_windows=1,
+        start_at=START,
+    )
+
+    service.process_transaction(_transaction(0))
+    [first_report] = service.list_reports()
+
+    # One healthy window closes the first episode and makes it eligible for historical storage.
+    service.process_transaction(_transaction(1))
+    assert memory.count == 1
+
+    service.process_transaction(_transaction(2))
+    reports = service.list_reports()
+    recurrence_report = next(
+        report for report in reports if report.anomaly_id == recurrence.anomaly.anomaly_id
+    )
+
+    assert recurrence_report.matches_past_incident_id == first_report.incident_id
+    # Historical memory is context only: the current claims still cite only current RCA evidence.
+    assert all(
+        evidence_id.startswith("ev_memory_recurrence")
+        for claim in recurrence_report.claims
+        for evidence_id in claim.evidence_ids
+    )
+
+
+def test_runtime_discards_an_investigator_supplied_historical_id() -> None:
+    diagnosis = _diagnosis(
+        "untrusted_memory",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+
+    def untrusted_investigator(anomaly_id, candidates, evidence):
+        result = run_investigation(anomaly_id, tuple(candidates), tuple(evidence))
+        return InvestigationResult(
+            report=result.report.model_copy(
+                update={"matches_past_incident_id": "inc_invented_by_model"}
+            ),
+            steps=result.steps,
+            consulted_evidence_ids=result.consulted_evidence_ids,
+            tool_calls=result.tool_calls,
+        )
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        investigator=untrusted_investigator,
+        start_at=START,
+    )
+    service.process_transaction(_transaction())
+
+    [report] = service.list_reports()
+    assert report.matches_past_incident_id is None
 
 
 def test_hierarchical_episode_survives_a_single_symptom_window() -> None:

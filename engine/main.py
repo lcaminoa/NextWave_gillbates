@@ -22,6 +22,7 @@ from engine.api import (
 )
 from engine.api.models import HealthResponse
 from engine.investigator import run_audited_openai_investigation
+from engine.investigator.memory import SQLiteIncidentMemory
 from engine.investigator.openai_config import (
     DEFAULT_OPENAI_REQUEST_TIMEOUT_SECONDS,
     validate_request_timeout,
@@ -29,9 +30,13 @@ from engine.investigator.openai_config import (
 
 
 def _runtime_from_environment() -> ControlTowerService:
+    # Tests and one-off local runs use ephemeral memory.  The checked-in .env.example opts
+    # into a project-local SQLite file so the demo remembers recovered incidents across restarts.
+    memory_path = os.getenv("CONTROL_TOWER_MEMORY_DB", ":memory:").strip() or ":memory:"
+    incident_memory = SQLiteIncidentMemory(memory_path)
     mode = os.getenv("CONTROL_TOWER_INVESTIGATOR_MODE", "deterministic").strip().lower()
     if mode == "deterministic":
-        return ControlTowerService()
+        return ControlTowerService(incident_memory=incident_memory)
     if mode != "audited_openai":
         raise RuntimeError(
             "CONTROL_TOWER_INVESTIGATOR_MODE must be deterministic or audited_openai"
@@ -64,7 +69,10 @@ def _runtime_from_environment() -> ControlTowerService:
             request_timeout_seconds=request_timeout_seconds,
         )
 
-    return ControlTowerService(audited_investigator=audited_investigator)
+    return ControlTowerService(
+        audited_investigator=audited_investigator,
+        incident_memory=incident_memory,
+    )
 
 
 def _sse_transaction(transaction_json: str, transaction_id: str) -> str:
