@@ -1086,3 +1086,34 @@ Por qué:
 Tradeoff: inicialmente solo sabemos que el proveedor aceptó el mensaje, no que fue entregado o
 leído. Para esos estados se agregan webhooks con una URL HTTPS y un campo acordado en el detalle de
 incidente; no se inventa una ruta nueva mientras los contratos de API sigan congelados.
+
+## D034 — Un campo ausente en la respuesta no es un resultado, y la pantalla no lo interpreta
+
+Contexto: el deploy público quedó con un runtime anterior al gate de auditoría, que respondía
+`/api/incidents/{id}` sin `evidence_audit` ni `notification_dispatches`. El tipo del cliente los
+declaraba obligatorios, así que el sello leía `.status` sobre `undefined` y tiraba abajo toda la
+ruta de detalle: HTTP 200 en el servidor y "This page couldn't load" en el navegador. Ninguna
+pantalla operativa tenía además un límite de error propio, así que cualquier fallo de render
+terminaba en la página muerta del navegador, sin diagnóstico ni salida.
+
+Alternativas:
+1. mapear el campo ausente a `not_run` y seguir renderizando el sello;
+2. ocultar el sello cuando el runtime no lo manda;
+3. tratar la ausencia como un cuarto estado explícito, y agregar un límite de error por pantalla.
+
+Decisión: 3.
+
+Por qué:
+- `not_run` es un resultado que el runtime reporta: significa que la auditoría no corrió. Un campo
+  que nunca llegó es un silencio que no podemos leer. Mapear uno al otro sería la interfaz
+  afirmando algo que el runtime nunca dijo, que es exactamente lo que este producto no hace;
+- ocultarlo sin decir nada dejaría al lector suponiendo que no hay gate de publicación, cuando en
+  realidad hay uno y no sabemos qué contestó;
+- los campos opcionales del contrato se tipan como opcionales en el cliente. Declararlos
+  obligatorios no los vuelve obligatorios: solo mueve la falla a un `TypeError` en el navegador;
+- `app/error.tsx` no inventa contenido de reemplazo. Nombra la falla, muestra el error para quien
+  opera la demo y deja dos salidas reales, en vez de una página muerta sin diagnóstico.
+
+Tradeoff: el estado "no reportado" agrega un caso más para leer en la interfaz, y el límite de
+error puede tapar un defecto de render en desarrollo. Se acepta: durante una demo en vivo, una
+pantalla que explica su falla vale más que una que desaparece.
