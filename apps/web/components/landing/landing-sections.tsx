@@ -2,7 +2,13 @@ import Link from "next/link";
 import { ArrowUpRight, Check, CircleAlert, SearchCheck, ShieldCheck } from "lucide-react";
 import { candidates, evidence, reports } from "@/lib/fixtures/control-tower";
 
-const incidentHref = "/incidents/incident-br-novapay";
+/**
+ * The narrative below is an illustrated example built from typed fixtures, which is
+ * allowed on the public landing. Its call to action must still land somewhere real:
+ * it used to deep-link to the fixture's own incident id, which the live runtime has
+ * never heard of, so the primary CTA of the demo dead-ended on a 404.
+ */
+const incidentHref = "/investigations";
 
 function candidateLabel() {
   const report = reports.find((item) => item.incident_id === "incident-br-novapay") ?? reports[0];
@@ -76,7 +82,7 @@ export function LandingSections() {
 
         <article className="landing-investigation-preview">
           <div className="landing-preview-topline">
-            <span><i /> Incident / Brazil · NovaPay</span>
+            <span><i /> Worked example / Brazil · NovaPay</span>
             <span>Probable · human review required</span>
           </div>
 
@@ -123,7 +129,7 @@ export function LandingSections() {
           </div>
 
           <Link href={incidentHref} className="landing-preview-link">
-            Open the evidence-backed incident <ArrowUpRight className="size-4" />
+            Open the live investigation queue <ArrowUpRight className="size-4" />
           </Link>
         </article>
       </section>

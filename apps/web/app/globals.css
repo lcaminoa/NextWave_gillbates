@@ -305,49 +305,8 @@ a {
   gap: 8px;
 }
 
-.app-nav-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #87e4c8;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.app-nav-notifications {
-  position: relative;
-  display: grid;
-  width: 33px;
-  height: 33px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.18);
-  color: #e9dfea;
-  transition: background 160ms ease, border-color 160ms ease;
-}
-
-.app-nav-notifications:hover {
-  border-color: rgba(235, 183, 229, 0.32);
-  background: rgba(235, 183, 229, 0.1);
-}
-
-.app-nav-notifications span {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  display: grid;
-  width: 15px;
-  height: 15px;
-  place-items: center;
-  border: 2px solid #201522;
-  border-radius: 999px;
-  background: #fb7185;
-  color: #30101a;
-  font-size: 8px;
-  font-weight: 900;
+.app-nav-runtime {
+  white-space: nowrap;
 }
 
 .control-canvas {
@@ -1698,9 +1657,18 @@ a {
     border-radius: 14px;
   }
 
+  /* Explicit placement: with auto-placement the full-width link row pushed the
+     utilities onto a third row, so the header ate a third of a phone screen. */
   .app-nav-brand {
     display: inline-flex;
+    grid-row: 1;
+    grid-column: 1;
     align-items: center;
+  }
+
+  .app-nav-utilities {
+    grid-row: 1;
+    grid-column: 2;
   }
 
   .app-nav-brand .pharos-brand-tower,
@@ -1715,8 +1683,9 @@ a {
   }
 
   .app-nav-links {
-    grid-column: 1 / -1;
     display: grid;
+    grid-row: 2;
+    grid-column: 1 / -1;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
   }
@@ -1740,8 +1709,13 @@ a {
     font-size: 8px;
   }
 
-  .app-nav-live {
-    display: none;
+  /* The runtime indicator stays visible at every width. It is the signal that
+     tells an operator whether anything on screen can be trusted; hiding it to
+     save space is exactly the wrong trade. */
+  .app-nav-runtime {
+    padding: 3px 7px;
+    font-size: 8px;
+    letter-spacing: 0.1em;
   }
 
   .control-canvas {

@@ -7,6 +7,7 @@ export type {
   IncidentCandidate,
   IncidentReport,
   InvestigationStep,
+  ReportStatus,
   Severity,
   Transaction,
 } from "../../../contracts/types";

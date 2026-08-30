@@ -253,10 +253,24 @@ export default function RotatingEarth({
       }
     };
 
+    // Zoom is opt-in: a plain wheel must keep scrolling the page. The globe sits in
+    // the middle of a scrollable dashboard, and swallowing every wheel event trapped
+    // the reader there with no way out. Ctrl/⌘ + wheel is the standard zoom gesture
+    // and is the only one we intercept.
     const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
       const nextScale = projection.scale() * (event.deltaY > 0 ? 0.92 : 1.08);
       projection.scale(Math.max(radius * 0.8, Math.min(radius * 1.7, nextScale)));
+      draw();
+    };
+
+    // Keyboard zoom, so the gesture is reachable without a modifier-capable pointer.
+    const key = (event: KeyboardEvent) => {
+      const step = event.key === "+" || event.key === "=" ? 1.08 : event.key === "-" ? 0.92 : 0;
+      if (!step) return;
+      event.preventDefault();
+      projection.scale(Math.max(radius * 0.8, Math.min(radius * 1.7, projection.scale() * step)));
       draw();
     };
 
@@ -265,6 +279,7 @@ export default function RotatingEarth({
     canvas.addEventListener("pointerup", pointerUp);
     canvas.addEventListener("pointercancel", pointerUp);
     canvas.addEventListener("wheel", wheel, { passive: false });
+    canvas.addEventListener("keydown", key);
     setIsReady(true);
 
     return () => {
@@ -274,6 +289,7 @@ export default function RotatingEarth({
       canvas.removeEventListener("pointerup", pointerUp);
       canvas.removeEventListener("pointercancel", pointerUp);
       canvas.removeEventListener("wheel", wheel);
+      canvas.removeEventListener("keydown", key);
     };
   }, [height, hotspots, onHotspotSelect, selectedCountryCode, width]);
 
@@ -282,14 +298,14 @@ export default function RotatingEarth({
       <canvas
         ref={canvasRef}
         tabIndex={0}
-        aria-label="Interactive globe showing evidence-backed payment incident countries. Drag to rotate and scroll to zoom."
+        aria-label="Interactive globe showing evidence-backed payment incident countries. Drag to rotate, press plus or minus to zoom."
         className="block w-full cursor-grab touch-none rounded-[1.4rem] outline-none focus-visible:ring-2 focus-visible:ring-[#d7a8e4] active:cursor-grabbing"
       />
       {!isReady ? (
         <div className="absolute inset-0 grid place-items-center text-xs text-[#b7adbf]">Loading impact globe…</div>
       ) : null}
       <div className="pointer-events-none absolute bottom-2.5 left-3 rounded-md border border-white/8 bg-black/55 px-2 py-1 text-[10px] text-[#b9afc4] backdrop-blur">
-        Drag to rotate · Scroll to zoom
+        Drag to rotate · ⌘/Ctrl + scroll to zoom
       </div>
     </div>
   );

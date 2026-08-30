@@ -18,10 +18,26 @@ export type RandomChaosRequest = Pick<ChaosSpec, "severity_pp" | "duration_minut
 
 const apiOrigin = process.env.NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN ?? "";
 
+/**
+ * Carries the HTTP status alongside the message. Purely additive: the message and
+ * the throwing behaviour are unchanged, so existing callers keep working. It lets
+ * the UI tell "the runtime is down" apart from "the runtime answered, and this
+ * incident does not exist" instead of showing one error for both.
+ */
+export class ControlTowerError extends Error {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "ControlTowerError";
+    this.status = status;
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(apiOrigin + path, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error("PHAROS runtime unavailable (" + response.status + ")");
+    throw new ControlTowerError("PHAROS runtime unavailable (" + response.status + ")", response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -65,7 +81,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error("PHAROS runtime unavailable (" + response.status + ")");
+    throw new ControlTowerError("PHAROS runtime unavailable (" + response.status + ")", response.status);
   }
   return response.json() as Promise<T>;
 }
