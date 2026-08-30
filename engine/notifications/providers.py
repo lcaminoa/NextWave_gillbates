@@ -51,6 +51,7 @@ class ResendProvider:
                 "Authorization": f"Bearer {self._settings.api_key}",
                 "Content-Type": "application/json",
                 "Idempotency-Key": message.idempotency_key,
+                "User-Agent": "pharos-control-tower/1.0",
             },
             payload={
                 "from": self._settings.from_address,

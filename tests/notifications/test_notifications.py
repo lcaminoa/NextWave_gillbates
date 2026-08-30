@@ -306,6 +306,7 @@ def test_resend_serialization_includes_idempotency_key_and_redacts_error() -> No
         "Authorization": "Bearer resend-test-token",
         "Content-Type": "application/json",
         "Idempotency-Key": "pharos/incident_detected/idempotent_001",
+        "User-Agent": "pharos-control-tower/1.0",
     }
     assert call["payload"] == {
         "from": "PHAROS <onboarding@resend.dev>",
