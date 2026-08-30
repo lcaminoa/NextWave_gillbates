@@ -1647,6 +1647,12 @@ a {
   margin-top: 16px;
 }
 
+/* The sphere is bound by the shorter side of its box, so a very wide globe
+   column is just empty canvas. This keeps the box near square. */
+.corridors-body {
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+}
+
 .corridors-globe {
   overflow: hidden;
   border: 1px solid var(--line-subtle);
@@ -1658,29 +1664,31 @@ a {
   display: block;
 }
 
-/* Capped to the globe's height so an expanded row grows a scroll area rather
-   than the card. This section is secondary and must not claim three quarters of
-   the viewport the way the old globe did. */
+.corridors-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* No scroll. Hiding information behind a scrollbar inside a panel is worse than
+   a slightly taller panel — the rows are compact instead, and the detail has its
+   own place rather than growing inside the list. */
 .corridors-ledger {
   display: flex;
-  max-height: 302px;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   margin: 0;
-  padding: 0 4px 0 0;
-  overflow-y: auto;
+  padding: 0;
   list-style: none;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
 }
 
 .corridor-row {
   display: flex;
   width: 100%;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
   align-items: flex-start;
-  padding: 12px 14px;
+  padding: 10px 13px;
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-card);
   background: var(--surface-well);
@@ -1727,12 +1735,29 @@ a {
   line-height: 1.45;
 }
 
+.corridor-row-bottom {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.corridor-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .corridor-detail {
-  margin-top: 8px;
-  padding: 13px 14px;
+  margin-top: 0;
+  padding: 14px 15px;
   border: 1px solid var(--line-subtle);
   border-left: 2px solid color-mix(in srgb, var(--pharos-accent) 50%, transparent);
-  border-radius: var(--radius-field);
+  border-radius: var(--radius-card);
   background: var(--surface-overlay);
 }
 
@@ -1770,7 +1795,6 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 11px;
   color: var(--pharos-accent);
   font-size: var(--text-micro);
   font-weight: 700;
@@ -1814,11 +1838,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  /* Stacked, the ledger has the page to grow into and no cap is needed. */
-  .corridors-ledger {
-    max-height: none;
-    overflow-y: visible;
-  }
+
 }
 
 .control-canvas {

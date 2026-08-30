@@ -98,7 +98,7 @@ export function AffectedCorridors({
         <div className="corridors-body">
           <div className="corridors-globe">
             <RotatingEarth
-              height={300}
+              height={470}
               className="corridors-canvas"
               hotspots={hotspots}
               selectedCountryCode={selected ? countryCoordinates[selected.country].countryCode : undefined}
@@ -106,67 +106,79 @@ export function AffectedCorridors({
             />
           </div>
 
-          <ol className="corridors-ledger">
-            {mappable.map((entry) => {
-              const active = entry.incidentId === selected?.incidentId;
-              return (
-                <li key={entry.incidentId}>
-                  <button
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setSelectedId(entry.incidentId)}
-                    className={cn("corridor-row", active && "corridor-row-active")}
-                  >
-                    <span className="corridor-row-top">
-                      <strong>{countryCoordinates[entry.country].country}</strong>
-                      <em>{usd(entry.revenueAtRiskPerHour)}/hr</em>
-                    </span>
-                    <span className="corridor-segment">{entry.segment}</span>
-                    <ReportStatusBadge status={entry.status} />
-                  </button>
+          <div className="corridors-side">
+            {/* Rows stay compact and never expand in place: a list that grows under
+                the cursor pushes whatever you were reading out from under you. */}
+            <ol className="corridors-ledger">
+              {mappable.map((entry) => {
+                const active = entry.incidentId === selected?.incidentId;
+                return (
+                  <li key={entry.incidentId}>
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setSelectedId(entry.incidentId)}
+                      className={cn("corridor-row", active && "corridor-row-active")}
+                    >
+                      <span className="corridor-row-top">
+                        <strong>{countryCoordinates[entry.country].country}</strong>
+                        <em>{usd(entry.revenueAtRiskPerHour)}/hr</em>
+                      </span>
+                      <span className="corridor-row-bottom">
+                        <span className="corridor-segment">{entry.segment}</span>
+                        <ReportStatusBadge status={entry.status} />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
 
-                  {active ? (
-                    <div className="corridor-detail">
-                      {/* Measured here, from this browser's stream — not a claim about
-                          the country's payments at large. */}
-                      <p className="eyebrow">Live stream · {countryCoordinates[entry.country].country}</p>
-                      <dl>
-                        <div>
-                          <dt>Observed</dt>
-                          <dd>{traffic?.count ? `${integer(traffic.count)} tx` : "—"}</dd>
-                        </div>
-                        <div>
-                          <dt>Approval</dt>
-                          <dd>
-                            {traffic?.approvalRate !== null && traffic?.approvalRate !== undefined
-                              ? percent(traffic.approvalRate)
-                              : "Sample too small"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Providers seen</dt>
-                          <dd>
-                            {traffic?.providers.length
-                              ? traffic.providers
-                                  .map((provider) => dimensionValueLabel("provider", provider))
-                                  .join(", ")
-                              : "—"}
-                          </dd>
-                        </div>
-                      </dl>
-                      <p className="corridor-caveat">
-                        Counted from the {integer(transactions.length)} transactions this browser has
-                        received, not from the full corridor.
-                      </p>
-                      <Link href={`/incidents/${entry.incidentId}`} className="corridor-open">
-                        Open investigation <ChevronRight className="size-3" aria-hidden="true" />
-                      </Link>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
+            {/* The detail has one fixed home, below the list, so selecting a
+                corridor never reflows the list you selected it from. */}
+            {selected ? (
+              <div className="corridor-detail">
+                <div className="corridor-detail-head">
+                  <p className="eyebrow">
+                    Live stream · {countryCoordinates[selected.country].country}
+                  </p>
+                  <Link href={`/incidents/${selected.incidentId}`} className="corridor-open">
+                    Open investigation <ChevronRight className="size-3" aria-hidden="true" />
+                  </Link>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Observed</dt>
+                    <dd>{traffic?.count ? `${integer(traffic.count)} tx` : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Approval</dt>
+                    <dd>
+                      {traffic?.approvalRate !== null && traffic?.approvalRate !== undefined
+                        ? percent(traffic.approvalRate)
+                        : "Sample too small"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Providers seen</dt>
+                    <dd>
+                      {traffic?.providers.length
+                        ? traffic.providers
+                            .map((provider) => dimensionValueLabel("provider", provider))
+                            .join(", ")
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
+                {/* Measured here, from this browser's stream — not a claim about the
+                    country's payments at large. */}
+                <p className="corridor-caveat">
+                  Counted from the {integer(transactions.length)} transactions this browser has
+                  received, not from the full corridor.
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : (
         /* The common case, and a finding rather than a gap: an incident whose
