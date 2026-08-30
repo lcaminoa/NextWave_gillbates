@@ -27,11 +27,21 @@ const dimensionLabels: Array<{ key: DimensionField; label: string }> = [
 
 const CHAOS_RUN_STORAGE_KEY = "pharos.active-chaos-run";
 
-function restoreChaosRun(): ChaosSpec | null {
+type StoredChaosRun = {
+  runSpec: ChaosSpec;
+  clientStartedAtMs: number | null;
+};
+
+function restoreChaosRun(): StoredChaosRun | null {
   try {
     const raw = window.sessionStorage.getItem(CHAOS_RUN_STORAGE_KEY);
     if (!raw) return null;
-    const run = JSON.parse(raw) as Partial<ChaosSpec>;
+    const stored = JSON.parse(raw) as {
+      runSpec?: Partial<ChaosSpec>;
+      clientStartedAtMs?: unknown;
+    } & Partial<ChaosSpec>;
+    // Backward compatibility with runs saved before elapsed time was persisted.
+    const run = stored.runSpec ?? stored;
     if (
       typeof run.chaos_id !== "string"
       || (run.mode !== "manual" && run.mode !== "random_unknown")
@@ -40,7 +50,15 @@ function restoreChaosRun(): ChaosSpec | null {
       window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
       return null;
     }
-    return run as ChaosSpec;
+    return {
+      runSpec: run as ChaosSpec,
+      clientStartedAtMs: (
+        typeof stored.clientStartedAtMs === "number"
+        && Number.isFinite(stored.clientStartedAtMs)
+        ? stored.clientStartedAtMs
+        : null
+      ),
+    };
   } catch {
     window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
     return null;
@@ -68,6 +86,7 @@ export function ChaosConsole() {
   const [phase, setPhase] = useState<ChaosPhase>("ready");
   const [runSpec, setRunSpec] = useState<ChaosSpec | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [clientStartedAtMs, setClientStartedAtMs] = useState<number | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [restoredRunState, setRestoredRunState] = useState(false);
   const { reports, status: reportsStatus } = useIncidentReports(5_000);
@@ -80,9 +99,13 @@ export function ChaosConsole() {
     const restored = restoreChaosRun();
     startTransition(() => {
       if (restored) {
-        setRunSpec(restored);
-        setMode(restored.mode);
-        setPhase(restored.revealed ? "revealed" : "active");
+        setRunSpec(restored.runSpec);
+        setMode(restored.runSpec.mode);
+        setPhase(restored.runSpec.revealed ? "revealed" : "active");
+        setClientStartedAtMs(restored.clientStartedAtMs);
+        if (restored.clientStartedAtMs !== null) {
+          setElapsedSeconds(Math.max(0, Math.floor((Date.now() - restored.clientStartedAtMs) / 1_000)));
+        }
       }
       setRestoredRunState(true);
     });
@@ -91,11 +114,14 @@ export function ChaosConsole() {
   useEffect(() => {
     if (!restoredRunState) return;
     if (runSpec) {
-      window.sessionStorage.setItem(CHAOS_RUN_STORAGE_KEY, JSON.stringify(runSpec));
+      window.sessionStorage.setItem(
+        CHAOS_RUN_STORAGE_KEY,
+        JSON.stringify({ runSpec, clientStartedAtMs }),
+      );
     } else {
       window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
     }
-  }, [restoredRunState, runSpec]);
+  }, [clientStartedAtMs, restoredRunState, runSpec]);
 
   useEffect(() => {
     if (!runSpec || !isRunning) return;
@@ -119,6 +145,7 @@ export function ChaosConsole() {
         ? await injectChaos({ chaos_id: `chaos_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`, mode: "manual", dimensions, severity_pp: severity, started_at: new Date().toISOString(), duration_minutes: duration, revealed: true })
         : await injectRandomChaos({ severity_pp: severity, duration_minutes: duration });
       setRunSpec(nextSpec);
+      setClientStartedAtMs(Date.now());
       setElapsedSeconds(0);
       setPhase("active");
     } catch (error) {
@@ -142,6 +169,7 @@ export function ChaosConsole() {
 
   const reset = () => {
     setRunSpec(null);
+    setClientStartedAtMs(null);
     setElapsedSeconds(0);
     setRequestError(null);
     setPhase("ready");
