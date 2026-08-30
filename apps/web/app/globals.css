@@ -2378,23 +2378,35 @@ a {
   line-height: 1.65;
 }
 
+/* Real cards, on the same surface language as the product. These used to be
+   borderless columns divided by hairlines while the investigation preview two
+   sections below was a rounded, elevated panel — two card vocabularies on one
+   page. */
 .landing-evidence-panels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin-top: clamp(57px, 7vw, 88px);
-  border-top: 1px solid var(--landing-line);
-  border-bottom: 1px solid var(--landing-line);
+  gap: 14px;
+  margin-top: clamp(48px, 6vw, 76px);
 }
 
 .landing-evidence-panel {
-  min-height: 310px;
-  padding: 23px clamp(19px, 2vw, 32px) 22px;
+  display: flex;
+  min-height: 288px;
+  flex-direction: column;
+  padding: clamp(20px, 2.2vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-elev-1);
+  transition: border-color 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.landing-evidence-panel + .landing-evidence-panel {
-  border-left: 1px solid var(--landing-line);
+.landing-evidence-panel:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
 }
+
+
 
 .landing-evidence-panel-top {
   display: flex;
@@ -2454,10 +2466,10 @@ a {
 .landing-investigation-preview {
   margin-top: clamp(50px, 7vw, 90px);
   overflow: hidden;
-  border: 1px solid rgba(242, 232, 247, 0.14);
-  border-radius: 20px;
-  background: linear-gradient(138deg, rgba(30, 23, 35, 0.96), rgba(14, 11, 18, 0.98));
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.23), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-elev-2);
 }
 
 .landing-preview-topline {
@@ -2819,12 +2831,7 @@ a {
 
   .landing-evidence-panel {
     min-height: 0;
-    padding: 22px 0 25px;
-  }
-
-  .landing-evidence-panel + .landing-evidence-panel {
-    border-top: 1px solid var(--landing-line);
-    border-left: 0;
+    padding: 20px;
   }
 
   .landing-evidence-panel h3 {
