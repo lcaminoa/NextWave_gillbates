@@ -277,28 +277,66 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-.app-navigation {
+/* One bar for the landing and the product. Sticky, pill-shaped, and it condenses
+   once the page leaves the top so it stops competing with the content. */
+.site-nav {
   position: sticky;
-  top: 0;
   z-index: 50;
+  top: 0;
   width: 100%;
-  padding: 12px clamp(12px, 1.4vw, 28px) 0;
+  padding: 14px clamp(12px, 1.4vw, 28px) 0;
+  transition: padding 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.app-navigation-frame {
+.site-nav-condensed {
+  padding-top: 8px;
+}
+
+.site-nav-frame {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
+  width: min(1380px, 100%);
+  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
   align-items: center;
-  min-height: 64px;
-  padding: 6px 10px 6px 15px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-panel);
-  background: linear-gradient(105deg, rgba(34, 23, 38, 0.92), rgba(15, 11, 18, 0.9));
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(20px);
+  min-height: 62px;
+  margin: 0 auto;
+  padding: 6px 8px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: rgba(11, 8, 15, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px);
+  transition:
+    min-height 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
-.app-nav-brand {
+.site-nav-condensed .site-nav-frame {
+  min-height: 52px;
+  border-color: var(--line-strong);
+  background: rgba(11, 8, 15, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 34px rgba(0, 0, 0, 0.34);
+}
+
+/* The mark drives the bar's height, so it has to shrink too or the condense is
+   a state change nobody can feel. */
+.pharos-brand-tower {
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1), height 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.site-nav-condensed .pharos-brand-tower {
+  width: 38px;
+  height: 38px;
+}
+
+.site-nav-condensed .pharos-brand-copy strong {
+  font-size: var(--text-caption);
+}
+
+.site-nav-brand {
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -342,64 +380,95 @@ a {
   height: 28px;
 }
 
-.app-nav-links {
+.site-nav-links {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--line-subtle);
-  border-radius: var(--radius-field);
-  background: var(--surface-well);
+  white-space: nowrap;
 }
 
-.app-nav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 34px;
+.site-nav-links > a:not([class]) {
   padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--pharos-faint);
+  color: var(--pharos-muted);
   font-size: var(--text-micro);
   font-weight: 600;
-  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: color 160ms ease;
 }
 
-.app-nav-link:hover {
-  color: var(--pharos-ink);
+.site-nav-links > a:not([class]):hover {
+  color: var(--pharos-strong);
 }
 
-.app-nav-link-active {
-  border-color: rgba(223, 174, 222, 0.18);
-  background: var(--fill-accent-soft);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 5px 12px rgba(0, 0, 0, 0.1);
+.site-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 10px;
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.site-nav-link:hover {
+  background: var(--surface-overlay);
+  color: var(--pharos-strong);
+}
+
+.site-nav-link-active {
   color: var(--pharos-accent-ink);
+  background: var(--fill-accent-soft);
+  box-shadow: 0 0 24px rgba(198, 123, 199, 0.1) inset;
 }
 
-.app-nav-link em {
+.site-nav-link em {
   display: grid;
-  min-width: 16px;
-  height: 16px;
+  min-width: 17px;
+  height: 17px;
   place-items: center;
+  padding: 0 4px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.32);
   color: var(--pharos-accent-ink);
   font-size: var(--text-nano);
   font-style: normal;
   font-weight: 800;
 }
 
-.app-nav-utilities {
+.site-nav-utilities {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.app-nav-runtime {
+.site-nav-runtime {
   white-space: nowrap;
+}
+
+.site-nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(224, 204, 239, 0.2);
+  border-radius: 10px;
+  background: rgba(233, 225, 239, 0.08);
+  color: var(--pharos-strong);
+  font-size: var(--text-nano);
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.site-nav-cta:hover {
+  border-color: rgba(224, 204, 239, 0.42);
+  background: rgba(233, 225, 239, 0.16);
 }
 
 .control-canvas {
@@ -1539,79 +1608,84 @@ a {
 }
 
 @media (max-width: 720px) {
-  .app-navigation {
-    position: static;
+  /* Two rows on a phone: brand and runtime, then the links full width.
+     Placement is explicit — auto-placement pushed the utilities onto a third row
+     and the header ate a third of the viewport. */
+  .site-nav {
     padding: 8px 8px 0;
   }
 
-  .app-navigation-frame {
+  .site-nav-frame {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 7px;
     min-height: 0;
     padding: 8px;
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-field);
   }
 
-  /* Explicit placement: with auto-placement the full-width link row pushed the
-     utilities onto a third row, so the header ate a third of a phone screen. */
-  .app-nav-brand {
-    display: inline-flex;
+  .site-nav-condensed .site-nav-frame {
+    min-height: 0;
+  }
+
+  .site-nav-brand {
     grid-row: 1;
     grid-column: 1;
-    align-items: center;
   }
 
-  .app-nav-utilities {
+  .site-nav-utilities {
     grid-row: 1;
     grid-column: 2;
   }
 
-  .app-nav-brand .pharos-brand-tower,
-  .app-nav-brand .pharos-brand-copy {
+  .site-nav-brand .pharos-brand-tower,
+  .site-nav-brand .pharos-brand-copy {
     display: none;
   }
 
-  .app-nav-brand .pharos-brand-mark {
+  .site-nav-brand .pharos-brand-mark {
     display: block;
     width: 25px;
     height: 25px;
   }
 
-  .app-nav-links {
+  .site-nav-links {
     display: grid;
     grid-row: 2;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     width: 100%;
   }
 
-  .app-nav-link {
+  .site-nav-link,
+  .site-nav-links > a:not([class]) {
     justify-content: center;
-    gap: 5px;
     min-height: 32px;
     padding: 0 5px;
-    font-size: var(--text-micro);
+    font-size: var(--text-nano);
     white-space: nowrap;
   }
 
-  .app-nav-link svg {
+  .site-nav-link svg {
     display: none;
   }
 
-  .app-nav-link em {
-    min-width: 14px;
-    height: 14px;
-    font-size: var(--text-nano);
+  .site-nav-runtime {
+    padding: 3px 7px;
+    font-size: 8px;
   }
+
+  .site-nav-cta {
+    min-height: 30px;
+    padding: 0 9px;
+  }
+
+  /* Explicit placement: with auto-placement the full-width link row pushed the
+     utilities onto a third row, so the header ate a third of a phone screen. */
 
   /* The runtime indicator stays visible at every width. It is the signal that
      tells an operator whether anything on screen can be trusted; hiding it to
      save space is exactly the wrong trade. */
-  .app-nav-runtime {
-    padding: 3px 7px;
-    font-size: var(--text-nano);
-    letter-spacing: 0.1em;
-  }
 
   .control-canvas {
     padding: 0;
@@ -1796,78 +1870,6 @@ a {
   background:
     radial-gradient(circle at 58% 36%, rgba(211, 201, 239, 0.08), transparent 13rem),
     radial-gradient(circle at 38% 72%, rgba(160, 116, 156, 0.075), transparent 24rem);
-}
-
-.landing-nav {
-  position: absolute;
-  z-index: 9;
-  top: 18px;
-  left: 50%;
-  display: grid;
-  width: min(1380px, calc(100% - 48px));
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  min-height: 54px;
-  padding: 0 4px 0 14px;
-  border: 1px solid rgba(249, 245, 250, 0.1);
-  border-radius: 14px;
-  background: rgba(11, 8, 15, 0.58);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(16px);
-  transform: translateX(-50%);
-}
-
-.landing-nav-brand,
-.landing-nav-cta,
-.landing-nav-links,
-.landing-nav-links a {
-  display: inline-flex;
-  align-items: center;
-}
-
-.landing-nav-brand {
-  width: fit-content;
-  border-radius: 7px;
-}
-
-.landing-nav-brand .pharos-brand-tower {
-  width: 52px;
-  height: 52px;
-}
-
-.landing-nav-links {
-  gap: 22px;
-}
-
-.landing-nav-links a {
-  color: #b8afbd;
-  font-size: 11px;
-  font-weight: 600;
-  transition: color 160ms ease;
-}
-
-.landing-nav-links a:hover {
-  color: #f7f0f8;
-}
-
-.landing-nav-cta {
-  justify-self: end;
-  gap: 6px;
-  min-height: 38px;
-  padding: 0 11px;
-  border: 1px solid rgba(224, 204, 239, 0.2);
-  border-radius: 10px;
-  background: rgba(233, 225, 239, 0.08);
-  color: #faf5fb;
-  font-size: 10px;
-  font-weight: 750;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.landing-nav-cta:hover {
-  border-color: rgba(238, 218, 248, 0.38);
-  background: rgba(233, 225, 239, 0.14);
-  transform: translateY(-1px);
 }
 
 .landing-giant-type {
@@ -2694,9 +2696,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .landing-nav {
-    width: calc(100% - 32px);
-  }
 
   .landing-hero-intro {
     top: 22vh;
@@ -2726,28 +2725,6 @@ a {
 @media (max-width: 640px) {
   .landing-hero {
     height: 440vh;
-  }
-
-  .landing-nav {
-    top: 10px;
-    width: calc(100% - 20px);
-    min-height: 48px;
-    padding-left: 10px;
-    border-radius: 12px;
-  }
-
-  .landing-nav-brand strong {
-    font-size: 11px;
-  }
-
-  .landing-nav-links {
-    display: none;
-  }
-
-  .landing-nav-cta {
-    min-height: 34px;
-    padding: 0 9px;
-    font-size: 9px;
   }
 
   .landing-hero-intro {
@@ -3229,22 +3206,6 @@ a {
 @media (max-width: 640px) {
   .landing-hero {
     height: 740vh;
-  }
-
-  .landing-nav-brand {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .landing-nav-brand .pharos-brand-tower,
-  .landing-nav-brand .pharos-brand-copy {
-    display: none;
-  }
-
-  .landing-nav-brand .pharos-brand-mark {
-    display: block;
-    width: 25px;
-    height: 25px;
   }
 
   .landing-hero-intro {

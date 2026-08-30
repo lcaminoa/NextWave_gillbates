@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Instrument_Sans } from "next/font/google";
-import { AppNavigation } from "@/components/ui/app-navigation";
+import { SiteNav } from "@/components/ui/site-nav";
 import "./globals.css";
 
 /**
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AppNavigation />
+        <SiteNav />
         {children}
       </body>
     </html>

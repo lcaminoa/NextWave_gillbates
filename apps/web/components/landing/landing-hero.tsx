@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal-scene";
 import { IncidentTrajectory } from "./incident-trajectory";
-import { PharosBrand } from "@/components/ui/pharos-brand";
 import {
   clamp,
   getCardSignalStatus,
@@ -162,21 +161,6 @@ export function LandingHero() {
           pointerRef.current = { x: 0, y: 0 };
         }}
       >
-        <nav className="landing-nav" aria-label="PHAROS landing">
-          <PharosBrand
-            href="/"
-            className="landing-nav-brand"
-            label="PHAROS — home"
-            priority
-          />
-          <div className="landing-nav-links">
-            <a href="#evidence">Evidence model</a>
-            <Link href="/chaos">Chaos Lab</Link>
-          </div>
-          <Link href="/control-room" className="landing-nav-cta">
-            Open control room <ArrowUpRight className="size-3.5" />
-          </Link>
-        </nav>
 
         <div className="landing-hero-atmosphere" aria-hidden="true" />
         {!reducedMotion ? (
