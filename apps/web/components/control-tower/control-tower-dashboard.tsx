@@ -14,6 +14,7 @@ import {
   SearchCheck,
   ShieldCheck,
   Waves,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IncidentCard } from "@/components/incidents/incident-card";
@@ -44,6 +45,7 @@ export function ControlTowerDashboard() {
   const { transactions, status: streamStatus } = useTransactionStream();
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
 
   const selectedReport = reports.find((report) => report.incident_id === selectedIncidentId) ?? null;
   const activeReport = selectedReport ?? reports[0] ?? null;
@@ -90,10 +92,9 @@ export function ControlTowerDashboard() {
 
   return (
     <div className={presentationMode ? "control-canvas presentation-mode" : "control-canvas"}>
-      <div className="control-shell">
-        <main className="control-main">
-          <header className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
+      <main className="mx-auto w-full max-w-none">
+          <header className="control-room-hero flex flex-wrap items-start justify-between gap-4">
+            <div className="relative z-10 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <RuntimeIndicator
                   status={streamStatus}
@@ -118,16 +119,17 @@ export function ControlTowerDashboard() {
               variant="ghost"
               size="sm"
               aria-pressed={presentationMode}
-              className="rounded-full border border-pharos-line bg-black/25 px-3 text-pharos-muted hover:bg-white/[0.07] hover:text-white"
+              className="relative z-10 rounded-full border border-pharos-line bg-black/25 px-3 text-pharos-muted hover:bg-white/[0.07] hover:text-white"
               onClick={() => setPresentationMode((value) => !value)}
             >
               <MonitorUp className="size-3.5" aria-hidden="true" />
               {presentationMode ? "Exit presentation" : "Presentation mode"}
             </Button>
+            <div className="pointer-events-none absolute -top-28 -right-12 size-80 rounded-full bg-pharos-accent/10 blur-3xl" />
           </header>
 
           {/* Global status bar. Every value carries its unit and an interpretation. */}
-          <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Runtime status">
+          <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Runtime status">
             <Metric
               label="Observed approval"
               value={hasEnoughSample && sample ? percent(sample.approvalRate) : "—"}
@@ -164,13 +166,17 @@ export function ControlTowerDashboard() {
             />
             <Metric
               label="Active investigations"
-              value={reports.length}
+              // Never publish a count the runtime did not confirm: an unreachable
+              // runtime reads "—", not a reassuring zero.
+              value={reportsStatus === "live" ? reports.length : "—"}
               caption={
-                reports.length
-                  ? inconclusiveCount
-                    ? `${inconclusiveCount} of them remain inconclusive — no cause asserted.`
-                    : "All open reports name a leading explanation."
-                  : "The runtime has not opened an investigation."
+                reportsStatus !== "live"
+                  ? "No report state is available while the runtime is unreachable."
+                  : reports.length
+                    ? inconclusiveCount
+                      ? `${inconclusiveCount} of them remain inconclusive — no cause asserted.`
+                      : "All open reports name a leading explanation."
+                    : "The runtime has not opened an investigation."
               }
               tone={inconclusiveCount ? "uncertain" : "neutral"}
               icon={<SearchCheck className="size-4" aria-hidden="true" />}
@@ -182,7 +188,10 @@ export function ControlTowerDashboard() {
           ) : null}
 
           {/* Evidence first: the queue and the investigation it is producing sit
-              above the fold, where a 590px globe used to be. */}
+              above the fold, where a 590px globe used to be. Both panels stand down
+              entirely when the runtime is unreachable — two empty frames under an
+              error banner read as breakage, not as an absence of incidents. */}
+          {reportsStatus !== "unavailable" ? (
           <section className="mt-3 grid items-start gap-3 xl:grid-cols-12">
             <article className="control-card p-5 xl:col-span-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -282,6 +291,7 @@ export function ControlTowerDashboard() {
               ) : null}
             </article>
           </section>
+          ) : null}
 
           {/* Supporting context, not the headline. The globe renders only when a
               live candidate actually carries a country we can place. */}
@@ -365,11 +375,21 @@ export function ControlTowerDashboard() {
               ) : null}
             </div>
           </section>
-        </main>
-      </div>
+      </main>
 
-      {activeReport ? (
+      {/* Persistent by design — it never times out on its own — but dismissible, so it
+          cannot permanently cover the panel behind it. A different incident brings it
+          back, because dismissal is keyed to the incident it announced. */}
+      {activeReport && dismissedAlertId !== activeReport.incident_id ? (
         <aside className="persistent-alert" aria-live="polite">
+          <button
+            type="button"
+            onClick={() => setDismissedAlertId(activeReport.incident_id)}
+            aria-label="Dismiss this alert"
+            className="absolute top-2 right-2 grid size-6 place-items-center rounded-full text-pharos-faint transition hover:bg-white/10 hover:text-pharos-ink"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </button>
           <div className="flex gap-3">
             <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-signal-critical/30 bg-signal-critical/10 text-signal-critical">
               <ShieldCheck className="size-4" aria-hidden="true" />

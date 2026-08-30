@@ -311,34 +311,24 @@ a {
 
 .control-canvas {
   min-height: 100vh;
-  padding: clamp(12px, 1.4vw, 28px);
-  color: #f7f1f8;
-}
-
-.control-shell {
-  display: grid;
-  width: 100%;
-  min-height: calc(100vh - clamp(24px, 2.8vw, 56px));
-  max-width: none;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid rgba(244, 236, 247, 0.13);
-  border-radius: 28px;
-  background: rgba(28, 19, 31, 0.86);
-  box-shadow:
-    0 30px 100px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(244, 232, 248, 0.025) inset;
-  backdrop-filter: blur(20px);
-}
-
-.control-main {
-  min-width: 0;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */
-  padding: clamp(24px, 2.2vw, 40px) clamp(24px, 2.2vw, 40px) 140px;
+  padding: clamp(12px, 1.4vw, 28px) clamp(12px, 1.4vw, 28px) 150px;
+  color: var(--pharos-ink);
+}
+
+/* Every product screen is now canvas -> hero -> content. The Control Room used to
+   be the only one wrapped in a full-page rounded shell, which made it read as a
+   different application from the three screens one click away. */
+.control-room-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(26px, 3.4vw, 46px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 24px;
   background:
-    radial-gradient(circle at 42% 0%, rgba(220, 159, 222, 0.085), transparent 25rem),
-    linear-gradient(125deg, rgba(37, 25, 40, 0.68), rgba(22, 15, 25, 0.58));
+    radial-gradient(circle at 24% 0%, rgba(211, 148, 214, 0.13), transparent 36%),
+    linear-gradient(115deg, rgba(28, 18, 32, 0.97), rgba(18, 13, 22, 0.96));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.19);
 }
 
 .control-card {
@@ -1633,10 +1623,10 @@ a {
 /* Presentation mode used to be a no-op: max-width was already none and the padding
    moved by ~8px. It now does what the spec asks — drops the supporting panels and
    scales the story elements up so the screen reads from across a room. */
-.presentation-mode .control-main {
-  padding: clamp(32px, 3vw, 56px);
-}
 
+/* Presentation mode used to be a no-op: it only widened a max-width that was
+   already none. It now drops the supporting panels and scales the story elements
+   so the screen reads from across a room. */
 .presentation-mode .globe-stage,
 .presentation-mode .persistent-alert {
   display: none;
@@ -1661,11 +1651,6 @@ a {
 @media (max-width: 1100px) {
   .control-canvas {
     padding: 16px;
-  }
-
-  .control-shell {
-    grid-template-columns: 1fr;
-    border-radius: 22px;
   }
 
   .globe-detail-card {
@@ -1750,15 +1735,6 @@ a {
 
   .control-canvas {
     padding: 0;
-  }
-
-  .control-shell {
-    border-width: 0;
-    border-radius: 0;
-  }
-
-  .control-main {
-    padding: 24px 16px 90px;
   }
 
   .globe-stage {
