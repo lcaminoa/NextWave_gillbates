@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Check, CircleAlert, SearchCheck, ShieldCheck } from "lucide-react";
 import { LandingBlindTest } from "./landing-blind-test";
+import { LandingPipeline } from "./landing-pipeline";
 import { candidates, evidence, reports } from "@/lib/fixtures/control-tower";
 
 /**
@@ -74,7 +75,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className="landing-preview-section" id="pipeline" aria-labelledby="preview-heading">
+      <section className="landing-preview-section" aria-labelledby="preview-heading">
         <header className="landing-section-intro landing-preview-intro">
           <span>Investigation workspace / 02</span>
           <h2 id="preview-heading">See the investigation, not a black box.</h2>
@@ -134,6 +135,8 @@ export function LandingSections() {
           </Link>
         </article>
       </section>
+
+      <LandingPipeline />
 
       <LandingBlindTest />
 
