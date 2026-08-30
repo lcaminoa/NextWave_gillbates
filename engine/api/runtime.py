@@ -8,6 +8,7 @@ memory for the hackathon demo and is deliberately isolated from the shared contr
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import math
 import threading
@@ -35,6 +36,7 @@ from engine.investigator import (
     run_investigation,
 )
 from engine.investigator.validation import validate_report
+from engine.notifications import NotificationService
 from simulator import PaymentSimulator
 
 
@@ -57,6 +59,16 @@ AuditedInvestigator = Callable[
     [Anomaly, Sequence[IncidentCandidate], Sequence[Evidence]],
     AuditedInvestigationResult,
 ]
+
+
+class NotificationSink(Protocol):
+    """Internal boundary so notification failures never couple to the runtime core."""
+
+    def start(self) -> None: ...
+
+    def stop(self) -> None: ...
+
+    def enqueue_report(self, report: IncidentReport, *, episode_key: str) -> object: ...
 
 
 @dataclass(frozen=True)
@@ -383,6 +395,7 @@ class ControlTowerService:
         simulated_interval_seconds: float = 0.05,
         emit_delay_seconds: float = 0.005,
         broker: TransactionBroker | None = None,
+        notifications: NotificationSink | None = None,
         max_chaos_specs: int = DEFAULT_MAX_CHAOS_SPECS,
         episode_grace_windows: int = 2,
     ) -> None:
@@ -416,6 +429,7 @@ class ControlTowerService:
         self.simulated_interval_seconds = simulated_interval_seconds
         self.emit_delay_seconds = emit_delay_seconds
         self.broker = broker or TransactionBroker()
+        self.notifications = notifications or NotificationService.from_environment()
         self.max_chaos_specs = max_chaos_specs
         self.episode_grace_windows = episode_grace_windows
 
@@ -423,6 +437,7 @@ class ControlTowerService:
         self._active_episodes: dict[str, str] = {}
         self._episode_match_fingerprints: dict[str, str] = {}
         self._episode_direct: dict[str, bool] = {}
+        self._episode_notification_keys: dict[str, str] = {}
         self._episode_misses: dict[str, int] = {}
         self._pending_episodes: set[str] = set()
         self._api_chaos_ids: set[str] = set()
@@ -473,7 +488,16 @@ class ControlTowerService:
             fingerprint: self._episode_direct.get(fingerprint, False)
             for fingerprint in self._active_episodes
         }
+        self._episode_notification_keys = {
+            fingerprint: episode_key
+            for fingerprint, episode_key in self._episode_notification_keys.items()
+            if fingerprint in self._active_episodes
+        }
         self._investigation_queue = asyncio.Queue()
+        try:
+            self.notifications.start()
+        except Exception:
+            logger.exception("Control Tower notification worker could not start")
         self._investigator_task = asyncio.create_task(
             self._investigate_forever(), name="control-tower-investigator-worker"
         )
@@ -512,6 +536,10 @@ class ControlTowerService:
             except asyncio.CancelledError:
                 pass
         self._investigation_queue = None
+        try:
+            self.notifications.stop()
+        except Exception:
+            logger.exception("Control Tower notification worker could not stop")
         self.broker.close()
 
     async def _produce_forever(self) -> None:
@@ -646,6 +674,7 @@ class ControlTowerService:
                 self._active_episodes.pop(fingerprint, None)
                 self._episode_match_fingerprints.pop(fingerprint, None)
                 self._episode_direct.pop(fingerprint, None)
+                self._episode_notification_keys.pop(fingerprint, None)
                 self._episode_misses.pop(fingerprint, None)
             else:
                 self._episode_misses[fingerprint] = misses
@@ -731,6 +760,12 @@ class ControlTowerService:
                         group.match_fingerprint
                     )
                     self._episode_direct[fingerprint] = group.direct
+                    self._episode_notification_keys[fingerprint] = (
+                        self._notification_episode_key(
+                            fingerprint,
+                            diagnosis.anomaly.anomaly_id,
+                        )
+                    )
                 self._episode_misses[fingerprint] = 0
         return selected
 
@@ -749,6 +784,13 @@ class ControlTowerService:
         self._incidents[incident_id] = stored
         if activate:
             fingerprint = selection.fingerprint
+            self._episode_notification_keys.setdefault(
+                fingerprint,
+                self._notification_episode_key(
+                    fingerprint,
+                    selection.diagnosis.anomaly.anomaly_id,
+                ),
+            )
             self._active_episodes[fingerprint] = incident_id
             if selection.direct or fingerprint not in self._episode_match_fingerprints:
                 self._episode_match_fingerprints[fingerprint] = (
@@ -759,6 +801,25 @@ class ControlTowerService:
                 or selection.direct
             )
             self._episode_misses[fingerprint] = 0
+            if selection.direct and not stored.retryable:
+                try:
+                    self.notifications.enqueue_report(
+                        stored.investigation.report,
+                        episode_key=self._episode_notification_keys[fingerprint],
+                    )
+                except Exception:
+                    # A report was already validated and published. An outbox fault must never
+                    # suppress it or mark the control tower as unhealthy.
+                    logger.exception(
+                        "Control Tower could not queue an incident notification"
+                    )
+
+    @staticmethod
+    def _notification_episode_key(fingerprint: str, initial_anomaly_id: str) -> str:
+        """Opaque once-per-episode key; avoids persisting raw dimension values in the outbox."""
+
+        material = f"pharos-notification-episode:v1:{fingerprint}:{initial_anomaly_id}"
+        return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
     def _investigate(self, diagnosis: AnomalyDiagnosis) -> StoredIncident:
         candidates = tuple(diagnosis.candidates)

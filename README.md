@@ -19,6 +19,7 @@ incidente que el equipo nunca vio.
 - **Mapa de arquitectura** (streams -> carpetas -> entidades): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Contratos y endpoints congelados**: [`contracts/CONTRACTS.md`](contracts/CONTRACTS.md)
 - **Decisiones y sus alternativas** (entregable oficial): [`DECISIONS.md`](DECISIONS.md)
+- **Alertas reales por email + WhatsApp y configuración de demo**: [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md)
 - **Reglas para Codex / cómo dividimos el trabajo**: [`AGENTS.md`](AGENTS.md)
 
 ## Cómo correrlo

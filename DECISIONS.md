@@ -799,3 +799,36 @@ Tradeoff: CORS sigue siendo necesario para las lecturas y el SSE, y el operador 
 challenge nativo del navegador en vez de una pantalla propia. Es un límite explícito de demo,
 no una sesión multiusuario. No agrega endpoints al contrato: conserva método, path, body y
 respuesta de los tres endpoints de Chaos ya congelados.
+
+## D031 — Alertas externas duales, por episodio y con outbox durable
+
+Contexto: la demo necesita mostrar que un incidente investigado llega realmente a un operador por
+email y WhatsApp, sin convertir al navegador en emisor ni mezclar activos de un proyecto personal.
+El detector puede publicar varias ventanas del mismo episodio y una llamada externa puede quedar
+en estado ambiguo después de salir del proceso.
+
+Alternativas:
+1. llamar a Resend y WhatsApp directamente desde el endpoint o desde el frontend;
+2. usar solo un canal para simplificar la demo;
+3. persistir un outbox SQLite local tras la publicación validada y drenarlo con un worker separado,
+   con un trabajo independiente para Resend y WhatsApp.
+
+Decisión: 3.
+
+Por qué:
+- el runtime ya consolida anomalías en episodios; una clave opaca por episodio, evento y canal evita
+  alertas repetidas en cada ventana sin confundir una recurrencia posterior;
+- el outbox registra `queued`, `sending`, `accepted`, `failed` y `unknown`. Una respuesta sin ID o
+  un timeout queda en `unknown` y no se reintenta a ciegas, porque WhatsApp no ofrece una garantía
+  equivalente de idempotencia para ese caso; Resend recibe además su `Idempotency-Key` oficial;
+- ambos jobs nacen juntos pero se consumen de forma aislada: una falla de email no cancela WhatsApp;
+- el hook ocurre solo después de validar/publicar un reporte con raíz directa y estado `probable` o
+  `confirmed`. Un `inconclusive` sigue visible dentro del producto, pero no interrumpe al operador;
+- SQLite evita una base de datos adicional para la hackathon y el worker nunca bloquea SSE,
+  detección, investigación ni la publicación del incidente. En Railway se ubica en un Volume
+  persistente con una única réplica; sin ese mount las alertas se mantienen desactivadas, porque
+  un filesystem efímero no cumpliría la promesa de outbox durable.
+
+Tradeoff: inicialmente solo sabemos que el proveedor aceptó el mensaje, no que fue entregado o
+leído. Para esos estados se agregan webhooks con una URL HTTPS y un campo acordado en el detalle de
+incidente; no se inventa una ruta nueva mientras los contratos de API sigan congelados.

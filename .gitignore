@@ -4,6 +4,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.runtime/
 node_modules/
 .next/
 dist/
