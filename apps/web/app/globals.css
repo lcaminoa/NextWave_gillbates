@@ -50,7 +50,7 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* PHAROS semantic tokens â€” the single source of truth for the product surfaces.
+  /* PHAROS semantic tokens — the single source of truth for the product surfaces.
      Exposed through @theme so `text-pharos-muted`, `border-signal-critical`, etc.
      replace the hardcoded hex literals that used to drift between screens. */
   --color-pharos-canvas: var(--pharos-canvas);
@@ -650,7 +650,7 @@ a {
   gap: 10px;
 }
 
-/* Persistent by design â€” an alert that times out is an alert somebody misses. */
+/* Persistent by design — an alert that times out is an alert somebody misses. */
 .alert-toast {
   position: relative;
   padding: 15px 16px;
@@ -2316,7 +2316,7 @@ a {
   margin-top: 2px;
 }
 
-/* Chaos Lab â€” experiment configuration and proof, not a terminal. */
+/* Chaos Lab — experiment configuration and proof, not a terminal. */
 .chaos-canvas {
   min-height: 100vh;
 }
@@ -3184,7 +3184,7 @@ a {
   }
 }
 
-/* Public landing â€” all selectors stay inside this namespace so the product UI remains untouched. */
+/* Public landing — all selectors stay inside this namespace so the product UI remains untouched. */
 .landing-page {
   --landing-ink: var(--pharos-ink);
   --landing-muted: var(--pharos-muted);

@@ -1,4 +1,11 @@
-# Handoff — Stream D (producto / UI / UX)
+# Handoff histórico — Stream D (producto / UI / UX)
+
+> **Estado histórico.** Este documento fue escrito para transferir trabajo antes de la
+> integración final. Para ejecutar o revisar el proyecto actual, usar primero el
+> [`README.md`](../README.md), [`AGENTS.md`](../AGENTS.md) y
+> `uv run uvicorn engine.main:app --reload --port 8000`.
+> Las referencias a ramas sin mergear y a `engine.api.app:app` que aparecen más abajo no
+> describen el estado actual de `main`.
 
 Para una sesión nueva de Claude en otra máquina. Franco es el dueño de Stream D.
 Rama: `feat/frontend-polish`. Todo lo de abajo ya está commiteado en esa rama.
@@ -55,7 +62,7 @@ y eso es un hallazgo, no un hueco.
 
 ```bash
 # en WSL
-uvicorn engine.api.app:app --host 0.0.0.0 --port 8000
+uv run uvicorn engine.main:app --reload --port 8000
 ```
 
 **No mates procesos de Windows que tengan el puerto 8000**: ése es el relay de WSL, no uvicorn.

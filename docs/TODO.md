@@ -1,5 +1,10 @@
 # TODO de entrega — Control Tower
 
+> **Nota de estado (2026-08-30):** esta lista conserva trabajo futuro y decisiones de
+> alcance. El baseline verificado actual es **130 tests de Python pasando**; el README
+> reproducible vive en la raíz y la aplicación está desplegada. No interpretar una
+> casilla histórica como evidencia de que el flujo principal no funciona.
+
 Estado actualizado a partir de la consigna oficial del **Challenge 2 · The Control Tower**,
 el código presente en `main` y la checklist de pre-flight del equipo. Este documento es una
 lista de ejecución: marcar una casilla solamente cuando el comportamiento se pueda demostrar,
@@ -30,7 +35,7 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`; defaults calibrados contra stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
 | Mix shift | 🟡 | El pipeline calcula `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una dimensión. | Usarlo como filtro real antes de abrir un incidente; hoy informa, pero no bloquea alertas. |
 | RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y contrafácticos; D011 separa candidatos/evidencia por anomalía concurrente. | Priorización global en UI y casos de cobertura residual más complejos. |
-| Tests | 🟡 | 106 tests: Stream A/B/C, API, caos oculto, asociación pre-reveal, scoreboard, dedupe, abstención, retries, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`), completar P1 y evaluar OpenAI auditado con key real. |
+| Tests | 🟡 | 130 tests de Python: Stream A/B/C, API, caos oculto, asociación pre-reveal, scoreboard, dedupe, abstención, retries, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real, completar P1 y evaluar OpenAI auditado con key real. |
 | Investigador OpenAI | 🟡 | Modo `deterministic` por defecto y modo `audited_openai` con tools de solo lectura, Structured Outputs, validadores, Evidence Auditor, fallo cerrado y reintento seguro. | Configurar key/modelo solo en el entorno del engine y hacer el primer smoke auditado real. |
 | API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store, deduplicación y CORS con allowlist explícita. | -- |
 | Dashboard / Chaos Console | 🟡 | PHAROS en Next.js: landing, Control Room, cola, detalle, SSE, Evidence Audit Seal y Blind Trial Scoreboard contra el runtime real. | Corregir Chaos manual: la UI envía `canonical_decline_code`, dimensión que el simulador no puede matchear; además restringir combinaciones de dimensiones incompatibles. La API aún no expone `Anomaly`/`BaselinePoint`; no se debe inventar ese gráfico hasta que exista el contrato. |
@@ -138,8 +143,9 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
 
 Esta sección traduce la checklist compartida por el equipo en trabajo verificable.
 
-- [ ] **Repositorio público + README reproducible.** El README existe, pero debe describir el
-  estado real, prerequisitos, `uv sync`, `pnpm install`, comandos de demo y flujo completo.
+- [~] **Repositorio público + README reproducible.** El README raíz ya describe prerequisitos,
+  `uv sync`, `pnpm install`, comandos de demo y flujo completo. Falta únicamente que el owner
+  confirme manualmente la visibilidad pública de GitHub antes de entregar.
 - [ ] **Demo end-to-end desde cero.** Un único comando o runbook inicia backend, stream, frontend
   y datos bootstrap sin tocar el teclado durante el incidente.
 - [ ] **Diagrama de arquitectura en PDF/PNG.** Existe `docs/ARCHITECTURE.md`; falta el artefacto

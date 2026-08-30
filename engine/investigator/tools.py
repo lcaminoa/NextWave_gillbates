@@ -1,4 +1,4 @@
-"""Read-only tools exposed by Stream C to the future OpenAI investigator.
+"""Read-only tools shared by the deterministic and OpenAI investigators.
 
 The tools consume Stream B contract objects and return detached dictionaries. Callers cannot
 mutate the source candidates/evidence. Evidence access is recorded so final claims can only cite

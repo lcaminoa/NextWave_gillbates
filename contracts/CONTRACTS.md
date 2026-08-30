@@ -59,7 +59,7 @@ resultado final.
 
 ```
 GET  /api/health
-GET  /api/stream               # SSE/WebSocket de Transaction en vivo
+GET  /api/stream               # SSE de Transaction en vivo
 GET  /api/incidents             # lista de IncidentReport
 GET  /api/incidents/:id         # detalle: candidates + evidence + investigation_steps
 

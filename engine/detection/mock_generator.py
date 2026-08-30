@@ -1,5 +1,5 @@
 """Generador de transacciones falsas para probar Stream B aislado (AGENTS.md: "cada stream
-avanza aislado con mocks"). No depende del simulador real de Stream A todavia.
+avanza aislado con mocks"). Se conserva independiente del simulador real de Stream A.
 
 Aprobacion base por metodo de pago tomada del master plan (Sec 13), mas ruido natural, mas
 un ChaosSpec opcional para simular un incidente real.

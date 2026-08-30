@@ -121,8 +121,8 @@ function ProductLinks({ pathname }: { pathname: string }) {
             </>
           );
 
-          // The Chaos Lab is behind Basic Auth: the browser only raises its native
-          // prompt on a document navigation, so this one link cannot be a <Link>.
+          // A document navigation evaluates the operator gate server-side before
+          // the Chaos Lab renders, so this link intentionally remains a plain anchor.
           if (item.href === "/chaos") {
             return (
               <a key={item.href} href={item.href} className={className} aria-current={active ? "page" : undefined}>
