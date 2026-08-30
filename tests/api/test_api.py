@@ -47,6 +47,17 @@ class FakePipeline:
         return None
 
 
+class FakeMonotonicClock:
+    def __init__(self, value: float = 0.0) -> None:
+        self.value = value
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance(self, seconds: float) -> None:
+        self.value += seconds
+
+
 def _transaction(index: int = 0) -> Transaction:
     return Transaction(
         transaction_id=f"txn_api_{index}",
@@ -176,7 +187,7 @@ def test_health_and_frozen_routes_are_exposed() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-    assert {
+    assert set(schema["paths"]) == {
         "/api/health",
         "/api/stream",
         "/api/incidents",
@@ -184,7 +195,7 @@ def test_health_and_frozen_routes_are_exposed() -> None:
         "/api/chaos/inject",
         "/api/chaos/random",
         "/api/chaos/reveal",
-    } <= set(schema["paths"])
+    }
 
 
 def test_audited_openai_mode_is_explicit_and_requires_a_model(
@@ -311,6 +322,116 @@ def test_random_chaos_is_opaque_until_reveal() -> None:
     for secret_value in revealed["dimensions"].values():
         if secret_value is not None:
             assert f'"{secret_value}"' not in hidden_response.text
+
+
+def test_blind_trial_association_precedes_reveal_and_wall_latencies_are_stable() -> None:
+    diagnosis = _diagnosis(
+        "blind_clock",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+    clock = FakeMonotonicClock(100)
+
+    def measured_investigator(anomaly_id, candidates, evidence):
+        clock.advance(4.7)
+        return run_investigation(anomaly_id, tuple(candidates), tuple(evidence))
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        investigator=measured_investigator,
+        start_at=START,
+        monotonic_clock=clock,
+    )
+    hidden = service.inject_random(severity_pp=-35, duration_minutes=3)
+    assert hidden.dimensions is None
+    sealed_trial = service._blind_trials[hidden.chaos_id]
+    assert sealed_trial.fingerprint is None
+    assert "dimensions" not in vars(sealed_trial)
+    assert "severity_pp" not in vars(sealed_trial)
+
+    clock.advance(8)
+    service.process_transaction(_transaction())
+    trial = service._blind_trials[hidden.chaos_id]
+    assert trial.fingerprint == "provider=nova_pay"
+    assert trial.evaluation is None
+
+    first = service.reveal_chaos(hidden.chaos_id)
+    assert first is not None
+    assert first.evaluation is not None
+    assert first.evaluation.detection_latency_seconds == 8
+    assert first.evaluation.explanation_latency_seconds == 12.7
+    assert first.evaluation.investigation_latency_seconds == 4.7
+    assert first.evaluation.evidence_audit_status == "not_run"
+
+    clock.advance(100)
+    repeated = service.reveal_chaos(hidden.chaos_id)
+    assert repeated is not None
+    assert repeated.evaluation == first.evaluation
+
+
+def test_overlapping_blind_trials_are_ambiguous_without_truth_based_selection() -> None:
+    diagnosis = _diagnosis(
+        "blind_ambiguous",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        start_at=START,
+    )
+    first = service.inject_random(severity_pp=20, duration_minutes=3)
+    second = service.inject_random(severity_pp=40, duration_minutes=3)
+
+    service.process_transaction(_transaction())
+
+    first_reveal = service.reveal_chaos(first.chaos_id)
+    second_reveal = service.reveal_chaos(second.chaos_id)
+    assert first_reveal is not None and first_reveal.evaluation is not None
+    assert second_reveal is not None and second_reveal.evaluation is not None
+    assert first_reveal.evaluation.outcome == "ambiguous"
+    assert second_reveal.evaluation.outcome == "ambiguous"
+    assert first_reveal.evaluation.incident_id is None
+    assert second_reveal.evaluation.incident_id is None
+
+
+def test_blind_trial_without_an_eligible_report_is_scored_as_no_report() -> None:
+    service = _service()
+    hidden = service.inject_random(severity_pp=25, duration_minutes=3)
+
+    revealed = service.reveal_chaos(hidden.chaos_id)
+
+    assert revealed is not None
+    assert revealed.evaluation is not None
+    assert revealed.evaluation.outcome == "no_report"
+    assert revealed.evaluation.incident_id is None
+    assert revealed.evaluation.structural_evidence_valid is False
+
+
+def test_secret_variation_cannot_change_pre_reveal_episode_association() -> None:
+    fingerprints: list[str | None] = []
+    secrets: list[dict[str, str]] = []
+    for seed in (1, 99):
+        diagnosis = _diagnosis(
+            f"blind_seed_{seed}",
+            dimensions=Dimensions(provider="nova_pay"),
+            dimension_key="provider=nova_pay",
+        )
+        service = ControlTowerService(
+            simulator=PaymentSimulator(seed=seed),
+            pipeline=FakePipeline([_window(diagnosis)]),
+            start_at=START,
+        )
+        hidden = service.inject_random(severity_pp=35, duration_minutes=3)
+        service.process_transaction(_transaction())
+        fingerprints.append(service._blind_trials[hidden.chaos_id].fingerprint)
+        revealed = service.reveal_chaos(hidden.chaos_id)
+        assert revealed is not None and revealed.dimensions is not None
+        secrets.append(revealed.dimensions.model_dump(exclude_none=True))
+
+    assert fingerprints == ["provider=nova_pay", "provider=nova_pay"]
+    assert secrets[0] != secrets[1]
 
 
 def test_manual_chaos_is_injected_at_the_live_simulator_clock() -> None:
@@ -478,6 +599,8 @@ def test_simultaneous_diagnoses_remain_separate_through_the_api() -> None:
             for claim in detail["report"]["claims"]
             for evidence_id in claim["evidence_ids"]
         )
+        assert detail["evidence_audit"]["status"] == "not_run"
+        assert detail["evidence_audit"]["action_executed"] is False
 
 
 def test_persistent_segment_is_investigated_once_until_a_healthy_window() -> None:
@@ -823,17 +946,89 @@ def test_audited_runtime_rejection_fails_closed_and_retries_without_duplicate() 
         audited_investigator=audited_investigator,
         start_at=START,
     )
+    hidden = service.inject_random(severity_pp=-35, duration_minutes=3)
 
     service.process_transaction(_transaction(0))
     [fallback] = service.list_reports()
     assert fallback.status is ReportStatus.inconclusive
     assert fallback.winning_candidate_id is None
+    rejected_detail = service.get_incident(fallback.incident_id)
+    assert rejected_detail is not None
+    assert rejected_detail.evidence_audit.status == "rejected"
+    assert rejected_detail.evidence_audit.issues[0].code == "missing_counterfactual"
+    assert rejected_detail.evidence_audit.claims_reviewed > 0
+    trial = service._blind_trials[hidden.chaos_id]
+    assert trial.fingerprint == "country=BR|provider=nova_pay"
+    assert trial.incident_id == fallback.incident_id
+    first_fingerprint = trial.fingerprint
 
     service.process_transaction(_transaction(1))
     [recovered] = service.list_reports()
     assert calls == ["anom_audit_retry_1", "anom_audit_retry_2"]
     assert recovered.anomaly_id == "anom_audit_retry_2"
     assert recovered.status is ReportStatus.confirmed
+    approved_detail = service.get_incident(recovered.incident_id)
+    assert approved_detail is not None
+    assert approved_detail.evidence_audit.status == "approved"
+    assert approved_detail.evidence_audit.issues == []
+    assert service._blind_trials[hidden.chaos_id].fingerprint == first_fingerprint
+    assert service._blind_trials[hidden.chaos_id].incident_id == recovered.incident_id
+    assert service.get_incident(fallback.incident_id) is None
+
+    revealed = service.reveal_chaos(hidden.chaos_id)
+    assert revealed is not None and revealed.evaluation is not None
+    assert revealed.evaluation.incident_id == recovered.incident_id
+    assert revealed.evaluation.evidence_audit_status == "approved"
+
+
+def test_approved_audit_is_exposed_by_incident_detail_without_chaos_input() -> None:
+    diagnosis = _diagnosis(
+        "audit_api_detail",
+        dimensions=Dimensions(provider="nova_pay"),
+        dimension_key="provider=nova_pay",
+    )
+    received_types: list[type[object]] = []
+
+    def approved_auditor(anomaly, candidates, evidence):
+        received_types.extend([type(anomaly), type(candidates), type(evidence)])
+        investigation = run_investigation(
+            anomaly.anomaly_id,
+            tuple(candidates),
+            tuple(evidence),
+        )
+        return AuditedInvestigationResult(
+            investigation=investigation,
+            audit=EvidenceAudit(
+                approved=True,
+                summary="The independent audit approved publication.",
+                issues=[],
+            ),
+        )
+
+    service = ControlTowerService(
+        simulator=PaymentSimulator(seed=42),
+        pipeline=FakePipeline([_window(diagnosis)]),
+        audited_investigator=approved_auditor,
+        start_at=START,
+    )
+    hidden = service.inject_random(severity_pp=35, duration_minutes=3)
+    service.process_transaction(_transaction())
+    [report] = service.list_reports()
+    app = create_app(service, start_background=False)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/incidents/{report.incident_id}")
+
+    assert response.status_code == 200
+    audit = response.json()["evidence_audit"]
+    assert audit["status"] == "approved"
+    assert audit["issues"] == []
+    assert audit["claims_reviewed"] > 0
+    assert audit["evidence_reviewed"] > 0
+    assert audit["requires_human_review"] is True
+    assert audit["action_executed"] is False
+    assert ChaosSpec not in received_types
+    assert hidden.dimensions is None
 
 
 @pytest.mark.parametrize(
@@ -865,6 +1060,13 @@ def test_audited_runtime_error_never_publishes_an_unaudited_winner(
     assert report.status is ReportStatus.inconclusive
     assert report.winning_candidate_id is None
     assert report.claims == []
+    detail = service.get_incident(report.incident_id)
+    assert detail is not None
+    assert detail.evidence_audit.status == "error"
+    assert any(
+        check.code == "fail_closed" and check.status == "pass"
+        for check in detail.evidence_audit.checks
+    )
 
 
 def test_api_runtime_does_not_publish_an_unproven_extra_dimension() -> None:
@@ -1233,3 +1435,33 @@ def test_real_issuer_incident_is_published_through_the_api() -> None:
         )
         for detail in issuer_details
     )
+
+
+def test_reproducible_real_blind_trial_reaches_an_exact_score() -> None:
+    """Smoke the sealed path through simulator, detection, RCA and reveal scoring."""
+    history = PaymentSimulator(seed=100).generate(
+        START - timedelta(hours=1), count=1_500, interval_seconds=0.2
+    )
+    live = PaymentSimulator(seed=200)
+    service = ControlTowerService(
+        simulator=live,
+        pipeline=DetectionPipeline(history=history),
+        start_at=START,
+    )
+    hidden = service.inject_random(severity_pp=-35, duration_minutes=4)
+    assert hidden.dimensions is None
+
+    for transaction in live.generate(START, count=2_400, interval_seconds=0.1):
+        service.process_transaction(transaction)
+
+    revealed = service.reveal_chaos(hidden.chaos_id)
+    assert revealed is not None
+    assert revealed.dimensions == Dimensions(provider="atlas_pay")
+    assert revealed.evaluation is not None
+    assert revealed.evaluation.outcome == "exact"
+    assert revealed.evaluation.incident_id is not None
+    assert revealed.evaluation.truth_dimensions == {"provider": "atlas_pay"}
+    assert revealed.evaluation.diagnosed_dimensions == {"provider": "atlas_pay"}
+    assert revealed.evaluation.evidence_audit_status == "not_run"
+    assert revealed.evaluation.structural_evidence_valid is True
+    assert revealed.evaluation.action_executed is False

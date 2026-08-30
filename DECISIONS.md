@@ -774,3 +774,63 @@ no calibrado. No cambia contratos ni permite remediacion automatica.
 Verificado con una prueba end-to-end reproducible de cuatro inyecciones de 35 pp (provider,
 provider x country, merchant e issuing_bank), usando el simulador y pipeline reales; las cuatro
 producen una causa `probable` o `confirmed` que coincide exactamente con la inyeccion.
+
+## D030 — Persistir el Evidence Audit en un envelope API-local y publicar con gate fail-closed
+
+Contexto: el Evidence Auditor ya podia aprobar o rechazar un draft, pero su decision quedaba
+invisible despues de la llamada. Agregarla a `IncidentReport` hubiera cambiado una de las ocho
+entidades compartidas; descartarla impedia explicar por que una causa se publico o se retuvo.
+
+Alternativas:
+1. agregar campos de auditoria a `IncidentReport` y duplicarlos en ambos contratos;
+2. mostrar un sello calculado en frontend sin persistir la decision real;
+3. persistir una vista de auditoria junto a `StoredIncident` y exponerla solamente en el envelope
+   API-local de detalle ya existente.
+
+Decision: 3. Cada incidente guarda `EvidenceAuditView` con estado `approved`, `rejected`, `error`
+o `not_run`, checks reales, issues, conteos, revision humana obligatoria y
+`action_executed=false`. El draft auditado se valida antes de convertir la auditoria a vista;
+issues que apunten a claims inexistentes o evidencia no consultada invalidan la salida. Rechazo,
+timeout o error publican un fallback `inconclusive` sin ganador ni claims y conservan el episodio
+para un retry controlado. El modo deterministico se identifica como `not_run`: nunca puede mostrar
+`PHAROS VERIFIED`.
+
+Por que: el sello representa el gate que realmente ocurrio, no una inferencia visual. Mantiene la
+compatibilidad de las ocho entidades y de los siete endpoints, hace visible el fallo cerrado y no
+le da al Auditor tools, verdad secreta ni capacidad de modificar o ejecutar recomendaciones.
+
+Tradeoff: el detalle API agrega un modelo local que los consumidores deben conocer. Es deliberado:
+el estado de publicacion pertenece a la orquestacion/API, no al contrato compartido del reporte.
+
+## D031 — Asociar el blind trial antes del reveal y evaluarlo una sola vez con verdad revelada
+
+Contexto: puntuar automaticamente exige relacionar un `ChaosSpec` secreto con un episodio. Hacer
+esa relacion despues del reveal o comparando dimensiones permitiria elegir retrospectivamente el
+reporte que mas se parece a la respuesta. Asociar por `anomaly_id` tampoco sirve porque cambia por
+ventana y no existe en `ChaosSpec`.
+
+Alternativas:
+1. buscar el reporte mas parecido a las dimensiones secretas despues del reveal;
+2. agregar `chaos_id` a `Anomaly`/`IncidentReport` y propagarlo por los contratos;
+3. registrar un trial API-local sin dimensiones ni severidad, y cerrarlo pre-reveal usando solo
+   solapamiento temporal, fingerprints nuevos y unicidad del episodio.
+
+Decision: 3. `BlindTrialRun` conserva `chaos_id`, ventana virtual, snapshot de fingerprints
+preexistentes y tiempos monotonic de pared. Antes de investigar, una seleccion nueva se asocia
+solo si hay un unico trial y un unico episodio elegibles; los solapamientos se marcan
+`ambiguous`, nunca se resuelven con verdad. Los retries conservan el fingerprint y actualizan el
+reporte asociado sin duplicar el incidente. Recién `POST /api/chaos/reveal` entrega el
+`ChaosSpec` revelado a un evaluador puro, almacena el resultado y lo reutiliza en reveals
+repetidos.
+
+El evaluador distingue `exact`, `partial`, `over_specific`, `mixed`, `incorrect`, `inconclusive`,
+`no_report` y `ambiguous`; compara dimensiones literalmente, calcula degradacion y error en puntos
+porcentuales usando magnitudes consistentes, y mide deteccion/explicacion con reloj monotonic de
+pared. Una abstencion solo se marca `justified` cuando el runtime guardo un motivo fail-closed o
+cuando el auditor independiente aprobo explicitamente ese reporte `inconclusive`; una abstencion
+deterministica sin ese respaldo queda `unverified`. Revision humana y `action_executed=false`
+permanecen en toda evaluacion.
+
+Tradeoff: ante dos trials o episodios compatibles se pierde un score potencial y se informa
+`ambiguous`. Esa abstencion verificable es preferible a contaminar la prueba ciega con una
+asociacion elegida por similitud a la verdad.
