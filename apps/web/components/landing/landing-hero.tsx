@@ -92,29 +92,41 @@ export function LandingHero() {
 
     let rawProgress = 0;
     let frame = 0;
-    const updateRawProgress = () => {
+
+    const readScroll = () => {
       const element = storyRef.current;
       if (!element) return;
       const rect = element.getBoundingClientRect();
       const travel = Math.max(element.offsetHeight - window.innerHeight, 1);
       rawProgress = clamp(-rect.top / travel);
     };
+
     const tick = () => {
-      const next = progressRef.current + (rawProgress - progressRef.current) * 0.08;
-      progressRef.current = Math.abs(next - rawProgress) < 0.0002 ? rawProgress : next;
+      // Smoothing is per-frame, so a shorter scene needs a tighter follow: at the
+      // old 0.08 over the old travel the scene visibly lagged the wheel.
+      const next = progressRef.current + (rawProgress - progressRef.current) * 0.16;
+      const settled = Math.abs(next - rawProgress) < 0.0002;
+      progressRef.current = settled ? rawProgress : next;
       setProgress(progressRef.current);
-      frame = window.requestAnimationFrame(tick);
+      // Stop once the scene has caught up. The loop used to run forever, so the
+      // landing re-rendered sixty times a second while sitting perfectly still —
+      // a fan-spinning idle cost on whatever laptop is driving the demo.
+      frame = settled ? 0 : window.requestAnimationFrame(tick);
     };
 
-    updateRawProgress();
-    frame = window.requestAnimationFrame(tick);
-    window.addEventListener("scroll", updateRawProgress, { passive: true });
-    window.addEventListener("resize", updateRawProgress);
+    const start = () => {
+      readScroll();
+      if (!frame) frame = window.requestAnimationFrame(tick);
+    };
+
+    start();
+    window.addEventListener("scroll", start, { passive: true });
+    window.addEventListener("resize", start);
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", updateRawProgress);
-      window.removeEventListener("resize", updateRawProgress);
+      window.removeEventListener("scroll", start);
+      window.removeEventListener("resize", start);
     };
   }, [reducedMotion]);
 

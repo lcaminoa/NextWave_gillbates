@@ -1849,7 +1849,6 @@ a {
 
 .landing-hero {
   position: relative;
-  height: 480vh;
 }
 
 .landing-hero-stage {
@@ -2724,7 +2723,7 @@ a {
 
 @media (max-width: 640px) {
   .landing-hero {
-    height: 440vh;
+    height: 265vh;
   }
 
   .landing-hero-intro {
@@ -2930,9 +2929,13 @@ a {
   }
 }
 
-/* PHAROS incident-trajectory hero: scoped replacement for the original four-beat scene. */
+/* PHAROS incident-trajectory hero. Height is declared once, here: the six beats
+   share the travel (height minus one viewport), so this number is the entire
+   pacing control for the scene. It used to be declared twice — 480vh above and
+   740vh here — and the second one silently won, which is why the story took
+   nearly eight screens of scrolling to tell six facts. */
 .landing-hero {
-  height: 740vh;
+  height: 280vh;
 }
 
 .landing-hero.landing-hero-reduced {
@@ -3205,7 +3208,7 @@ a {
 
 @media (max-width: 640px) {
   .landing-hero {
-    height: 740vh;
+    height: 250vh;
   }
 
   .landing-hero-intro {
