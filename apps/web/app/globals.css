@@ -467,6 +467,629 @@ a {
   background: color-mix(in srgb, var(--pharos-ink) 16%, transparent);
 }
 
+/* ---------------------------------------------------------------- alerting */
+
+.notification-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.notification-trigger {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  color: var(--pharos-muted);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.notification-trigger:hover,
+.notification-trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--pharos-accent) 40%, transparent);
+  background: var(--fill-accent-soft);
+  color: var(--pharos-accent-ink);
+}
+
+.notification-trigger em {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  padding: 0 4px;
+  border: 2px solid var(--pharos-canvas);
+  border-radius: var(--radius-pill);
+  background: var(--signal-critical);
+  color: #2a0d10;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.notification-panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 12px);
+  right: 0;
+  display: flex;
+  width: min(392px, calc(100vw - 32px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--pharos-surface);
+  box-shadow: var(--shadow-elev-3);
+}
+
+.notification-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.notification-panel-head strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--pharos-ink);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.notification-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pharos-accent);
+  font-size: var(--text-micro);
+  font-weight: 600;
+}
+
+.notification-mark:hover {
+  color: var(--pharos-accent-ink);
+}
+
+.notification-list {
+  display: flex;
+  max-height: min(56vh, 420px);
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: block;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line-subtle);
+  transition: background-color 160ms ease;
+}
+
+.notification-item:hover {
+  background: var(--surface-overlay);
+}
+
+/* Unread is carried by a rail as well as a tint: colour alone is never the signal. */
+.notification-item-unread {
+  box-shadow: inset 2px 0 0 var(--pharos-accent);
+  background: var(--fill-accent-wash);
+}
+
+.notification-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-item-top time {
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  white-space: nowrap;
+}
+
+.notification-item p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 9px 0 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.notification-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+}
+
+.notification-empty {
+  margin: 0;
+  padding: 22px 16px;
+  color: var(--pharos-faint);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+.notification-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line-subtle);
+  background: var(--surface-well);
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
+  font-weight: 600;
+}
+
+.notification-panel-foot:hover {
+  color: var(--pharos-ink);
+}
+
+.alert-toast-stack {
+  position: fixed;
+  z-index: 70;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 28px);
+  display: flex;
+  width: min(372px, calc(100vw - 32px));
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Persistent by design â€” an alert that times out is an alert somebody misses. */
+.alert-toast {
+  position: relative;
+  padding: 15px 16px;
+  border: 1px solid color-mix(in srgb, var(--signal-critical) 30%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--surface-alert);
+  box-shadow: var(--shadow-elev-3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .alert-toast {
+    animation: alert-toast-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes alert-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+.alert-toast-dismiss {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--pharos-faint);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.alert-toast-dismiss:hover {
+  background: var(--surface-overlay);
+  color: var(--pharos-ink);
+}
+
+.alert-toast-head {
+  display: flex;
+  gap: 11px;
+  padding-right: 24px;
+}
+
+.alert-toast-icon {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--signal-critical) 30%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--signal-critical) 12%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.alert-toast-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.alert-toast-summary {
+  margin: 12px 0 0;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  line-height: 1.55;
+}
+
+.alert-toast-impact {
+  margin: 7px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+}
+
+.alert-toast-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  color: var(--pharos-accent);
+  font-size: var(--text-micro);
+  font-weight: 700;
+}
+
+.alert-toast-cta:hover {
+  color: var(--pharos-accent-ink);
+}
+
+.delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.delivery-channel {
+  padding: 14px 15px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+}
+
+.delivery-channel-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.delivery-channel-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--line-subtle);
+  border-radius: 9px;
+  background: var(--surface-overlay);
+  color: var(--pharos-accent);
+}
+
+.delivery-channel-head strong {
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.delivery-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 11px;
+  padding: 4px 9px;
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.delivery-state-good {
+  border-color: color-mix(in srgb, var(--signal-healthy) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 9%, transparent);
+  color: var(--signal-healthy-ink);
+}
+
+.delivery-state-active {
+  border-color: color-mix(in srgb, var(--signal-info) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-info) 9%, transparent);
+  color: var(--signal-info);
+}
+
+.delivery-state-bad {
+  border-color: color-mix(in srgb, var(--signal-critical) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-critical) 9%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.delivery-state-neutral {
+  border-color: var(--line);
+  background: var(--surface-overlay);
+  color: var(--pharos-muted);
+}
+
+.delivery-state-unknown {
+  border-color: var(--line-subtle);
+  background: transparent;
+  color: var(--pharos-faint);
+}
+
+.delivery-channel-role {
+  margin: 11px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+.delivery-channel-meta {
+  margin: 7px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  overflow-wrap: anywhere;
+}
+
+.delivery-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.delivery-preview-toggle:hover,
+.delivery-preview-toggle[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--signal-uncertain) 40%, transparent);
+  color: var(--signal-uncertain-ink);
+}
+
+.delivery-note {
+  margin: 14px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.6;
+}
+
+.delivery-note-preview {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--signal-uncertain) 30%, transparent);
+  border-radius: var(--radius-field);
+  background: color-mix(in srgb, var(--signal-uncertain) 8%, transparent);
+  color: var(--signal-uncertain-ink);
+}
+
+.routing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.routing-card {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(18px, 2.2vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--pharos-surface);
+  transition: opacity 200ms ease, border-color 200ms ease;
+}
+
+.routing-card-off {
+  opacity: 0.62;
+}
+
+.routing-card-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.routing-card-icon {
+  display: grid;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: var(--surface-well);
+  color: var(--pharos-accent);
+}
+
+.routing-card-head strong {
+  display: block;
+  color: var(--pharos-ink);
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.routing-state {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.routing-state-good {
+  color: var(--signal-healthy-ink);
+}
+
+.routing-switch {
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.routing-switch i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--pharos-faint);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease;
+}
+
+.routing-switch-on {
+  border-color: color-mix(in srgb, var(--pharos-accent) 45%, transparent);
+  background: var(--fill-accent);
+}
+
+.routing-switch-on i {
+  background: var(--pharos-accent);
+  transform: translateX(18px);
+}
+
+.routing-purpose {
+  margin: 14px 0 0;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+.routing-recipient {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+}
+
+.routing-events {
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.routing-events:disabled {
+  opacity: 0.5;
+}
+
+.routing-events legend {
+  padding: 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.routing-event {
+  display: flex;
+  gap: 9px;
+  margin-top: 11px;
+  cursor: pointer;
+}
+
+.routing-events:disabled .routing-event {
+  cursor: default;
+}
+
+.routing-event input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  accent-color: var(--pharos-accent);
+}
+
+.routing-event strong {
+  display: block;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.routing-event small {
+  display: block;
+  margin-top: 3px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.45;
+}
+
+.routing-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--signal-warning) 26%, transparent);
+  border-radius: var(--radius-field);
+  background: color-mix(in srgb, var(--signal-warning) 7%, transparent);
+  color: var(--signal-warning-ink);
+  font-size: var(--text-micro);
+  line-height: 1.55;
+}
+
+.routing-demo-flag {
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--signal-uncertain) 30%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--signal-uncertain) 9%, transparent);
+  color: var(--signal-uncertain-ink);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.routing-footnote {
+  margin: 18px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-caption);
+  line-height: 1.7;
+}
+
+.routing-footnote strong {
+  color: var(--pharos-muted);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .alert-toast-stack {
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+
+  .notification-panel {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+}
+
 .control-canvas {
   min-height: 100vh;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */

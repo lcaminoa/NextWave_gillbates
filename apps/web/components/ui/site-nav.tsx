@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, FlaskConical, LayoutDashboard, SearchCheck } from "lucide-react";
 import { PharosBrand } from "./pharos-brand";
 import { RuntimeIndicator } from "./status";
-import { useIncidentReports } from "@/lib/api/use-control-tower";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useNotifications } from "@/components/notifications/notifications-provider";
 
 /**
  * One navigation for the whole site. The landing and the product used to ship
@@ -103,7 +104,7 @@ function PublicLinks() {
 }
 
 function ProductLinks({ pathname }: { pathname: string }) {
-  const { reports, status } = useIncidentReports();
+  const { openCaseCount, runtimeStatus } = useNotifications();
 
   return (
     <>
@@ -120,15 +121,16 @@ function ProductLinks({ pathname }: { pathname: string }) {
             >
               <Icon className="size-3.5" aria-hidden="true" />
               <span>{item.label}</span>
-              {item.label === "Investigations" && reports.length ? <em>{reports.length}</em> : null}
+              {item.label === "Investigations" && openCaseCount ? <em>{openCaseCount}</em> : null}
             </Link>
           );
         })}
       </nav>
       <div className="site-nav-utilities">
+        <NotificationBell />
         {/* The runtime signal is present at every width — it is what says whether
             anything else on screen can be trusted. */}
-        <RuntimeIndicator status={status} className="site-nav-runtime" />
+        <RuntimeIndicator status={runtimeStatus} className="site-nav-runtime" />
       </div>
     </>
   );

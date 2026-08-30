@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import { SiteNav } from "@/components/ui/site-nav";
+import { AlertToasts } from "@/components/notifications/alert-toasts";
+import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import "./globals.css";
 
 /**
@@ -66,8 +68,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SiteNav />
-        {children}
+        {/* One poller for the shell: the bell, the toasts and the panel all read
+            the same live incident feed instead of each opening an interval. */}
+        <NotificationsProvider>
+          <SiteNav />
+          {children}
+          <AlertToasts />
+        </NotificationsProvider>
       </body>
     </html>
   );
