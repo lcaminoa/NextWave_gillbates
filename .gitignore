@@ -10,4 +10,5 @@ dist/
 *.egg-info/
 .DS_Store
 .vercel/
+.railway/
 .pytest_cache/
