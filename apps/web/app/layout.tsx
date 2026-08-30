@@ -1,16 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import { AppNavigation } from "@/components/ui/app-navigation";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/**
+ * Instrument Sans carries every screen. Geist was the Next.js default, which is
+ * exactly why it had to go: it is the face every other submission is set in.
+ * Instrument Sans is warmer and slightly wider than Inter, so it reads as a
+ * choice rather than a fallback.
+ */
+const sans = Instrument_Sans({
+  variable: "--font-app-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/** Reserved for evidence ids, timestamps and dimension keys — never for prose. */
+const mono = Geist_Mono({
+  variable: "--font-app-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL;
@@ -54,7 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AppNavigation />

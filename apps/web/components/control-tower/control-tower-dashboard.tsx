@@ -108,7 +108,7 @@ export function ControlTowerDashboard() {
                       : "Reports unavailable"}
                 </span>
               </div>
-              <h1 className="mt-3 text-display font-medium tracking-[-0.05em] text-pharos-strong">
+              <h1 className="mt-3 text-display font-medium text-pharos-strong">
                 Payment health, <span className="text-pharos-accent">with evidence.</span>
               </h1>
               <p className="mt-1 text-small text-pharos-muted">
@@ -197,7 +197,7 @@ export function ControlTowerDashboard() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="eyebrow">Active investigations</p>
-                  <h2 className="mt-1 text-section font-medium tracking-[-0.03em] text-pharos-ink">
+                  <h2 className="mt-1 text-section font-medium text-pharos-ink">
                     Prioritised by reported impact
                   </h2>
                 </div>
@@ -240,7 +240,7 @@ export function ControlTowerDashboard() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow">Investigation lane</p>
-                  <h2 className="mt-1 truncate text-section font-medium tracking-[-0.03em] text-pharos-ink">
+                  <h2 className="mt-1 truncate text-section font-medium text-pharos-ink">
                     {activeSegment ?? "Observable steps"}
                   </h2>
                 </div>
@@ -300,7 +300,7 @@ export function ControlTowerDashboard() {
               <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 p-5">
                 <div>
                   <p className="eyebrow">Impact geography</p>
-                  <h2 className="mt-1 text-section font-medium tracking-[-0.04em] text-pharos-ink">
+                  <h2 className="mt-1 text-section font-medium text-pharos-ink">
                     Incidents, <span className="text-pharos-accent">located.</span>
                   </h2>
                 </div>
@@ -315,7 +315,7 @@ export function ControlTowerDashboard() {
               />
               <aside className="globe-detail-card" aria-live="polite">
                 <p className="eyebrow">Selected location</p>
-                <h3 className="mt-1 text-lg font-medium tracking-[-0.035em] text-pharos-strong">
+                <h3 className="mt-1 text-lg font-medium text-pharos-strong">
                   {selectedHotspot?.country ?? "No supported location"}
                 </h3>
                 <dl className="globe-facts">
@@ -340,7 +340,7 @@ export function ControlTowerDashboard() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">Live payment stream</p>
-                <h2 className="mt-1 text-section font-medium tracking-[-0.03em] text-pharos-ink">Recent transactions</h2>
+                <h2 className="mt-1 text-section font-medium text-pharos-ink">Recent transactions</h2>
               </div>
               <Network className="size-4 text-pharos-faint" aria-hidden="true" />
             </div>

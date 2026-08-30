@@ -132,7 +132,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             ) : null}
           </div>
 
-          <h1 className="mt-4 max-w-4xl text-display leading-[1.04] font-medium tracking-[-0.06em] text-pharos-strong">
+          <h1 className="mt-4 max-w-4xl text-display font-medium text-pharos-strong">
             {isInconclusive || !segment ? "No single cause meets the evidence threshold." : segment}
           </h1>
           <p className="mt-3 max-w-3xl text-body leading-6 text-pharos-muted">{report.summary}</p>
@@ -156,7 +156,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Cause path</p>
-                <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium text-pharos-ink">
                   {isInconclusive ? "Investigation scope, not a root cause" : "Most-supported segment"}
                 </h2>
               </div>
@@ -199,7 +199,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Evidence board</p>
-                <h2 className="mt-1 text-title font-medium tracking-[-0.045em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium text-pharos-ink">
                   What supports the investigation
                 </h2>
               </div>
@@ -270,7 +270,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
 
           <article className="incident-workspace-card p-5 md:p-6">
             <p className="eyebrow">Hypotheses evaluated</p>
-            <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
+            <h2 className="mt-1 text-title font-medium text-pharos-ink">
               {isInconclusive ? "Close explanations, no asserted cause" : "Ranked investigation candidates"}
             </h2>
             <div className="mt-5 space-y-2">
@@ -287,7 +287,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
           <article className="incident-recommendation">
             <div className="relative z-10">
               <p className="eyebrow">Recommended human action</p>
-              <h2 className="mt-1 text-title font-medium tracking-[-0.045em] text-pharos-strong">
+              <h2 className="mt-1 text-title font-medium text-pharos-strong">
                 Review before any external change.
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-pharos-muted">{report.recommended_action}</p>
@@ -304,7 +304,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="eyebrow">Investigation timeline</p>
-              <h2 className="mt-1 text-section font-medium tracking-[-0.04em] text-pharos-ink">The incident story</h2>
+              <h2 className="mt-1 text-section font-medium text-pharos-ink">The incident story</h2>
             </div>
             <RuntimeIndicator status={status} />
           </div>
