@@ -208,7 +208,11 @@
   --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.16);
 
-  /* Layout rhythm. */
+  /* Layout rhythm. --measure is the one content width the whole site shares —
+     the navigation already used it, while every landing section ran edge to
+     edge, so content sat flush against the viewport on wide screens. */
+  --measure: 1380px;
+  --gutter: clamp(20px, 3vw, 44px);
   --pad-panel: clamp(20px, 2.2vw, 28px);
   --pad-hero: clamp(26px, 3.4vw, 46px);
 }
@@ -474,8 +478,13 @@ a {
 .control-canvas {
   min-height: 100vh;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */
-  padding: clamp(12px, 1.4vw, 28px) clamp(12px, 1.4vw, 28px) 150px;
+  padding: clamp(12px, 1.4vw, 28px) var(--gutter) 150px;
   color: var(--pharos-ink);
+}
+
+.control-canvas > main {
+  width: min(1560px, 100%);
+  margin-inline: auto;
 }
 
 /* Every product screen is now canvas -> hero -> content. The Control Room used to
@@ -2341,7 +2350,15 @@ a {
 .landing-narrative {
   position: relative;
   z-index: 3;
-  background: #0a080d;
+  background: var(--pharos-canvas);
+}
+
+/* Every direct child of the narrative shares the measure and the gutter, so the
+   sections, the beam stage and the cards all align to the same two edges. */
+.landing-narrative > section {
+  width: min(var(--measure), 100%);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
 }
 
 .landing-evidence-section,
