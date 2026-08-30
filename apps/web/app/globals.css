@@ -2346,6 +2346,246 @@ a {
 
 .landing-evidence-section,
 .landing-preview-section,
+/* Trial by fire. Two columns: a recorded blind run on the left, and on the right
+   the live runtime plus the control to reproduce it. The point is that the claim
+   is checkable, so the section leads with evidence and ends with a button. */
+.landing-blind-section {
+  padding: clamp(72px, 9vw, 128px) 0 clamp(56px, 7vw, 96px);
+  border-top: 1px solid var(--landing-line);
+}
+
+.landing-blind-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.72fr) minmax(280px, 0.82fr);
+  gap: 16px;
+  margin-top: clamp(40px, 5vw, 64px);
+  align-items: start;
+}
+
+.landing-blind-card {
+  padding: clamp(22px, 2.6vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-elev-1);
+}
+
+.landing-blind-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.landing-blind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--signal-uncertain) 28%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--signal-uncertain) 9%, transparent);
+  color: var(--signal-uncertain-ink);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.landing-blind-head code,
+.landing-blind-facts code {
+  color: var(--pharos-faint);
+  font-family: var(--font-app-mono), monospace;
+  font-size: var(--text-micro);
+}
+
+.landing-blind-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+  margin-top: clamp(20px, 2.4vw, 28px);
+}
+
+.landing-blind-col {
+  padding: 16px 18px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+}
+
+.landing-blind-col-found {
+  border-color: color-mix(in srgb, var(--signal-healthy) 26%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 6%, transparent);
+}
+
+.landing-blind-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.landing-blind-col-found .landing-blind-label {
+  color: var(--signal-healthy-ink);
+}
+
+.landing-blind-col strong {
+  display: block;
+  margin-top: 11px;
+  color: var(--pharos-strong);
+  font-family: var(--font-app-mono), monospace;
+  font-size: var(--text-section);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.landing-blind-col span {
+  display: block;
+  margin-top: 7px;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+/* A rule that reads as "the same thing, arrived at independently". */
+.landing-blind-arrow {
+  align-self: center;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+
+.landing-blind-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 18px 0 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--line-subtle);
+}
+
+.landing-blind-facts > div {
+  padding: 12px 14px;
+  background: var(--surface-well);
+}
+
+.landing-blind-facts dt {
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.landing-blind-facts dd {
+  margin: 6px 0 0;
+  color: var(--pharos-ink);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.landing-blind-note {
+  margin: 16px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+.landing-blind-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(20px, 2.4vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+}
+
+.landing-blind-aside p {
+  margin: 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+.landing-live-tile {
+  padding: 16px 18px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-well);
+}
+
+.landing-live-tile span {
+  display: block;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.landing-live-tile strong {
+  display: block;
+  margin-top: 9px;
+  color: var(--pharos-strong);
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.landing-live-tile p {
+  margin-top: 8px;
+  color: var(--pharos-muted) !important;
+  font-size: var(--text-caption);
+  line-height: 1.55;
+}
+
+.landing-live-tile-up {
+  border-color: color-mix(in srgb, var(--signal-healthy) 24%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 6%, transparent);
+}
+
+.landing-live-tile-up span {
+  color: var(--signal-healthy-ink);
+}
+
+.landing-live-tile-down {
+  border-color: color-mix(in srgb, var(--signal-critical) 26%, transparent);
+  background: color-mix(in srgb, var(--signal-critical) 6%, transparent);
+}
+
+.landing-live-tile-down span,
+.landing-live-tile-down strong {
+  color: var(--signal-critical-ink);
+}
+
+@media (max-width: 900px) {
+  .landing-blind-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-blind-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-blind-arrow {
+    width: 60%;
+    justify-self: center;
+  }
+
+  .landing-blind-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
 .landing-final-cta {
   width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
