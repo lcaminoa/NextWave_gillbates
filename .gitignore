@@ -6,4 +6,5 @@ node_modules/
 .next/
 dist/
 *.egg-info/
+*.sqlite3
 .DS_Store

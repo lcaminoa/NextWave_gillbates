@@ -31,6 +31,7 @@ flowchart TB
     Investigator["Investigador de incidentes<br/>Analiza evidencia con una policy segura<br/>u OpenAI con tools de solo lectura"]
     Auditor["Auditor de evidencia<br/>Solo en modo audited_openai;<br/>bloquea claims que exceden la evidencia"]
     Report["Reporte de incidente<br/>Qué pasó · dónde · costo<br/>y recomendación humana"]
+    Memory["Memoria histórica<br/>SQLite: huellas de episodios recuperados<br/>Solo aporta contexto, no evidencia"]
 
     Chaos -->|"solicita inject, random o reveal"| API
     API -->|"guarda el ChaosSpec internamente"| Simulator
@@ -42,6 +43,8 @@ flowchart TB
     Investigator -->|"modo audited_openai: reporte con claims citados"| Auditor
     Auditor -->|"aprobado: reporte publicable"| Report
     Auditor -.->|"rechazo o error: reporte inconcluso y reintento"| Report
+    Report -.->|"al recuperarse: guarda una huella"| Memory
+    Memory -.->|"coincidencia estricta: ID previo, no claims"| Report
     Report -->|"publica el incidente"| API
     API -->|"SSE: pagos en vivo<br/>REST: incidentes y reportes"| Dashboard
 
@@ -65,5 +68,6 @@ flowchart TB
     class Simulator simulation;
     class Pipeline,Detection,RCA detection;
     class Investigator,Auditor investigator;
+    class Memory note;
     class Report report;
     class Secret note;

@@ -34,6 +34,7 @@ from engine.investigator import (
     InvestigationResult,
     run_investigation,
 )
+from engine.investigator.memory import IncidentMemory, NullIncidentMemory
 from engine.investigator.validation import validate_report
 from simulator import PaymentSimulator
 
@@ -379,6 +380,7 @@ class ControlTowerService:
         pipeline: Pipeline | None = None,
         investigator: Investigator | None = None,
         audited_investigator: AuditedInvestigator | None = None,
+        incident_memory: IncidentMemory | None = None,
         start_at: datetime | None = None,
         simulated_interval_seconds: float = 0.05,
         emit_delay_seconds: float = 0.005,
@@ -412,6 +414,7 @@ class ControlTowerService:
         self.pipeline = pipeline
         self.investigator = investigator or run_investigation
         self.audited_investigator = audited_investigator
+        self.incident_memory = incident_memory or NullIncidentMemory()
         self.current_timestamp = current
         self.simulated_interval_seconds = simulated_interval_seconds
         self.emit_delay_seconds = emit_delay_seconds
@@ -643,10 +646,12 @@ class ControlTowerService:
                 continue
             misses = self._episode_misses.get(fingerprint, 0) + 1
             if misses >= self.episode_grace_windows:
-                self._active_episodes.pop(fingerprint, None)
+                resolved_incident_id = self._active_episodes.pop(fingerprint, None)
                 self._episode_match_fingerprints.pop(fingerprint, None)
                 self._episode_direct.pop(fingerprint, None)
                 self._episode_misses.pop(fingerprint, None)
+                if resolved_incident_id:
+                    self._remember_resolved_incident(resolved_incident_id)
             else:
                 self._episode_misses[fingerprint] = misses
 
@@ -760,6 +765,55 @@ class ControlTowerService:
             )
             self._episode_misses[fingerprint] = 0
 
+    def _remember_resolved_incident(self, incident_id: str) -> None:
+        """Persist only a recovered, publishable episode; memory is never on the hot path."""
+        stored = self._incidents.get(incident_id)
+        if stored is None or stored.retryable:
+            return
+        try:
+            self.incident_memory.record_resolved(
+                stored.anomaly,
+                stored.investigation.report,
+                stored.candidates,
+            )
+        except Exception:
+            # Historical context is useful but cannot make detection, RCA, or incident serving
+            # unavailable.  The next recovery can try to write again.
+            logger.exception("Control Tower could not persist historical incident memory")
+
+    def _attach_historical_match(
+        self,
+        investigation: InvestigationResult,
+        anomaly: Anomaly,
+        candidates: tuple[IncidentCandidate, ...],
+    ) -> InvestigationResult:
+        """Attach a verified historical ID without letting memory influence current evidence."""
+        # The report field is owned by this trusted runtime lookup.  A custom/LLM investigator
+        # must not be able to invent a past incident ID in its structured output.
+        report = investigation.report.model_copy(update={"matches_past_incident_id": None})
+        clean_investigation = InvestigationResult(
+            report=report,
+            steps=investigation.steps,
+            consulted_evidence_ids=investigation.consulted_evidence_ids,
+            tool_calls=investigation.tool_calls,
+        )
+        try:
+            match = self.incident_memory.find_similar(anomaly, report, candidates)
+        except Exception:
+            logger.exception("Control Tower could not search historical incident memory")
+            return clean_investigation
+        if match is None:
+            return clean_investigation
+
+        return InvestigationResult(
+            report=report.model_copy(
+                update={"matches_past_incident_id": match.incident_id}
+            ),
+            steps=investigation.steps,
+            consulted_evidence_ids=investigation.consulted_evidence_ids,
+            tool_calls=investigation.tool_calls,
+        )
+
     def _investigate(self, diagnosis: AnomalyDiagnosis) -> StoredIncident:
         candidates = tuple(diagnosis.candidates)
         evidence = tuple(diagnosis.evidence)
@@ -812,6 +866,11 @@ class ControlTowerService:
                 retryable = True
 
         investigation = _align_investigation_clock(investigation, diagnosis.anomaly)
+        investigation = self._attach_historical_match(
+            investigation,
+            diagnosis.anomaly,
+            candidates,
+        )
         validate_report(
             investigation.report,
             candidates=candidates,

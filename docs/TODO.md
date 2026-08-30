@@ -150,8 +150,10 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
 
 ## P3 — Ambiciones, solo después del núcleo
 
-- [ ] **Memoria de incidentes.** Guardar huella estructurada, encontrar incidentes similares y
-  aclarar visualmente que la memoria aporta contexto, no prueba.
+- [ ] **Memoria de incidentes.** Backend v1 listo: SQLite guarda solo episodios recuperados con
+  causa publicable y encuentra recurrencias por huella estructurada estricta. El reporte solo
+  expone `matches_past_incident_id`; no cambia claims, score ni evidencia. Falta mostrar en UI el
+  contexto del incidente previo con la etiqueta explícita "no es prueba".
 - [ ] **Programmatic Tool Calling.** Usarlo solo para el fan-out acotado de consultas de evidencia
   (comparar, rankear y reducir resultados); el juicio investigativo y la validación final siguen
   con tool calling directo.

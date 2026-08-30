@@ -534,3 +534,35 @@ no calibrado. No cambia contratos ni permite remediacion automatica.
 Verificado con una prueba end-to-end reproducible de cuatro inyecciones de 35 pp (provider,
 provider x country, merchant e issuing_bank), usando el simulador y pipeline reales; las cuatro
 producen una causa `probable` o `confirmed` que coincide exactamente con la inyeccion.
+
+## D020 — Memoria histórica estructurada, posterior a RCA y sin valor probatorio
+
+Contexto: el contrato ya incluía `IncidentReport.matches_past_incident_id` como SHOULD (§9.10),
+pero el runtime no conservaba incidentes entre episodios. El plan sugiere huella estructurada más
+embedding, aunque para la hackathon un match semántico sin controles podía insinuar una causa
+pasada como si fuera evidencia de la caída actual.
+
+Alternativas:
+1. sumar embeddings y búsqueda vectorial desde el primer corte;
+2. guardar resúmenes libres en memoria y entregárselos directamente al LLM;
+3. usar SQLite con una huella estructurada conservadora y publicar solo un ID de contexto.
+
+Decisión: 3. Cuando un episodio termina tras sus ventanas sanas de gracia, se persiste solo si
+terminó `confirmed` o `probable` con candidata ganadora. La huella contiene dimensiones exactas de
+la raíz, decline code dominante, magnitud de caída, banda horaria e impacto. Una recurrencia debe
+tener las mismas dimensiones, un código compatible y una caída dentro de 15 pp; entonces el
+runtime completa `matches_past_incident_id`. La memoria nunca participa en Detection/RCA, no
+cambia score/confidence/recommended_action, no agrega `evidence_ids`, ni puede ser escrito por el
+LLM. Si SQLite falla, se registra el error y el incidente actual continúa normalmente.
+
+La base se configura con `CONTROL_TOWER_MEMORY_DB`; fuera de una configuración explícita usa
+memoria efímera, y `.env.example` propone `data/control_tower_memory.sqlite3`. No se agrega un
+endpoint ni se cambia `contracts/`.
+
+Tradeoff: este corte puede perder recurrencias relacionadas pero no idénticas y todavía no usa
+embeddings. Preferimos un falso negativo histórico antes que una similitud atractiva que parezca
+prueba. La UI todavía debe mostrar el contexto con la etiqueta explícita "memoria, no evidencia".
+
+Verificado con tests de persistencia SQLite, mecanismo de decline conflictivo, raíz distinta,
+reporte inconcluso y recuperación -> recurrencia a través de `ControlTowerService`; los claims de
+la recurrencia conservan únicamente evidencia del incidente nuevo.
