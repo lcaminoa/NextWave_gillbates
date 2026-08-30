@@ -132,7 +132,7 @@ export function AlertDelivery({
               ) : (
                 <span className="delivery-state delivery-state-unknown">
                   <CircleAlert className="size-3" aria-hidden="true" />
-                  {escalated ? "Not reported by the runtime" : "Not escalated"}
+                  {escalated ? "Nothing queued" : "Not escalated"}
                 </span>
               )}
 

@@ -58,6 +58,9 @@ const CHAOS_RUN_STORAGE_KEY = "pharos.active-chaos-run";
 type StoredChaosRun = {
   runSpec: ChaosSpec;
   clientStartedAtMs: number | null;
+  /** The score survives navigation like the rest of the run; recomputing it is
+   *  impossible once the reveal has been consumed. */
+  evaluation: BlindTrialEvaluation | null;
 };
 
 function restoreChaosRun(): StoredChaosRun | null {
@@ -67,6 +70,7 @@ function restoreChaosRun(): StoredChaosRun | null {
     const stored = JSON.parse(raw) as {
       runSpec?: Partial<ChaosSpec>;
       clientStartedAtMs?: unknown;
+      evaluation?: unknown;
     } & Partial<ChaosSpec>;
     // Backward compatibility with runs saved before elapsed time was persisted.
     const run = stored.runSpec ?? stored;
@@ -80,6 +84,13 @@ function restoreChaosRun(): StoredChaosRun | null {
     }
     return {
       runSpec: run as ChaosSpec,
+      evaluation: (
+        stored.evaluation
+        && typeof stored.evaluation === "object"
+        && "outcome" in (stored.evaluation as object)
+        ? (stored.evaluation as BlindTrialEvaluation)
+        : null
+      ),
       clientStartedAtMs: (
         typeof stored.clientStartedAtMs === "number"
         && Number.isFinite(stored.clientStartedAtMs)
@@ -142,6 +153,7 @@ export function ChaosConsole() {
           setDuration(restored.runSpec.duration_minutes);
         }
         setPhase(restored.runSpec.revealed ? "revealed" : "active");
+        setEvaluation(restored.evaluation);
         setClientStartedAtMs(restored.clientStartedAtMs);
         if (restored.clientStartedAtMs !== null) {
           setElapsedSeconds(Math.max(0, Math.floor((Date.now() - restored.clientStartedAtMs) / 1_000)));
@@ -156,12 +168,12 @@ export function ChaosConsole() {
     if (runSpec) {
       window.sessionStorage.setItem(
         CHAOS_RUN_STORAGE_KEY,
-        JSON.stringify({ runSpec, clientStartedAtMs }),
+        JSON.stringify({ runSpec, clientStartedAtMs, evaluation }),
       );
     } else {
       window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
     }
-  }, [clientStartedAtMs, restoredRunState, runSpec]);
+  }, [clientStartedAtMs, evaluation, restoredRunState, runSpec]);
 
   useEffect(() => {
     if (!runSpec || !isRunning) return;
