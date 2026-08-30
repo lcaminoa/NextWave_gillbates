@@ -8,9 +8,8 @@ import { FlaskConical, LoaderCircle, LockKeyhole } from "lucide-react";
 /**
  * The operator gate for the Chaos Lab.
  *
- * Deliberately small: this is a door, not a product surface. It exists because
- * the browser's own Basic Auth dialog is the one part of the demo PHAROS cannot
- * style, and a judge meets it before anything else.
+ * Deliberately small: this is a door, not a product surface. It gives the
+ * operator a branded sign-in flow before the judge reaches Chaos controls.
  *
  * The form posts to a route handler that compares against the runtime
  * environment and returns an httpOnly cookie. Nothing is kept in this component

@@ -131,7 +131,6 @@ Open a second terminal:
 cd apps/web
 cp .env.example .env.local
 pnpm install --frozen-lockfile
-pnpm dev
 ~~~
 
 Before starting the dashboard, edit **apps/web/.env.local** for the local Chaos Lab:
@@ -143,6 +142,12 @@ CONTROL_TOWER_API_ORIGIN=http://localhost:8000
 CONTROL_TOWER_JUDGE_TOKEN=local-demo-token
 PHAROS_CHAOS_OPERATOR_USERNAME=operator
 PHAROS_CHAOS_OPERATOR_PASSWORD=choose-a-local-demo-password
+~~~
+
+Then start the dashboard:
+
+~~~bash
+pnpm dev
 ~~~
 
 Open <http://localhost:3000/control-room>. The runtime should show **STREAM LIVE** after the browser receives transactions.

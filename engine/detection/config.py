@@ -1,9 +1,7 @@
-"""Configuracion central del motor de deteccion.
+"""Configuracion central del pipeline de deteccion.
 
-Por ahora este modulo no se importa desde los detectores existentes: mantiene los
-valores actuales sin tocar los archivos que otro integrante esta editando. Cuando
-se integre, cada modulo recibira una ``DetectionConfig`` en vez de usar constantes
-hardcodeadas.
+El agregador, detector y RCA reciben una ``DetectionConfig`` compartida para que
+la calibracion estadistica viva en un solo lugar.
 """
 from __future__ import annotations
 

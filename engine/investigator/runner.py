@@ -1,7 +1,7 @@
-"""API-free investigation runner used to prove the Stream C behavior.
+"""API-free deterministic investigation runner for Stream C.
 
-The deterministic policy is a temporary stand-in for the future OpenAI agent. Tools, evidence
-tracking, output contracts, and validation remain the same when the model is connected.
+It shares tools, evidence tracking, output contracts, and validation with the
+audited OpenAI runner.
 """
 
 from __future__ import annotations

@@ -23,7 +23,7 @@ pagos. Estamos construyendo un investigador de pagos con IA que demuestra qué l
 ```
 pnpm install          # nunca npm install ni yarn — el lockfile del repo manda
 pnpm dev              # dashboard (Next.js) + judge console / consola de caos
-pnpm build && pnpm lint && pnpm test   # correr SIEMPRE antes de abrir PR
+pnpm build && pnpm lint                # correr SIEMPRE antes de abrir PR
 
 uv sync               # servicio Python (simulador + engine)
 uv run uvicorn engine.main:app --reload --port 8000

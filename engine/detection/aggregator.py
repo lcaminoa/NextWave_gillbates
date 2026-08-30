@@ -1,8 +1,7 @@
 """Agregacion de transacciones en ventanas fijas para Stream B.
 
-Este modulo no modifica los detectores existentes. Convierte el stream de
-``Transaction`` en ventanas cerradas con estadisticas globales y por segmentos;
-la integracion posterior conectara esos ``WindowBatch`` al baseline y detector.
+Convierte el stream de ``Transaction`` en ventanas cerradas con sus eventos
+originales y estadisticas globales y por segmentos para el pipeline de deteccion.
 """
 from __future__ import annotations
 

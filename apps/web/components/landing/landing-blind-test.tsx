@@ -132,7 +132,7 @@ export function LandingBlindTest() {
 
         <aside className="landing-blind-aside">
           <RuntimeTile />
-          {/* Document navigation on purpose: the Chaos Lab is behind Basic Auth. */}
+          {/* Document navigation keeps the Chaos operator gate server-side. */}
           <a href="/chaos" className="landing-action landing-action-primary">
             Run your own blind test <ArrowUpRight className="size-4" aria-hidden="true" />
           </a>
