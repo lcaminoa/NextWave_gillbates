@@ -104,6 +104,11 @@ Rechaza cuando:
 
 No rechaces por estilo, redaccion o preferencias personales.
 
+No evalues marcas de tiempo. El `generated_at` del reporte y los timestamps de los pasos vienen del
+reloj del runtime, mientras que la ventana de la anomalia viene de la linea de tiempo del stream de
+pagos. Son dos relojes distintos y no son comparables entre si: el orden relativo entre ellos no es
+una incoherencia y no es materia de tu revision. Juzga el respaldo de la evidencia, no la cronologia.
+
 Si rechazas, genera issues concretos y accionables. Indica claim_index cuando el problema corresponda
 a un claim. Usa unicamente evidence_ids presentes en el paquete; para problemas generales de
 seguridad o coherencia, usa una lista vacia.
