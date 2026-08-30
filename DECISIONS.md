@@ -9,7 +9,7 @@ respuesta tiene que estar acá.
 Alternativas:
 1. umbral estático
 2. Isolation Forest
-3. baseline Beta-Binomial estacional + detección secuencial de residuos
+3. baseline Beta-Binomial con soporte para estacionalidad + detección secuencial de residuos
 
 Decisión: 3
 
@@ -17,11 +17,17 @@ Por qué:
 - la aprobación es una proporción binomial (aprobados/intentados)
 - maneja bajo volumen mediante incertidumbre (segmentos chicos = intervalos más anchos)
 - es interpretable para la defensa técnica
-- admite naturalmente buckets estacionales (hora del día, día de la semana)
+- admite incorporar buckets estacionales (hora del día, día de la semana) sin reemplazar el
+  modelo estadístico
 - resulta más fácil calibrar falsos positivos
 
 Tradeoff: es menos genérico que ML no supervisado, pero está mejor alineado con la métrica de
 pagos.
+
+Estado de implementación (agosto 2026): el baseline actual ya es Beta-Binomial, pero todavía
+usa toda la historia bootstrap del segmento y la mantiene fija durante una corrida. Los buckets
+de hora/día y el fallback jerárquico son la siguiente mejora; no se presentan como si ya
+estuvieran en producción.
 
 ## D002 — Reconciliar 3 versiones de contratos en una sola fuente de verdad
 
@@ -566,3 +572,160 @@ prueba. La UI todavía debe mostrar el contexto con la etiqueta explícita "memo
 Verificado con tests de persistencia SQLite, mecanismo de decline conflictivo, raíz distinta,
 reporte inconcluso y recuperación -> recurrencia a través de `ControlTowerService`; los claims de
 la recurrencia conservan únicamente evidencia del incidente nuevo.
+
+## D021 — Política de detección vigente: parámetros explícitos y dos carriles de volumen
+
+Contexto: el primer borrador del decision log dejaba como “por decidir” tamaño de ventana,
+volumen mínimo y umbral EWMA. Ya no corresponde: esos valores existen en
+`engine/detection/config.py`, se usan por default en `DetectionPipeline` y están cubiertos por
+tests. Esta entrada es la ficha de calibración real del MVP, no una aspiración futura.
+
+| Componente | Valor vigente | Cómo se usa |
+| --- | --- | --- |
+| Ventana de agregación | `60 s` | `WindowAggregator` cierra ventanas fijas de un minuto. |
+| Volumen mínimo de detección | `20` transacciones por segmento y ventana | Por debajo no se actualiza ni publica la señal del segmento. |
+| Baseline | Beta-Binomial con prior débil `Beta(2,2)` | Calcula aprobación esperada e intervalo creíble por segmento. |
+| Intervalo creíble | `95 %` | Una caída debe quedar por debajo de su límite inferior (percentil 2,5 %). |
+| EWMA | `lambda = 0.30` | Suaviza el residuo `aprobación observada - aprobación esperada`. |
+| Umbral EWMA | `-0.05` (−5 pp) | El residuo suavizado debe caer por debajo de −5 pp. |
+| Persistencia | `3` ventanas consecutivas | Evita publicar un pico aislado de ruido. |
+| RCA exploratorio | mínimo `5` transacciones; hasta `2D` | Permite mostrar hipótesis chicas, sin declarar una causa todavía. |
+| RCA publicable | volumen estimado `>=20` | El Investigador no publica una causa sustentada solo por un slice muy chico. |
+
+Decisión: mantener esta política como configuración de producción del MVP. La demo comprimida
+usa una excepción local (`persistence_windows=2`, `ewma_lambda=0.7`) únicamente para terminar
+rápido; no redefine los defaults.
+
+Por qué: una alerta confirmada exige **todas** estas condiciones, no solo lambda: volumen
+suficiente, observación bajo el intervalo creíble, EWMA bajo −5 pp y tres ventanas consecutivas.
+En el stream continuo reproducible de 10 transacciones por segundo, una caída inyectada de 35 pp
+en `provider=nova_pay × country=BR` se confirma en la tercera ventana; el test permite hasta la
+cuarta como límite de regresión.
+
+Tradeoff: un incidente muy abrupto sigue esperando tres minutos para ser confirmado. Preferimos
+esa demora a publicar una alarma por una sola ventana mala. Los incidentes leves o de bajo
+volumen pueden tardar más o quedar `inconclusive`.
+
+## D022 — EWMA como detector secuencial del MVP; CUSUM queda como evolución medida
+
+Alternativas:
+1. CUSUM con slack `k` y umbral `h`.
+2. EWMA sobre el residuo de aprobación con `lambda=0.30` y threshold `-0.05`.
+
+Decisión: 2.
+
+Por qué: el EWMA actual tiene dos parámetros visibles y explicables: cuánto recuerdo conserva
+(`lambda`) y qué caída suavizada preocupa (−5 pp). Combinado con el intervalo Beta-Binomial y la
+persistencia, el operador puede explicar la alerta como “la aprobación quedó fuera de lo normal y
+la caída se sostuvo”, no como un acumulador abstracto.
+
+Qué perdemos: CUSUM suele ser más sensible a drifts pequeños y prolongados. El MVP puede no
+detectar pronto una degradación de ~2 pp durante muchos minutos. Si el producto necesitara ese
+caso, se compararía CUSUM contra este baseline con las mismas semillas y una métrica explícita de
+falsos positivos/detección, no se reemplazaría por intuición.
+
+## D023 — El detector observa algunos 3D; el RCA solo afirma causas hasta 2D
+
+El primer documento lo resumía como “escaneo hasta 2D”. El código real separa dos preguntas:
+qué síntomas observa el detector y qué causa se anima a publicar el RCA.
+
+- **Detección:** global, cada dimensión por separado (`provider`, `country`,
+  `payment_method`, `issuing_bank`, `merchant`), `provider × country` y
+  `provider × country × payment_method`.
+- **RCA:** explora combinaciones de una o dos dimensiones (`rca_max_dimensions=2`).
+
+Decisión: conservar esta asimetría y abstenerse si el síntoma 3D no tiene una causa 1D/2D que
+cubra todas sus dimensiones con evidencia suficiente.
+
+Por qué: el detector puede advertir una zona muy específica sin fingir que ya conoce la causa.
+El RCA trabaja con más combinaciones y necesita volumen, controles contrafácticos y comparación
+con baseline; ampliar indiscriminadamente a 3D dispara la cantidad de segmentos minúsculos.
+
+Tradeoff: un problema realmente `provider × country × payment_method` puede terminar como
+`inconclusive` aunque exista la señal 3D. Es una abstención honesta, preferible a atribuirle una
+causa 2D que parezca completa pero no lo sea.
+
+## D024 — Ventanas de un minuto fijas, no cinco minutos ni tamaño dinámico
+
+Alternativas:
+1. Ventanas dinámicas o de cinco minutos para concentrar volumen.
+2. Ventanas fijas de un minuto y política de elegibilidad por volumen.
+
+Decisión: 2 (`window_seconds=60`, `min_volume=20`).
+
+Por qué: en la demo y el runtime, un minuto permite confirmar una caída sostenida en el orden de
+tres minutos y hace visible el avance del incidente. En lugar de retrasar a todos los segmentos
+por los de poco tráfico, los segmentos que no alcanzan 20 intentos no alertan hasta tener
+información suficiente.
+
+Qué perdemos: un segmento de bajo tráfico puede pasar varias ventanas sin ser evaluable. No se
+“rellena” con certeza artificial: el intervalo amplio y el filtro de volumen expresan justamente
+esa falta de información. Una ventana adaptativa o de cinco minutos sigue siendo una posible
+evolución si la telemetría real muestra demasiados segmentos descartados.
+
+## D025 — Baseline por segmento con bootstrap estable; estacionalidad y fallback son pendientes
+
+Alternativas:
+1. Actualizar el baseline continuamente con todas las ventanas, incluyendo las incidentadas.
+2. Inicializarlo con historia sana bootstrap y mantenerlo estable durante la corrida.
+3. Incorporar ya buckets hora/día y fallback jerárquico.
+
+Decisión: 2 por ahora.
+
+Por qué: si una caída larga se agrega inmediatamente al baseline, el sistema aprende que el
+incidente es “normal” y deja de verlo. Mantener la referencia sana fija evita esa contaminación
+durante una demo o replay corto. El baseline se calcula para el segmento pedido, por lo que no es
+un promedio global plano, pero aún no hay filtro temporal ni fallback automático entre niveles.
+
+Tradeoff: el comportamiento horario o semanal real no está modelado todavía; comparar una noche
+con una tarde puede ser injusto si el bootstrap no representa ambas. Esto reemplaza la afirmación
+anterior de que la estacionalidad ya estaba implementada: está soportada por el diseño, pero
+pendiente en el código.
+
+## D026 — Mix shift informa la investigación, pero todavía no bloquea una alerta
+
+Decisión: calcular `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una sola
+dimensión, y no usarlo aún como gate de publicación.
+
+Por qué: la descomposición separa “cambió la mezcla de tráfico” de “empeoró el rendimiento dentro
+de los segmentos”. Para una anomalía global o de dos o más dimensiones no existe una única
+dimensión a descomponer sin introducir una elección arbitraria; esos campos quedan en `None`.
+
+Tradeoff: hoy un cambio de mezcla puro puede disparar la alerta estadística aunque el diagnóstico
+posterior muestre que no hubo degradación de performance. El cálculo está integrado y probado,
+pero falta convertirlo en filtro real antes de afirmar que el caso de mix shift puro está cerrado
+end-to-end.
+
+## D027 — Hipótesis RCA pequeñas son visibles; publicar una causa exige evidencia adicional
+
+Decisión: separar el umbral exploratorio del umbral de publicación.
+
+- El RCA puede generar una hipótesis de segmento con cinco transacciones: sirve para que el
+  operador vea dónde mirar.
+- El Investigador solo puede publicar una causa con volumen estimado de al menos 20,
+  `confidence >= 0.50`, margen RCA suficiente, evidencia citada y controles de especificidad.
+- Una intersección que agrega una dimensión solo puede ganar si mejora el decline rate al menos
+  8 pp y cada dimensión adicional tiene un contrafáctico citable y consultado.
+
+Por qué: un candidato muy específico puede tener un ratio impresionante por azar. Mostrarlo como
+hipótesis conserva señal; usarlo como veredicto sin volumen ni controles sería sobre-atribuir.
+
+Tradeoff: la política puede publicar `inconclusive` ante una causa real pero todavía pequeña, o
+preferir `provider=nova_pay` frente a `provider=nova_pay × country=BR` si Brasil no agrega
+evidencia incremental. El sistema privilegia una explicación un poco más amplia pero defendible
+antes que una causa atractiva pero frágil.
+
+## D028 — Límites conocidos que siguen abiertos
+
+No son “por decidir” de configuración; son mejoras que todavía requieren evidencia adicional:
+
+1. **Estacionalidad efectiva y fallback jerárquico:** hora/día y herencia entre segmentos.
+2. **Mix shift como gate:** suprimir o reclasificar incidentes explicados totalmente por mezcla.
+3. **Eventos fuera de orden:** el agregador hoy los rechaza; falta una política de watermark.
+4. **Cobertura 3D:** decidir si más historia/volumen justifica ampliar RCA, en vez de aumentar
+   dimensiones por ambición.
+5. **Calibración por escenarios:** medir systematicamente recall, falsos positivos y tiempo de
+   detección para varias seeds, severidades y tasas de tráfico.
+
+Hasta que existan esas pruebas, los valores de D021 son los defaults defendibles del MVP y las
+abstenciones son comportamiento esperado, no fallas silenciosas.
