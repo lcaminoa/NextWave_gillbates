@@ -414,6 +414,26 @@ def _cluster_diagnoses(
     return sorted(groups, key=lambda group: group.fingerprint)
 
 
+def _public_provider_reference(channel: str, provider_message_id: str | None) -> str | None:
+    """Withhold a provider id that carries the recipient inside it.
+
+    Resend answers with an opaque UUID that identifies the message and nothing
+    else, so it is safe to publish. A WhatsApp `wamid` is not opaque: Meta packs
+    the destination phone number into it, base64-encoded, which puts a personal
+    phone number in a public API response. The outbox keeps the real id for
+    support and retries; only this projection drops it.
+
+    Same rule as `recipient_fingerprint`: recipients live in process
+    configuration and must never reach a browser.
+    """
+
+    if provider_message_id is None:
+        return None
+    if channel == "whatsapp":
+        return None
+    return provider_message_id
+
+
 class ControlTowerService:
     """Stateful vertical slice used by the FastAPI application.
 
@@ -1165,7 +1185,9 @@ class ControlTowerService:
                     state=state,
                     updated_at=record.updated_at,
                     attempt_count=record.attempt_count,
-                    provider_reference=record.provider_message_id,
+                    provider_reference=_public_provider_reference(
+                        channel, record.provider_message_id
+                    ),
                     error_code=record.error_code,
                 )
             )

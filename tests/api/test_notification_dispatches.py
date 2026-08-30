@@ -147,3 +147,26 @@ def test_a_sink_without_a_reader_is_tolerated() -> None:
 
     views = _service(_Older())._notification_dispatches("inc-1")  # type: ignore[arg-type]
     assert views == []
+
+
+def test_whatsapp_provider_reference_is_withheld_from_the_api() -> None:
+    """A wamid carries the destination phone number, so it must not be published.
+
+    Meta packs the recipient into the message id in base64. Publishing it would put
+    a personal phone number in a public response, which is the same leak the absent
+    `recipient_fingerprint` was meant to prevent.
+    """
+
+    from engine.api.runtime import _public_provider_reference
+
+    wamid = "wamid.HBgNNTQ5MTE2NjA0NDc1NRUCABEYEjYxQ0NCQjY4MjUyN0QxRTQ2NAA="
+    assert _public_provider_reference("whatsapp", wamid) is None
+
+
+def test_email_provider_reference_is_still_published() -> None:
+    """Resend's id is an opaque UUID that identifies nothing but the message."""
+
+    from engine.api.runtime import _public_provider_reference
+
+    resend_id = "146aa961-92c2-4db4-bf5e-db254cd1bfe7"
+    assert _public_provider_reference("email", resend_id) == resend_id
