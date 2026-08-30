@@ -32,13 +32,20 @@ export function AppNavigation() {
           {navigationItems.map((item) => {
             const active = item.matches(pathname);
             const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} className={active ? "app-nav-link app-nav-link-active" : "app-nav-link"}>
+            const content = (
+              <>
                 <Icon className="size-3.5" />
                 <span>{item.label}</span>
                 {item.label === "Investigations" ? <em>{reports.length}</em> : null}
-              </Link>
+              </>
             );
+            const className = active ? "app-nav-link app-nav-link-active" : "app-nav-link";
+            if (item.href === "/chaos") {
+              // Basic Auth needs a document navigation so the browser can show its native prompt.
+              return <a key={item.href} href={item.href} className={className}>{content}</a>;
+            }
+
+            return <Link key={item.href} href={item.href} className={className}>{content}</Link>;
           })}
         </nav>
 

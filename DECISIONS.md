@@ -774,3 +774,28 @@ no calibrado. No cambia contratos ni permite remediacion automatica.
 Verificado con una prueba end-to-end reproducible de cuatro inyecciones de 35 pp (provider,
 provider x country, merchant e issuing_bank), usando el simulador y pipeline reales; las cuatro
 producen una causa `probable` o `confirmed` que coincide exactamente con la inyeccion.
+
+## D030 — Vercel protege Chaos Lab y reenvía solo sus POST al runtime
+
+Contexto: en producción el browser puede leer reportes y el SSE del engine mediante CORS, pero
+los tres POST de Chaos Lab necesitan `X-Control-Tower-Judge-Key`. Esa clave no puede llegar al
+browser. Un proxy público que la agregara resolvería el secreto pero permitiría a cualquier
+visitante inyectar o revelar escenarios.
+
+Alternativas:
+1. publicar la clave como `NEXT_PUBLIC_*`;
+2. dejar los POST directos y desactivar la protección del engine;
+3. proxyear todo el runtime por Next.js;
+4. conservar lecturas/SSE directos con CORS y usar un BFF mínimo, protegido, solo para los tres
+   POST de Chaos.
+
+Decisión: 4. `apps/web/app/api/chaos/[operation]/route.ts` acepta únicamente `inject`, `random`
+y `reveal`, reenvía el body y status al mismo endpoint congelado del engine y agrega el token
+solo server-side. `apps/web/proxy.ts` y el handler aplican Basic Auth de operador sobre `/chaos`
+y `/api/chaos/*`; si faltan las credenciales, fallan cerrados. Los enlaces a Chaos Lab fuerzan
+una navegación de documento para que el navegador pueda presentar el challenge Basic Auth.
+
+Tradeoff: CORS sigue siendo necesario para las lecturas y el SSE, y el operador recibe un
+challenge nativo del navegador en vez de una pantalla propia. Es un límite explícito de demo,
+no una sesión multiusuario. No agrega endpoints al contrato: conserva método, path, body y
+respuesta de los tres endpoints de Chaos ya congelados.

@@ -138,9 +138,9 @@ export function LandingSections() {
           <Link href="/control-room" className="landing-action landing-action-primary">
             Open Control Room <ArrowUpRight className="size-4" />
           </Link>
-          <Link href="/chaos" className="landing-action landing-action-secondary">
+          <a href="/chaos" className="landing-action landing-action-secondary">
             Run Chaos Lab <ArrowUpRight className="size-4" />
-          </Link>
+          </a>
         </div>
       </section>
     </main>
