@@ -110,7 +110,7 @@ export function ControlTowerDashboard() {
               value={hasEnoughSample && sample ? percent(sample.approvalRate) : "—"}
               caption={
                 hasEnoughSample && sample
-                  ? `Across ${integer(sample.size)} streamed transactions. No expected range: the API does not publish BaselinePoint yet.`
+                  ? `Across ${integer(sample.size)} streamed transactions. The runtime does not publish an expected range for this figure, so none is shown.`
                   : `Sample too small — ${integer(sample?.size ?? 0)} of ${MIN_APPROVAL_SAMPLE} transactions needed before a rate means anything.`
               }
               tone={hasEnoughSample ? "neutral" : "uncertain"}
@@ -206,6 +206,14 @@ export function ControlTowerDashboard() {
                     title="No incident is open"
                     body="The stream is being watched and the baseline is holding. A report appears here only once an anomaly is confirmed over several windows."
                     icon={<ShieldCheck className="size-6" aria-hidden="true" />}
+                    /* A healthy stream is the honest state, but it leaves a first-time
+                       visitor with nothing to read. The worked example is a real past
+                       investigation, so it shows the work without inventing a live one. */
+                    action={
+                      <Link href="/#worked-example" className="empty-state-link">
+                        See a worked investigation
+                      </Link>
+                    }
                   />
                 ) : null}
               </div>

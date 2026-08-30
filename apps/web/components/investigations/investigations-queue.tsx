@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { CircleAlert, Clock3, FileSearch, ShieldCheck } from "lucide-react";
 import { IncidentCard } from "@/components/incidents/incident-card";
 import { EmptyState, LoadingState, RuntimeUnavailableState } from "@/components/ui/states";
@@ -92,6 +94,11 @@ export function InvestigationsQueue() {
                 title="The queue is empty"
                 body="No anomaly has been sustained long enough to open an investigation. This is what a healthy stream looks like."
                 icon={<ShieldCheck className="size-6" aria-hidden="true" />}
+                action={
+                  <Link href="/#worked-example" className="empty-state-link">
+                    See a worked investigation
+                  </Link>
+                }
               />
             ) : null}
 

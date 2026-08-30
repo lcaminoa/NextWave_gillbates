@@ -75,7 +75,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className="landing-preview-section" aria-labelledby="preview-heading">
+      <section className="landing-preview-section" id="worked-example" aria-labelledby="preview-heading">
         <header className="landing-section-intro landing-preview-intro">
           <span>Investigation workspace / 02</span>
           <h2 id="preview-heading">See the investigation, not a black box.</h2>

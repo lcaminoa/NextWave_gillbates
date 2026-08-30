@@ -5128,3 +5128,25 @@ a {
     height: auto;
   }
 }
+
+/* The way out of an honest empty state: a real past investigation, so a
+   first-time visitor can see the work without a live incident to read. */
+.empty-state-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  color: var(--pharos-accent);
+  font-size: var(--text-small);
+  font-weight: 600;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.empty-state-link:hover {
+  border-color: color-mix(in srgb, var(--pharos-accent) 38%, transparent);
+  background: var(--fill-accent-wash);
+  color: var(--pharos-accent-ink);
+}
