@@ -51,9 +51,33 @@ export function EvidenceAuditSeal({
   audit,
   inconclusive,
 }: {
-  audit: EvidenceAuditView;
+  audit?: EvidenceAuditView | null;
   inconclusive: boolean;
 }) {
+  // A runtime that never sent the gate is not the same claim as a gate that did
+  // not run: the first is a silence we cannot interpret, the second is a result.
+  // Reading the missing one as `not_run` would be this screen asserting
+  // something the runtime never said, so it gets its own honest state.
+  if (!audit) {
+    return (
+      <div className={cn("audit-seal", "audit-not-run")}>
+        <div className="audit-seal-summary cursor-default">
+          <span className="audit-seal-icon">
+            <ShieldQuestion className="size-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="eyebrow">Evidence audit seal</p>
+            <strong>Audit not reported</strong>
+            <p className="audit-seal-line">
+              This runtime answered without an audit result, so none is shown. Nothing is inferred
+              from its absence — it is not a pass, and not a rejection.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const meta = statusMeta[audit.status];
   const Icon = meta.icon;
   // An approved run only needs to show what passed; anything else is being

@@ -13,9 +13,14 @@ export type IncidentDetail = {
   candidates: IncidentCandidate[];
   evidence: Evidence[];
   investigation_steps: InvestigationStep[];
-  evidence_audit: EvidenceAuditView;
+  /**
+   * Optional on purpose: an older runtime build answers this route without the
+   * audit gate at all. Typing it as always-present made the detail screen crash
+   * on the first property read instead of reporting what the runtime withheld.
+   */
+  evidence_audit?: EvidenceAuditView | null;
   /** What became of each external alert. Empty when nothing was ever queued. */
-  notification_dispatches: NotificationDispatch[];
+  notification_dispatches?: NotificationDispatch[];
 };
 
 export type EvidenceAuditStatus = "approved" | "rejected" | "error" | "not_run";
