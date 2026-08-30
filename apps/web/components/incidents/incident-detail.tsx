@@ -10,6 +10,7 @@ import type { Evidence, IncidentCandidate } from "@/lib/contracts";
 import { HumanReviewChip, ReportStatusBadge, RuntimeIndicator } from "@/components/ui/status";
 import { LoadingState, NotFoundState, RuntimeUnavailableState } from "@/components/ui/states";
 import { AlertDelivery } from "./alert-delivery";
+import { EvidenceAuditSeal } from "./evidence-audit-seal";
 import { useNotifications } from "@/components/notifications/notifications-provider";
 
 /** Human grouping for the evidence board. Unknown sources keep their own group. */
@@ -154,6 +155,8 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
 
       <section className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(300px,0.95fr)]">
         <div className="min-w-0 space-y-4">
+          <EvidenceAuditSeal audit={detail.evidence_audit} inconclusive={isInconclusive} />
+
           <article className="incident-workspace-card p-5 md:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>

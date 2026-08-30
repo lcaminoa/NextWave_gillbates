@@ -1109,6 +1109,398 @@ a {
   }
 }
 
+/* ------------------------------------------------- evidence audit seal */
+
+.audit-seal {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--pharos-surface);
+}
+
+.audit-seal-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: clamp(18px, 2.2vw, 26px);
+  cursor: pointer;
+  list-style: none;
+}
+
+.audit-seal-summary::-webkit-details-marker {
+  display: none;
+}
+
+.audit-seal-icon {
+  display: grid;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
+  color: var(--pharos-muted);
+}
+
+.audit-seal-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--pharos-strong);
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.audit-seal-line {
+  margin: 8px 0 0;
+  max-width: 62ch;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+
+.audit-seal-expand {
+  flex: none;
+  margin-left: auto;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.audit-seal[open] .audit-seal-expand {
+  color: var(--pharos-muted);
+}
+
+/* Approved is the only state that gets the lamp. A rejection, an error and a run
+   that never happened are all legible failures and must not borrow it. */
+.audit-approved .audit-seal-icon {
+  border-color: color-mix(in srgb, var(--signal-healthy) 34%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 10%, transparent);
+  color: var(--signal-healthy-ink);
+}
+
+.audit-approved .audit-seal-summary strong {
+  color: var(--signal-healthy-ink);
+  letter-spacing: 0.02em;
+}
+
+.audit-rejected {
+  border-color: color-mix(in srgb, var(--signal-critical) 26%, transparent);
+}
+
+.audit-rejected .audit-seal-icon {
+  border-color: color-mix(in srgb, var(--signal-critical) 34%, transparent);
+  background: color-mix(in srgb, var(--signal-critical) 10%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.audit-error .audit-seal-icon {
+  border-color: color-mix(in srgb, var(--signal-warning) 34%, transparent);
+  background: color-mix(in srgb, var(--signal-warning) 10%, transparent);
+  color: var(--signal-warning-ink);
+}
+
+.audit-not-run .audit-seal-icon {
+  border-color: color-mix(in srgb, var(--signal-uncertain) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-uncertain) 9%, transparent);
+  color: var(--signal-uncertain-ink);
+}
+
+.audit-seal-body {
+  padding: 0 clamp(18px, 2.2vw, 26px) clamp(18px, 2.2vw, 26px);
+  border-top: 1px solid var(--line-subtle);
+  padding-top: 18px;
+}
+
+.audit-seal-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--line-subtle);
+}
+
+.audit-seal-stats > div {
+  padding: 11px 13px;
+  background: var(--surface-well);
+}
+
+.audit-seal-stats dt {
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.audit-seal-stats dd {
+  margin: 6px 0 0;
+  color: var(--pharos-ink);
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.audit-seal-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.audit-check {
+  display: flex;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
+}
+
+.audit-check > span {
+  display: grid;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+}
+
+.audit-check-pass > span {
+  background: color-mix(in srgb, var(--signal-healthy) 16%, transparent);
+  color: var(--signal-healthy-ink);
+}
+
+.audit-check-fail > span {
+  background: color-mix(in srgb, var(--signal-critical) 16%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.audit-check-not_applicable > span {
+  background: var(--surface-overlay);
+  color: var(--pharos-faint);
+}
+
+.audit-check strong {
+  display: block;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.audit-check p {
+  margin: 4px 0 0;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+
+.audit-seal-issues {
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--signal-critical) 24%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--signal-critical) 6%, transparent);
+}
+
+.audit-seal-issues > div {
+  display: flex;
+  gap: 9px;
+  margin-top: 10px;
+  color: var(--signal-critical-ink);
+}
+
+.audit-seal-issues p {
+  margin: 0;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
+  line-height: 1.55;
+}
+
+.audit-seal-issues strong {
+  display: block;
+  color: var(--signal-critical-ink);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.audit-seal-issues span {
+  display: block;
+  margin-top: 5px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  overflow-wrap: anywhere;
+}
+
+.audit-seal-guarantees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.audit-seal-guarantees span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  color: var(--pharos-muted);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------- blind trial scoreboard */
+
+.trial-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.trial-outcome-match {
+  border-color: color-mix(in srgb, var(--signal-healthy) 34%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 10%, transparent);
+  color: var(--signal-healthy-ink);
+}
+
+.trial-outcome-partial {
+  border-color: color-mix(in srgb, var(--signal-warning) 32%, transparent);
+  background: color-mix(in srgb, var(--signal-warning) 9%, transparent);
+  color: var(--signal-warning-ink);
+}
+
+.trial-outcome-mismatch {
+  border-color: color-mix(in srgb, var(--signal-critical) 32%, transparent);
+  background: color-mix(in srgb, var(--signal-critical) 9%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.trial-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 22px 0 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-card);
+  background: var(--line-subtle);
+}
+
+.trial-metrics > div {
+  padding: 13px 15px;
+  background: var(--surface-well);
+}
+
+.trial-metrics dt {
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.trial-metrics dd {
+  margin: 7px 0 0;
+  color: var(--pharos-strong);
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.trial-metrics span {
+  display: block;
+  margin-top: 5px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
+  line-height: 1.4;
+}
+
+.trial-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 4px 9px;
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trial-cell-match {
+  border-color: color-mix(in srgb, var(--signal-healthy) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-healthy) 9%, transparent);
+  color: var(--signal-healthy-ink);
+}
+
+.trial-cell-partial {
+  border-color: color-mix(in srgb, var(--signal-warning) 28%, transparent);
+  background: color-mix(in srgb, var(--signal-warning) 8%, transparent);
+  color: var(--signal-warning-ink);
+}
+
+.trial-cell-mismatch {
+  border-color: color-mix(in srgb, var(--signal-critical) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-critical) 9%, transparent);
+  color: var(--signal-critical-ink);
+}
+
+.trial-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.trial-footer > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trial-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-well);
+  color: var(--pharos-muted);
+  font-size: var(--text-nano);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .control-canvas {
   min-height: 100vh;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */

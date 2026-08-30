@@ -4,7 +4,6 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import {
   Check,
-  CircleAlert,
   CircleCheck,
   Clock3,
   Eye,
@@ -20,10 +19,11 @@ import {
   TimerReset,
 } from "lucide-react";
 import { injectChaos, injectRandomChaos, revealChaos } from "@/lib/api/control-tower";
+import type { BlindTrialEvaluation } from "@/lib/api/control-tower";
+import { BlindTrialScoreboard } from "./blind-trial-scoreboard";
 import { useIncidentReports } from "@/lib/api/use-control-tower";
 import type { ChaosSpec, Dimensions } from "@/lib/contracts";
 import { dimensionLabel, dimensionValueLabel, type DimensionField } from "@/lib/dimensions";
-import { DISPLAY_TIME_ZONE_LABEL, time } from "@/lib/format";
 
 type ChaosPhase = "ready" | "confirming" | "submitting" | "active" | "revealing" | "revealed" | "failed";
 type ChaosMode = ChaosSpec["mode"];
@@ -120,6 +120,7 @@ export function ChaosConsole() {
   const [duration, setDuration] = useState(20);
   const [phase, setPhase] = useState<ChaosPhase>("ready");
   const [runSpec, setRunSpec] = useState<ChaosSpec | null>(null);
+  const [evaluation, setEvaluation] = useState<BlindTrialEvaluation | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [clientStartedAtMs, setClientStartedAtMs] = useState<number | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -212,7 +213,9 @@ export function ChaosConsole() {
     setPhase("revealing");
     setRequestError(null);
     try {
-      setRunSpec(await revealChaos(runSpec.chaos_id));
+      const { evaluation: outcome, ...revealed } = await revealChaos(runSpec.chaos_id);
+      setRunSpec(revealed);
+      setEvaluation(outcome ?? null);
       setPhase("revealed");
     } catch (error) {
       setRequestError(errorMessage(error));
@@ -222,6 +225,7 @@ export function ChaosConsole() {
 
   const reset = () => {
     setRunSpec(null);
+    setEvaluation(null);
     setClientStartedAtMs(null);
     setElapsedSeconds(0);
     setRequestError(null);
@@ -557,63 +561,7 @@ export function ChaosConsole() {
         </section>
 
         {runSpec?.revealed ? (
-          <section className="chaos-reveal-card">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div>
-                <p className="eyebrow">Reveal comparison</p>
-                <h2 className="mt-1 text-title font-medium text-pharos-ink">
-                  Injected truth, returned by the runtime
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-pharos-muted">
-                  The current frozen API does not associate an <code>incident_id</code> with a{" "}
-                  <code>chaos_id</code>, so PHAROS does not claim an automatic match. Compare this truth with
-                  the evidence report in the investigation queue.
-                </p>
-              </div>
-              <span className="chaos-compare-badge chaos-compare-match">
-                <Check className="size-3" aria-hidden="true" /> Revealed
-              </span>
-            </div>
-
-            <div className="mt-6">
-              <div className="chaos-compare-header">
-                <span>Field</span>
-                <span>Ground truth injected</span>
-                <span>Runtime state</span>
-                <span>Assessment</span>
-              </div>
-              <div className="chaos-compare-list">
-                {dimensionOrder.map((field) => (
-                  <div key={field} className="chaos-compare-row">
-                    <strong>{dimensionLabel(field)}</strong>
-                    <span>{displayValue(field, runSpec.dimensions?.[field])}</span>
-                    <span>Available for report review</span>
-                    <span className="chaos-compare-badge chaos-compare-partial">
-                      <CircleAlert className="size-3" aria-hidden="true" /> Not correlated
-                    </span>
-                  </div>
-                ))}
-                <div className="chaos-compare-row">
-                  <strong>Severity</strong>
-                  <span>{runSpec.severity_pp} pp injected</span>
-                  <span>Not exposed by incident detail</span>
-                  <span className="chaos-compare-badge chaos-compare-partial">
-                    <CircleAlert className="size-3" aria-hidden="true" /> Contract gap
-                  </span>
-                </div>
-                <div className="chaos-compare-row">
-                  <strong>Started</strong>
-                  <span>
-                    {time(runSpec.started_at)} {DISPLAY_TIME_ZONE_LABEL}
-                  </span>
-                  <span>Reported separately</span>
-                  <span className="chaos-compare-badge chaos-compare-partial">
-                    <CircleAlert className="size-3" aria-hidden="true" /> Contract gap
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
+          <BlindTrialScoreboard runSpec={runSpec} evaluation={evaluation} />
         ) : null}
       </main>
     </div>
