@@ -49,7 +49,11 @@ export function Metric({
         {value}
         {unit ? <span className="text-small font-medium tracking-normal text-pharos-faint">{unit}</span> : null}
       </p>
-      <p className="mt-2 text-micro leading-4 text-pharos-faint">{caption}</p>
+      {/* Reserved height. The caption changes as the stream updates — "32 of 40
+          transactions" becomes "80 streamed transactions" — and re-wrapping from
+          three lines to two resized the card, the grid row and the document
+          beneath it several times a second. */}
+      <p className="mt-2 min-h-[3.4em] text-micro leading-4 text-pharos-faint">{caption}</p>
     </article>
   );
 }

@@ -38,16 +38,29 @@ const productLinks = [
   },
 ];
 
-/** True once the page has left the very top, so the bar can condense. */
-function useScrolled(threshold = 12) {
+/**
+ * True once the page has left the very top, so the bar can condense.
+ *
+ * The two thresholds are hysteresis, not decoration. A single threshold flips on
+ * every pixel of jitter around it, and the page has content that resizes on its
+ * own — a metric card re-wrapping as streamed numbers change is enough to nudge
+ * the scroll position across a bare boundary and set the bar flickering.
+ */
+function useScrolled(condenseAbove = 28, expandBelow = 10) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const update = () => setScrolled(window.scrollY > threshold);
+    const update = () =>
+      setScrolled((current) => {
+        const y = window.scrollY;
+        if (y > condenseAbove) return true;
+        if (y < expandBelow) return false;
+        return current;
+      });
     update();
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
-  }, [threshold]);
+  }, [condenseAbove, expandBelow]);
 
   return scrolled;
 }
