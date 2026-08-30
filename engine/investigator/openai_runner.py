@@ -174,7 +174,8 @@ Produci un IncidentReport que:
 - identifique la hipotesis con mayor respaldo, si la evidencia permite distinguirla;
 - explique claramente que segmento esta afectado;
 - cite evidencia concreta para cada afirmacion;
-- estime el impacto usando solamente los valores calculados por las herramientas;
+- deje el impacto economico fuera de los claims: lo transporta el propio campo del reporte,
+  calculado por el motor estadistico, y no existe evidencia que pueda citarse para el;
 - recomiende una proxima accion acotada y sujeta a revision humana;
 - devuelva inconclusive cuando la evidencia no sea suficiente.
 
@@ -214,6 +215,11 @@ o devolve inconclusive.
 
 Si una parte del resumen o de la recomendacion depende de un dato, ese dato tambien debe estar
 respaldado por la evidencia consultada.
+
+No conviertas el impacto economico en un claim. Las herramientas te muestran una perdida estimada
+en USD por hora para dimensionar la prioridad, pero ese numero lo calcula el motor estadistico a
+partir del candidato: ningun registro de evidencia lo contiene ni lo demuestra. Un claim sobre esa
+cifra no puede citarse y sera rechazado. El reporte ya la transporta en su propio campo.
 
 # Estado y certeza
 
