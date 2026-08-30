@@ -129,7 +129,7 @@ export function ControlTowerDashboard() {
           </header>
 
           {/* Global status bar. Every value carries its unit and an interpretation. */}
-          <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Runtime status">
+          <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Runtime status">
             <Metric
               label="Observed approval"
               value={hasEnoughSample && sample ? percent(sample.approvalRate) : "—"}
