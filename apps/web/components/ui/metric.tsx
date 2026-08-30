@@ -42,7 +42,10 @@ export function Metric({
         <p className="eyebrow">{label}</p>
         {icon ? <span className="shrink-0 text-pharos-faint">{icon}</span> : null}
       </div>
-      <p className={cn("mt-3 flex items-baseline gap-1.5 text-[27px] leading-none font-semibold tracking-[-0.05em]", toneClass)}>
+      <p
+        data-metric-value
+        className={cn("mt-3 flex items-baseline gap-1.5 text-[27px] leading-none font-semibold tracking-[-0.05em]", toneClass)}
+      >
         {value}
         {unit ? <span className="text-[13px] font-medium tracking-normal text-pharos-faint">{unit}</span> : null}
       </p>

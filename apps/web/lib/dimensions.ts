@@ -25,6 +25,8 @@ const dimensionSpecs: Record<DimensionField, DimensionSpec> = {
     options: [
       { value: "VuelaYa", label: "VuelaYa" },
       { value: "Comercio1", label: "Comercio 1" },
+      { value: "Comercio2", label: "Comercio 2" },
+      { value: "Comercio3", label: "Comercio 3" },
       { value: "TiendaNorte", label: "Tienda Norte" },
     ],
   },
@@ -33,7 +35,6 @@ const dimensionSpecs: Record<DimensionField, DimensionSpec> = {
     options: [
       { value: "nova_pay", label: "NovaPay" },
       { value: "atlas_pay", label: "AtlasPay" },
-      { value: "aurora_pay", label: "AuroraPay" },
       { value: "stripe", label: "Stripe" },
       { value: "adyen", label: "Adyen" },
     ],
@@ -61,8 +62,15 @@ const dimensionSpecs: Record<DimensionField, DimensionSpec> = {
     options: [
       { value: "itau", label: "Itaú" },
       { value: "nubank", label: "Nubank" },
+      { value: "bradesco", label: "Bradesco" },
       { value: "bbva_mx", label: "BBVA México" },
+      { value: "banorte", label: "Banorte" },
+      { value: "santander_mx", label: "Santander México" },
+      { value: "bancolombia", label: "Bancolombia" },
+      { value: "davivienda", label: "Davivienda" },
       { value: "galicia", label: "Galicia" },
+      { value: "santander_ar", label: "Santander Argentina" },
+      { value: "bbva_ar", label: "BBVA Argentina" },
     ],
   },
   canonical_decline_code: {

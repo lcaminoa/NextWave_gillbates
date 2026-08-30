@@ -334,7 +334,8 @@ a {
 
 .control-main {
   min-width: 0;
-  padding: clamp(24px, 2.2vw, 40px);
+  /* Extra bottom room so the fixed incident alert never sits on top of content. */
+  padding: clamp(24px, 2.2vw, 40px) clamp(24px, 2.2vw, 40px) 140px;
   background:
     radial-gradient(circle at 42% 0%, rgba(220, 159, 222, 0.085), transparent 25rem),
     linear-gradient(125deg, rgba(37, 25, 40, 0.68), rgba(22, 15, 25, 0.58));
@@ -429,9 +430,11 @@ a {
   background: rgba(251, 113, 133, 0.08);
 }
 
+/* Height follows the globe now. The old fixed 590px was reserved whether or not a
+   candidate carried a mappable country, so a quiet or offline dashboard showed a
+   third of a page of empty black. */
 .globe-stage {
   position: relative;
-  min-height: 590px;
   background:
     radial-gradient(circle at 50% 38%, rgba(211, 157, 222, 0.12), transparent 23rem),
     linear-gradient(145deg, rgba(44, 30, 50, 0.93), rgba(16, 12, 20, 0.97));
@@ -451,13 +454,14 @@ a {
 .globe-hero {
   position: relative;
   z-index: 1;
-  margin-top: -48px;
+  margin-top: -20px;
+  padding-bottom: 12px;
 }
 
 .globe-detail-card {
   position: absolute;
   z-index: 4;
-  top: 116px;
+  top: 92px;
   right: 24px;
   width: min(322px, calc(100% - 48px));
   padding: 16px;
@@ -648,19 +652,18 @@ a {
   background: rgba(17, 12, 21, 0.56);
 }
 
-.incident-hero-stat p {
-  color: #988d9b;
+.incident-hero-stat dt {
+  color: var(--pharos-faint);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 
-.incident-hero-stat strong {
+.incident-hero-stat dd {
   display: block;
   margin-top: 7px;
-  color: #f8f1f8;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 650;
   letter-spacing: -0.03em;
 }
@@ -668,20 +671,9 @@ a {
 .incident-hero-stat span {
   display: block;
   margin-top: 4px;
-  color: #9f94a4;
+  color: var(--pharos-faint);
   font-size: 10px;
-}
-
-.incident-hero-review {
-  background:
-    radial-gradient(circle at 85% 0%, rgba(251, 191, 36, 0.12), transparent 8rem),
-    rgba(29, 21, 27, 0.72);
-}
-
-.incident-hero-review strong {
-  color: #f4d27d;
-  font-size: 13px;
-  letter-spacing: -0.02em;
+  line-height: 1.35;
 }
 
 .incident-workspace-card,
@@ -696,18 +688,32 @@ a {
 .incident-cause-path {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: 7px;
 }
 
+/* Each node names the dimension it narrows, so the path reads as an argument
+   rather than as a row of opaque values. */
 .incident-cause-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 7px 10px;
-  color: #c9bdce;
+  border-radius: 13px;
+  padding: 7px 12px;
+  color: var(--pharos-ink);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
+}
+
+.incident-cause-node em {
+  color: var(--pharos-faint);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .incident-cause-node-strong {
@@ -718,16 +724,20 @@ a {
 
 .incident-evidence-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) minmax(84px, 0.3fr);
+  grid-template-columns: 58px minmax(0, 1fr) minmax(84px, 0.28fr);
   gap: 14px;
-  padding: 18px;
+  align-items: start;
+  padding: 16px 18px;
 }
 
+/* Carries the evidence value when the runtime sent one, so the number sits beside
+   the sentence it supports instead of only inside the prose. */
 .incident-evidence-index {
-  color: #dba9da;
-  font-size: 11px;
+  color: var(--pharos-accent);
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .incident-claim {
@@ -1620,12 +1630,32 @@ a {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 0 32px rgba(251, 113, 133, 0.08);
 }
 
-.presentation-mode .control-shell {
-  max-width: none;
+/* Presentation mode used to be a no-op: max-width was already none and the padding
+   moved by ~8px. It now does what the spec asks — drops the supporting panels and
+   scales the story elements up so the screen reads from across a room. */
+.presentation-mode .control-main {
+  padding: clamp(32px, 3vw, 56px);
 }
 
-.presentation-mode .control-main {
-  padding: clamp(28px, 2.6vw, 48px);
+.presentation-mode .globe-stage,
+.presentation-mode .persistent-alert {
+  display: none;
+}
+
+.presentation-mode h1 {
+  font-size: clamp(34px, 3.4vw, 48px);
+}
+
+.presentation-mode h2 {
+  font-size: 21px;
+}
+
+.presentation-mode .eyebrow {
+  font-size: 10px;
+}
+
+.presentation-mode [data-metric-value] {
+  font-size: 34px;
 }
 
 @media (max-width: 1100px) {

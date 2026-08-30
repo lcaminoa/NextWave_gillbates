@@ -34,6 +34,16 @@ export class ControlTowerError extends Error {
   }
 }
 
+/**
+ * Recovers the HTTP status from an error message that has already been flattened
+ * to a string by the hooks. Lets a screen separate "this incident does not exist"
+ * from "the runtime is unreachable" without changing the live hook contract.
+ */
+export function statusFromErrorMessage(message?: string | null) {
+  const match = message?.match(/\((\d{3})\)\s*$/);
+  return match ? Number(match[1]) : undefined;
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(apiOrigin + path, { cache: "no-store" });
   if (!response.ok) {
