@@ -22,12 +22,22 @@ function smoothstep(start: number, end: number, value: number) {
 
 function CameraRig({ pointerRef }: Pick<ApprovalSignalSceneProps, "pointerRef">) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  /** Eased copy of the raw pointer, so mouse input reaches the camera already smooth. */
+  const easedPointer = useRef({ x: 0, y: 0 });
 
   useFrame((_state, delta) => {
     const camera = cameraRef.current;
     if (!camera) return;
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, pointerRef.current.x * 0.09, 3.2, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, pointerRef.current.y * 0.065, 3.2, delta);
+
+    // Two stages of easing on purpose. Pointer events arrive in irregular steps,
+    // so the raw value is smoothed first; the camera then trails that smoothed
+    // value. A single fast damp let the input's steppiness through, which is what
+    // made the parallax read as jerky instead of fluid.
+    easedPointer.current.x = THREE.MathUtils.damp(easedPointer.current.x, pointerRef.current.x, 6, delta);
+    easedPointer.current.y = THREE.MathUtils.damp(easedPointer.current.y, pointerRef.current.y, 6, delta);
+
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, easedPointer.current.x * 0.115, 1.9, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, easedPointer.current.y * 0.08, 1.9, delta);
     camera.lookAt(0, 0, 0);
   });
 

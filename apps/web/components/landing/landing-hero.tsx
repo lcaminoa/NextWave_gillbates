@@ -156,8 +156,33 @@ export function LandingHero() {
   const activeReveal = activeCheckpoint ? clamp((displayProgress - activeCheckpoint.start) / 0.02) : 0;
   const canRenderScene = webglAvailable && !reducedMotion;
 
+  /**
+   * The stage rect is measured once and re-measured only when the geometry can
+   * actually have changed. Reading getBoundingClientRect inside the move handler
+   * forced a layout flush on every pointer event — hundreds per second on a
+   * high-polling mouse — which is what made the parallax feel steppy rather than
+   * smooth. The pointer itself is cheap; measuring it was not.
+   */
+  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRectRef = useRef<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const measure = () => {
+      stageRectRef.current = stageRef.current?.getBoundingClientRect() ?? null;
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+    };
+  }, [reducedMotion]);
+
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = stageRectRef.current;
+    if (!rect || !rect.width || !rect.height) return;
     pointerRef.current = {
       x: clamp(((event.clientX - rect.left) / rect.width) * 2 - 1, -1, 1),
       y: clamp(((event.clientY - rect.top) / rect.height) * 2 - 1, -1, 1),
@@ -167,6 +192,7 @@ export function LandingHero() {
   return (
     <section ref={storyRef} className={reducedMotion ? "landing-hero landing-hero-reduced" : "landing-hero"} aria-labelledby="landing-heading">
       <div
+        ref={stageRef}
         className="landing-hero-stage"
         onPointerMove={handlePointerMove}
         onPointerLeave={() => {
