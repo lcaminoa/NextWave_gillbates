@@ -2102,6 +2102,7 @@ a {
   left: clamp(24px, 7.2vw, 130px);
   width: min(520px, 42vw);
   pointer-events: none;
+  --reveal: var(--intro, 1);
 }
 
 .landing-mask-line {
@@ -2110,7 +2111,10 @@ a {
   padding: 0.04em 0 0.11em;
 }
 
+/* Masked lines ride the --reveal of whichever block contains them, so a reveal
+   costs one custom-property write instead of a React render per line. */
 .landing-mask-inner {
+  transform: translate3d(0, calc((1 - var(--reveal, 1)) * 112%), 0);
   display: block;
   will-change: transform;
 }
@@ -2118,7 +2122,10 @@ a {
 .landing-hero-eyebrow,
 .landing-section-intro > span,
 .landing-final-cta > div > span,
-.landing-stage-caption > .landing-mask-line:first-child .landing-mask-inner {
+.landing-stage-caption > .landing-mask-line:first-child /* Masked lines ride the --reveal of whichever block contains them, so a reveal
+   costs one custom-property write instead of a React render per line. */
+.landing-mask-inner {
+  transform: translate3d(0, calc((1 - var(--reveal, 1)) * 112%), 0);
   color: #bcb2c5;
   font-size: 10px;
   font-weight: 760;
@@ -2162,6 +2169,7 @@ a {
 }
 
 .landing-hero-actions {
+  transform: translate3d(0, calc((1 - var(--intro, 1)) * 120%), 0);
   pointer-events: auto;
   will-change: transform;
 }
@@ -3219,6 +3227,7 @@ a {
   }
 
   .landing-hero-actions {
+  transform: translate3d(0, calc((1 - var(--intro, 1)) * 120%), 0);
     gap: 8px;
     flex-wrap: nowrap;
     width: 100%;
@@ -3461,93 +3470,115 @@ a {
   stroke-width: 1.2;
 }
 
+/* Drawn straight from --trace, which the hero writes each frame. No transition:
+   the value is already smoothed, and easing it again only adds lag. */
 .landing-trajectory-trace {
   fill: none;
   stroke: #bdc9ea;
+  stroke-dashoffset: calc(100 - var(--trace, 0) * 100);
   stroke-linecap: round;
   stroke-width: 2.35;
   filter: drop-shadow(0 0 8px rgba(188, 202, 235, 0.34));
-  transition: stroke 280ms ease, filter 280ms ease, stroke-dashoffset 160ms linear;
+  transition: stroke 280ms ease, filter 280ms ease;
 }
 
-.landing-trajectory-deviation .landing-trajectory-trace {
+[data-tone="deviation"] .landing-trajectory-trace {
   stroke: #e4aa61;
   filter: drop-shadow(0 0 8px rgba(228, 170, 97, 0.34));
 }
 
-.landing-trajectory-evidence .landing-trajectory-trace {
+[data-tone="evidence"] .landing-trajectory-trace {
   stroke: #dd7a99;
   filter: drop-shadow(0 0 9px rgba(221, 122, 153, 0.38));
 }
 
+/* Each node fades against its own start, so the reveal is a pure function of
+   scroll position rather than something React recomputes every frame. */
 .landing-trajectory-checkpoint {
+  opacity: clamp(0, calc((var(--p, 0) - (var(--start) - 0.018)) / 0.045), 1);
+}
+
+/* Radii are constant and emphasis is a scale, so the active node eases in
+   instead of jumping between two sizes. */
+.landing-trajectory-node-halo,
+.landing-trajectory-node {
+  transform-box: fill-box;
   transform-origin: center;
-  transition: opacity 170ms linear;
+  transition:
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    fill 260ms ease,
+    stroke 260ms ease;
 }
 
 .landing-trajectory-node-halo {
   fill: rgba(190, 202, 235, 0.07);
   stroke: rgba(192, 202, 235, 0.21);
   stroke-width: 0.8;
-  transition: fill 240ms ease, stroke 240ms ease, r 240ms ease;
 }
 
 .landing-trajectory-node {
   fill: #0e0b12;
   stroke: #c9d2ed;
   stroke-width: 1.65;
-  transition: stroke 240ms ease, fill 240ms ease;
 }
 
-.landing-trajectory-leader {
-  fill: none;
-  stroke: rgba(228, 221, 236, 0.72);
-  stroke-linecap: round;
-  stroke-width: 1.2;
-  transition: stroke 220ms ease;
-}
-
-.landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+.landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node-halo {
+  transform: scale(2.5);
   fill: rgba(200, 212, 242, 0.13);
   stroke: rgba(211, 220, 244, 0.58);
+  animation: landing-trajectory-pulse 2.4s ease-in-out infinite;
 }
 
-.landing-trajectory-checkpoint-active .landing-trajectory-node {
+.landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node {
+  transform: scale(1.74);
   fill: #e4e9f8;
   stroke: #f7f3ff;
 }
 
-.landing-trajectory-deviation .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+/* The leader is always in the DOM and fades, rather than being mounted and
+   unmounted, which is what made it snap in and out. */
+.landing-trajectory-leader {
+  fill: none;
+  opacity: 0;
+  stroke: rgba(228, 221, 236, 0.72);
+  stroke-linecap: round;
+  stroke-width: 1.2;
+  transition: opacity 280ms ease, stroke 220ms ease;
+}
+
+.landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-leader {
+  opacity: 1;
+}
+
+[data-tone="deviation"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node-halo {
   fill: rgba(228, 170, 97, 0.15);
   stroke: rgba(239, 187, 111, 0.66);
 }
 
-.landing-trajectory-deviation .landing-trajectory-checkpoint-active .landing-trajectory-node {
+[data-tone="deviation"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node {
   fill: #f7c984;
   stroke: #ffe1b1;
 }
 
-.landing-trajectory-evidence .landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
+[data-tone="evidence"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node-halo {
   fill: rgba(221, 122, 153, 0.16);
   stroke: rgba(238, 156, 183, 0.68);
 }
 
-.landing-trajectory-evidence .landing-trajectory-checkpoint-active .landing-trajectory-node {
+[data-tone="evidence"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node {
   fill: #ef9ab5;
   stroke: #ffd7e4;
 }
 
-.landing-trajectory-deviation .landing-trajectory-leader {
+[data-tone="deviation"] .landing-trajectory-leader {
   stroke: rgba(247, 201, 132, 0.82);
 }
 
-.landing-trajectory-evidence .landing-trajectory-leader {
+[data-tone="evidence"] .landing-trajectory-leader {
   stroke: rgba(239, 154, 181, 0.85);
 }
 
-.landing-trajectory-checkpoint-active .landing-trajectory-node-halo {
-  animation: landing-trajectory-pulse 2.4s ease-in-out infinite;
-}
+
 
 @keyframes landing-trajectory-pulse {
   0%,
@@ -3564,7 +3595,6 @@ a {
   z-index: 5;
   top: clamp(135px, 24vh, 290px);
   width: min(560px, 36vw);
-  transition: opacity 150ms linear, transform 190ms ease, visibility 0s linear 150ms;
 }
 
 .landing-hero-intro h1 {
@@ -3577,6 +3607,7 @@ a {
 }
 
 .landing-hero-actions {
+  transform: translate3d(0, calc((1 - var(--intro, 1)) * 120%), 0);
   width: fit-content;
 }
 
@@ -3587,7 +3618,8 @@ a {
   width: min(350px, 22vw);
   pointer-events: none;
   text-align: left;
-  transition: opacity 150ms linear, transform 190ms ease, visibility 0s linear 150ms;
+  --reveal: var(--caption-reveal, 1);
+  opacity: 0;
 }
 
 .landing-checkpoint-caption-left {

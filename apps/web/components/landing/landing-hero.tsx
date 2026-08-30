@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent } from "react";
+import type { MutableRefObject, PointerEvent } from "react";
 import type { ApprovalSignalSceneProps, LandingPointer } from "./approval-signal-scene";
 import { IncidentTrajectory } from "./incident-trajectory";
 import {
@@ -36,43 +36,80 @@ function useReducedMotion() {
   return reducedMotion;
 }
 
-function MaskedLine({ children, progress }: { children: React.ReactNode; progress: number }) {
+/**
+ * Reveal is driven by the --reveal custom property of whichever block contains
+ * the line, not by a prop. Passing a number per frame meant re-rendering every
+ * masked line sixty times a second just to move it.
+ */
+function MaskedLine({ children }: { children: React.ReactNode }) {
   return (
     <span className="landing-mask-line">
-      <span className="landing-mask-inner" style={{ transform: `translate3d(0, ${(1 - progress) * 112}%, 0)` }}>
-        {children}
-      </span>
+      <span className="landing-mask-inner">{children}</span>
     </span>
   );
 }
 
-function SignalFallback({ progress }: { progress: number }) {
-  const waypoint = getSignalWaypoint(progress);
-  const tone = getTrajectoryTone(progress);
-  const cardStatus = getCardSignalStatus(progress);
-  const finalUnseal = clamp((progress - 0.958) / 0.042);
-  const x = (waypoint.x - 0.5) * 100;
-  const y = (waypoint.y - 0.5) * 100;
+/**
+ * Shown until the WebGL scene reports ready, and permanently when WebGL is
+ * unavailable. It writes its own transform inside an animation frame rather than
+ * taking progress as a prop: this element moves continuously, and a prop would
+ * put it back inside the per-frame React render the rest of the hero just left.
+ */
+function SignalFallback({
+  progressRef,
+  reducedMotion,
+}: {
+  progressRef: MutableRefObject<number>;
+  reducedMotion: boolean;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const apply = (progress: number) => {
+      const waypoint = getSignalWaypoint(progress);
+      const tone = getTrajectoryTone(progress);
+      const status = getCardSignalStatus(progress);
+      const finalUnseal = clamp((progress - 0.958) / 0.042);
+      const x = (waypoint.x - 0.5) * 100;
+      const y = (waypoint.y - 0.5) * 100;
+
+      card.style.transform =
+        `translate3d(${x}vw, ${y}vh, 0) rotateX(${7 + progress * 9}deg)`
+        + ` rotateY(${-13 + progress * 12}deg) rotateZ(${-5 + progress * 11}deg)`
+        + ` scale(${waypoint.scale})`;
+      card.style.setProperty("--card-unseal", finalUnseal.toFixed(4));
+      card.dataset.tone = tone;
+      const marking = card.querySelector<HTMLElement>(".landing-payment-card-marking");
+      if (marking) {
+        marking.dataset.state = status.label;
+        marking.dataset.detail = status.detail;
+      }
+    };
+
+    if (reducedMotion) {
+      apply(0.58);
+      return;
+    }
+
+    let frame = window.requestAnimationFrame(function loop() {
+      apply(progressRef.current);
+      frame = window.requestAnimationFrame(loop);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [progressRef, reducedMotion]);
 
   return (
     <div className="landing-signal-fallback" aria-hidden="true">
-      <div
-        className={`landing-payment-card-fallback landing-payment-card-fallback-${tone}`}
-        style={{
-          transform: `translate3d(${x}vw, ${y}vh, 0) rotateX(${7 + progress * 9}deg) rotateY(${-13 + progress * 12}deg) rotateZ(${-5 + progress * 11}deg) scale(${waypoint.scale})`,
-          "--card-unseal": finalUnseal,
-        } as CSSProperties}
-      >
+      <div ref={cardRef} className="landing-payment-card-fallback">
         <i className="landing-payment-card-edge" />
         <i className="landing-payment-card-face" />
-        <i className="landing-payment-card-marking" data-state={cardStatus.label} data-detail={cardStatus.detail} />
+        <i className="landing-payment-card-marking" />
         <i className="landing-payment-card-chip" />
-        {finalUnseal > 0.01 ? (
-          <>
-            <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-a" />
-            <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-b" />
-          </>
-        ) : null}
+        <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-a" />
+        <i className="landing-payment-card-evidence-layer landing-payment-card-evidence-layer-b" />
       </div>
     </div>
   );
@@ -82,7 +119,11 @@ export function LandingHero() {
   const storyRef = useRef<HTMLElement>(null);
   const progressRef = useRef(0);
   const pointerRef = useRef<LandingPointer>({ x: 0, y: 0 });
-  const [progress, setProgress] = useState(0);
+  // Only the discrete part of the scene lives in React state. The continuous
+  // part is written straight to CSS custom properties, so a frame costs a few
+  // style writes instead of a full re-render of the hero.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [introEngaged, setIntroEngaged] = useState(true);
   const [webglAvailable, setWebglAvailable] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const reducedMotion = useReducedMotion();
@@ -101,13 +142,62 @@ export function LandingHero() {
       rawProgress = clamp(-rect.top / travel);
     };
 
+    const paint = (value: number) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const intro = clamp((0.12 - value) / 0.035);
+      const index = getActiveCheckpointIndex(value);
+      const checkpoint = index >= 0 ? landingCheckpoints[index] : undefined;
+      const caption = checkpoint ? getCheckpointVisibility(value, checkpoint) : 0;
+      const reveal = checkpoint ? clamp((value - checkpoint.start) / 0.02) : 0;
+
+      // Opacity and transform on these two blocks are written directly rather than
+      // through a custom property. Both work; a direct write is chosen because
+      // these values change every frame and reading back an explicit style is
+      // simpler to reason about than a chain of calc(). Neither element carries a
+      // CSS transition any more: the value arriving here is already smoothed by
+      // the scroll lerp, and a transition on top would be a second, slower easing
+      // fighting the first.
+      const introEl = introRef.current;
+      if (introEl) {
+        introEl.style.opacity = String(intro);
+        introEl.style.transform = `translate3d(0, ${(1 - intro) * -22}px, 0)`;
+        introEl.style.visibility = intro > 0.02 ? "visible" : "hidden";
+        introEl.style.pointerEvents = intro > 0.02 ? "auto" : "none";
+      }
+
+      const captionEl = captionRef.current;
+      if (captionEl) {
+        captionEl.style.opacity = String(caption);
+        captionEl.style.transform = `translate3d(0, ${(1 - caption) * 14}px, 0)`;
+        captionEl.style.visibility = caption > 0.02 ? "visible" : "hidden";
+      }
+
+      stage.style.setProperty("--p", value.toFixed(4));
+      stage.style.setProperty("--intro", intro.toFixed(4));
+      stage.style.setProperty("--caption", caption.toFixed(4));
+      stage.style.setProperty("--caption-reveal", reveal.toFixed(4));
+      stage.style.setProperty("--trace", clamp((value - 0.095) / 0.83).toFixed(4));
+      // Tone is a band, not a curve, so it rides an attribute and CSS transitions it.
+      stage.dataset.tone = getTrajectoryTone(value);
+
+      // Markup only changes when the active beat does — six times across the
+      // whole scene rather than sixty times a second.
+      setActiveIndex((current) => (current === index ? current : index));
+      setIntroEngaged((current) => {
+        const engaged = intro > 0.02;
+        return current === engaged ? current : engaged;
+      });
+    };
+
     const tick = () => {
       // Smoothing is per-frame, so a shorter scene needs a tighter follow: at the
       // old 0.08 over the old travel the scene visibly lagged the wheel.
       const next = progressRef.current + (rawProgress - progressRef.current) * 0.16;
       const settled = Math.abs(next - rawProgress) < 0.0002;
       progressRef.current = settled ? rawProgress : next;
-      setProgress(progressRef.current);
+      paint(progressRef.current);
       // Stop once the scene has caught up. The loop used to run forever, so the
       // landing re-rendered sixty times a second while sitting perfectly still —
       // a fan-spinning idle cost on whatever laptop is driving the demo.
@@ -148,12 +238,7 @@ export function LandingHero() {
   }, [reducedMotion]);
 
   const onSceneReady = useCallback(() => setSceneReady(true), []);
-  const displayProgress = reducedMotion ? 0.58 : progress;
-  const introVisibility = reducedMotion ? 1 : clamp((0.12 - displayProgress) / 0.035);
-  const activeCheckpointIndex = reducedMotion ? -1 : getActiveCheckpointIndex(displayProgress);
-  const activeCheckpoint = activeCheckpointIndex >= 0 ? landingCheckpoints[activeCheckpointIndex] : undefined;
-  const activeVisibility = activeCheckpoint ? getCheckpointVisibility(displayProgress, activeCheckpoint) : 0;
-  const activeReveal = activeCheckpoint ? clamp((displayProgress - activeCheckpoint.start) / 0.02) : 0;
+  const activeCheckpoint = !reducedMotion && activeIndex >= 0 ? landingCheckpoints[activeIndex] : undefined;
   const canRenderScene = webglAvailable && !reducedMotion;
 
   /**
@@ -165,6 +250,8 @@ export function LandingHero() {
    */
   const stageRef = useRef<HTMLDivElement>(null);
   const stageRectRef = useRef<DOMRect | null>(null);
+  const introRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -209,35 +296,30 @@ export function LandingHero() {
 
         <div className="landing-scene-wrap">
           {canRenderScene ? <ApprovalSignalScene progressRef={progressRef} pointerRef={pointerRef} onReady={onSceneReady} /> : null}
-          {!sceneReady ? <SignalFallback progress={displayProgress} /> : null}
+          {!sceneReady ? <SignalFallback progressRef={progressRef} reducedMotion={reducedMotion} /> : null}
         </div>
 
-        {!reducedMotion ? <IncidentTrajectory progress={displayProgress} /> : null}
+        {!reducedMotion ? <IncidentTrajectory activeIndex={activeIndex} /> : null}
 
         <div
           className="landing-hero-intro"
-          aria-hidden={introVisibility < 0.02}
-          style={{
-            opacity: introVisibility,
-            pointerEvents: introVisibility > 0.02 ? "auto" : "none",
-            transform: `translate3d(0, ${(1 - introVisibility) * -22}px, 0)`,
-            visibility: introVisibility > 0.02 ? "visible" : "hidden",
-          }}
+          ref={introRef}
+          aria-hidden={!introEngaged}
         >
-          <MaskedLine progress={introVisibility}>
+          <MaskedLine>
             <span className="landing-hero-eyebrow">PHAROS · Payment Incident Intelligence</span>
           </MaskedLine>
           <h1 id="landing-heading">
-            <MaskedLine progress={introVisibility}>When approval drops,</MaskedLine>
-            <MaskedLine progress={introVisibility}>
+            <MaskedLine>When approval drops,</MaskedLine>
+            <MaskedLine>
               <em>find what changed.</em>
             </MaskedLine>
           </h1>
-          <MaskedLine progress={introVisibility}>
+          <MaskedLine>
             <p>PHAROS turns a payment anomaly into evidence your team can verify.</p>
           </MaskedLine>
           <div className="landing-hero-actions-mask">
-            <div className="landing-hero-actions" style={{ transform: `translate3d(0, ${(1 - introVisibility) * 120}%, 0)` }}>
+            <div className="landing-hero-actions">
               <Link href="/control-room" className="landing-action landing-action-primary">
                 Enter live control room <ArrowUpRight className="size-4" />
               </Link>
@@ -259,25 +341,21 @@ export function LandingHero() {
           <div
             className={`landing-checkpoint-caption landing-checkpoint-caption-${activeCheckpoint.side} landing-checkpoint-caption-${activeCheckpoint.key}`}
             aria-live="polite"
-            style={{
-              opacity: activeVisibility,
-              transform: `translate3d(${activeCheckpoint.side === "left" ? -8 : 8}px, ${(1 - activeVisibility) * 14}px, 0)`,
-              visibility: activeVisibility > 0.02 ? "visible" : "hidden",
-            }}
+            ref={captionRef}
           >
-            <MaskedLine progress={activeReveal}>
+            <MaskedLine>
               <span className="landing-checkpoint-eyebrow">{activeCheckpoint.eyebrow}</span>
             </MaskedLine>
-            <MaskedLine progress={activeReveal}>
+            <MaskedLine>
               <strong>{activeCheckpoint.primary}</strong>
             </MaskedLine>
-            <MaskedLine progress={activeReveal}>
+            <MaskedLine>
               <p>{activeCheckpoint.secondary}</p>
             </MaskedLine>
           </div>
         ) : null}
 
-        {!reducedMotion && introVisibility > 0.02 ? (
+        {!reducedMotion && introEngaged ? (
           <div className="landing-scroll-cue" aria-hidden="true">
             <span>Scroll to investigate</span>
             <ArrowDown className="size-3.5" />
