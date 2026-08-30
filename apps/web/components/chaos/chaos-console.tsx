@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
-import { Check, CircleAlert, CircleCheck, Clock3, Eye, EyeOff, FlaskConical, Gauge, Link2, LoaderCircle, LockKeyhole, Play, RotateCcw, Sparkles, TimerReset } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, Clock3, Eye, EyeOff, FlaskConical, Gauge, Link2, LoaderCircle, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles, TimerReset } from "lucide-react";
 import { injectChaos, injectRandomChaos, revealChaos } from "@/lib/api/control-tower";
+import type { BlindTrialEvaluation, BlindTrialOutcome } from "@/lib/api/control-tower";
 import { useIncidentReports } from "@/lib/api/use-control-tower";
 import type { ChaosSpec, Dimensions } from "@/lib/contracts";
 import { time } from "@/lib/format";
@@ -30,6 +31,7 @@ const CHAOS_RUN_STORAGE_KEY = "pharos.active-chaos-run";
 type StoredChaosRun = {
   runSpec: ChaosSpec;
   clientStartedAtMs: number | null;
+  evaluation: BlindTrialEvaluation | null;
 };
 
 function restoreChaosRun(): StoredChaosRun | null {
@@ -39,6 +41,7 @@ function restoreChaosRun(): StoredChaosRun | null {
     const stored = JSON.parse(raw) as {
       runSpec?: Partial<ChaosSpec>;
       clientStartedAtMs?: unknown;
+      evaluation?: unknown;
     } & Partial<ChaosSpec>;
     // Backward compatibility with runs saved before elapsed time was persisted.
     const run = stored.runSpec ?? stored;
@@ -56,6 +59,13 @@ function restoreChaosRun(): StoredChaosRun | null {
         typeof stored.clientStartedAtMs === "number"
         && Number.isFinite(stored.clientStartedAtMs)
         ? stored.clientStartedAtMs
+        : null
+      ),
+      evaluation: (
+        stored.evaluation
+        && typeof stored.evaluation === "object"
+        && "outcome" in stored.evaluation
+        ? stored.evaluation as BlindTrialEvaluation
         : null
       ),
     };
@@ -78,6 +88,21 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "The PHAROS runtime rejected the request.";
 }
 
+const outcomeCopy: Record<BlindTrialOutcome, { label: string; detail: string; tone: "match" | "partial" | "mismatch" }> = {
+  exact: { label: "Exact root-cause match", detail: "PHAROS identified the same dimensions without adding unsupported scope.", tone: "match" },
+  partial: { label: "Partial match", detail: "PHAROS found part of the injected cause but did not isolate every dimension.", tone: "partial" },
+  over_specific: { label: "Cause found, scope overstated", detail: "The injected cause was found, but the diagnosis added dimensions not present in the trial.", tone: "partial" },
+  mixed: { label: "Mixed result", detail: "The diagnosis contains a useful match together with omissions, additions or contradictions.", tone: "partial" },
+  incorrect: { label: "Incorrect diagnosis", detail: "The asserted cause does not establish a useful match with the injected truth.", tone: "mismatch" },
+  inconclusive: { label: "Investigation inconclusive", detail: "PHAROS abstained instead of publishing a cause that did not clear its evidence gates.", tone: "partial" },
+  no_report: { label: "No report before reveal", detail: "No eligible investigation report was ready when the operator revealed the trial.", tone: "partial" },
+  ambiguous: { label: "Association ambiguous", detail: "More than one run or episode overlapped, so PHAROS refused to choose using revealed truth.", tone: "partial" },
+};
+
+function seconds(value?: number | null) {
+  return typeof value === "number" ? `${value.toFixed(1)} s` : "Not available";
+}
+
 export function ChaosConsole() {
   const [mode, setMode] = useState<ChaosMode>("manual");
   const [dimensions, setDimensions] = useState<Dimensions>({ merchant: "VuelaYa", provider: "nova_pay", payment_method: "card", country: "BR", issuing_bank: "itau", canonical_decline_code: "do_not_honor" });
@@ -85,6 +110,7 @@ export function ChaosConsole() {
   const [duration, setDuration] = useState(20);
   const [phase, setPhase] = useState<ChaosPhase>("ready");
   const [runSpec, setRunSpec] = useState<ChaosSpec | null>(null);
+  const [evaluation, setEvaluation] = useState<BlindTrialEvaluation | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [clientStartedAtMs, setClientStartedAtMs] = useState<number | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -100,6 +126,7 @@ export function ChaosConsole() {
     startTransition(() => {
       if (restored) {
         setRunSpec(restored.runSpec);
+        setEvaluation(restored.evaluation);
         setMode(restored.runSpec.mode);
         setSeverity(restored.runSpec.severity_pp);
         if (typeof restored.runSpec.duration_minutes === "number") {
@@ -120,12 +147,12 @@ export function ChaosConsole() {
     if (runSpec) {
       window.sessionStorage.setItem(
         CHAOS_RUN_STORAGE_KEY,
-        JSON.stringify({ runSpec, clientStartedAtMs }),
+        JSON.stringify({ runSpec, clientStartedAtMs, evaluation }),
       );
     } else {
       window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
     }
-  }, [clientStartedAtMs, restoredRunState, runSpec]);
+  }, [clientStartedAtMs, evaluation, restoredRunState, runSpec]);
 
   useEffect(() => {
     if (!runSpec || !isRunning) return;
@@ -149,6 +176,7 @@ export function ChaosConsole() {
         ? await injectChaos({ chaos_id: `chaos_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`, mode: "manual", dimensions, severity_pp: severity, started_at: new Date().toISOString(), duration_minutes: duration, revealed: true })
         : await injectRandomChaos({ severity_pp: severity, duration_minutes: duration });
       setRunSpec(nextSpec);
+      setEvaluation(null);
       setSeverity(nextSpec.severity_pp);
       if (typeof nextSpec.duration_minutes === "number") {
         setDuration(nextSpec.duration_minutes);
@@ -167,7 +195,9 @@ export function ChaosConsole() {
     setPhase("revealing");
     setRequestError(null);
     try {
-      setRunSpec(await revealChaos(runSpec.chaos_id));
+      const { evaluation: nextEvaluation, ...revealedSpec } = await revealChaos(runSpec.chaos_id);
+      setRunSpec(revealedSpec);
+      setEvaluation(nextEvaluation ?? null);
       setPhase("revealed");
     } catch (error) {
       setRequestError(errorMessage(error));
@@ -177,6 +207,7 @@ export function ChaosConsole() {
 
   const reset = () => {
     setRunSpec(null);
+    setEvaluation(null);
     setClientStartedAtMs(null);
     setElapsedSeconds(0);
     setRequestError(null);
@@ -193,6 +224,10 @@ export function ChaosConsole() {
     failed: { label: "Request failed", detail: "No client-side state was treated as a successful injection.", tone: "warning" },
   };
   const meta = phaseMeta[phase];
+  const scoreMeta = evaluation ? outcomeCopy[evaluation.outcome] : null;
+  const comparedDimensions = evaluation
+    ? dimensionLabels.filter(({ key }) => evaluation.truth_dimensions[key] || evaluation.diagnosed_dimensions[key])
+    : [];
 
   return (
     <div className="control-canvas chaos-canvas"><main className="mx-auto w-full max-w-none">
@@ -215,7 +250,21 @@ export function ChaosConsole() {
           {phase !== "ready" && phase !== "confirming" ? <button type="button" onClick={reset} className="chaos-reset-button"><RotateCcw className="size-3.5" /> Clear local run view</button> : null}
         </aside></section>
 
-      {runSpec?.revealed ? <section className="chaos-reveal-card"><div className="flex flex-wrap items-start justify-between gap-5"><div><p className="eyebrow">Reveal comparison</p><h2 className="mt-1 text-[25px] font-medium tracking-[-0.045em] text-[#f8f1f9]">Injected truth, returned by the runtime</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#b8adbd]">The current frozen API does not associate an <code>incident_id</code> with a <code>chaos_id</code>, so Pharos does not claim an automatic match. Compare this truth with the evidence report in the investigation queue.</p></div><span className="chaos-compare-badge chaos-compare-match"><Check className="size-3" /> Revealed</span></div><div className="mt-6"><div className="chaos-compare-header"><span>Field</span><span>Ground truth injected</span><span>Runtime state</span><span>Assessment</span></div><div className="chaos-compare-list">{dimensionLabels.map(({ key, label }) => <div key={key} className="chaos-compare-row"><strong>{label}</strong><span>{displayValue(runSpec.dimensions?.[key])}</span><span>Available for report review</span><span className="chaos-compare-badge chaos-compare-partial"><CircleAlert className="size-3" /> Not correlated</span></div>)}<div className="chaos-compare-row"><strong>Severity</strong><span>{runSpec.severity_pp} pp injected</span><span>Not exposed by incident detail</span><span className="chaos-compare-badge chaos-compare-partial"><CircleAlert className="size-3" /> Contract gap</span></div><div className="chaos-compare-row"><strong>Started</strong><span>{time(runSpec.started_at)}</span><span>Reported separately</span><span className="chaos-compare-badge chaos-compare-partial"><CircleAlert className="size-3" /> Contract gap</span></div></div></div></section> : null}
+      {runSpec?.revealed ? <section aria-live="polite" aria-label="Blind Trial Scoreboard result" className={`chaos-reveal-card ${scoreMeta ? `chaos-score-${scoreMeta.tone}` : ""}`}>
+        <div className="flex flex-wrap items-start justify-between gap-5"><div><p className="eyebrow">Blind Trial Scoreboard</p><h2 className="mt-1 text-[25px] font-medium tracking-[-0.045em] text-[#f8f1f9]">{scoreMeta?.label ?? "Injected truth revealed"}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#b8adbd]">{scoreMeta?.detail ?? "Manual scenarios are visible to the operator and are not graded as blind trials."}</p></div><span className={`chaos-compare-badge chaos-compare-${scoreMeta?.tone ?? "partial"}`}>{evaluation?.outcome === "exact" ? <Check className="size-3" /> : <CircleAlert className="size-3" />} {evaluation?.outcome.replaceAll("_", " ") ?? "Not scored"}</span></div>
+        {evaluation ? <>
+          <div className="chaos-score-metrics"><div><span>Detection</span><strong>{seconds(evaluation.detection_latency_seconds)}</strong><small>Wall-clock from injection</small></div><div><span>Explanation</span><strong>{seconds(evaluation.explanation_latency_seconds)}</strong><small>Wall-clock from injection</small></div><div><span>Severity error</span><strong>{typeof evaluation.severity_error_pp === "number" ? `${evaluation.severity_error_pp.toFixed(1)} pp` : "Not available"}</strong><small>Absolute degradation error</small></div><div><span>Evidence gate</span><strong>{evaluation.evidence_audit_status.replaceAll("_", " ")}</strong><small>{evaluation.structural_evidence_valid ? "Structure validated" : "No validated report"}</small></div></div>
+          <div className="mt-6" role="table" aria-label="Ground truth and PHAROS diagnosis comparison"><div className="chaos-compare-header" role="row"><span role="columnheader">Field</span><span role="columnheader">Ground truth injected</span><span role="columnheader">PHAROS diagnosis</span><span role="columnheader">Assessment</span></div><div className="chaos-compare-list" role="rowgroup">{comparedDimensions.map(({ key, label }) => {
+            const truth = evaluation.truth_dimensions[key];
+            const diagnosed = evaluation.diagnosed_dimensions[key];
+            const conflict = evaluation.conflicting_dimensions[key];
+            const assessment = conflict ? "Contradiction" : evaluation.matching_dimensions[key] ? "Exact match" : evaluation.missing_dimensions[key] ? "Omitted" : evaluation.extra_dimensions[key] ? "Added scope" : "Not assessed";
+            const tone = conflict ? "mismatch" : evaluation.matching_dimensions[key] ? "match" : "partial";
+            return <div key={key} className="chaos-compare-row" role="row"><strong role="rowheader">{label}</strong><span role="cell">{truth ? displayValue(truth) : "—"}</span><span role="cell">{diagnosed ? displayValue(diagnosed) : "Not asserted"}</span><span role="cell" className={`chaos-compare-badge chaos-compare-${tone}`}>{tone === "match" ? <Check className="size-3" /> : <CircleAlert className="size-3" />} {assessment}</span></div>;
+          })}<div className="chaos-compare-row" role="row"><strong role="rowheader">Degradation</strong><span role="cell">-{evaluation.injected_degradation_pp.toFixed(1)} pp</span><span role="cell">{typeof evaluation.estimated_degradation_pp === "number" ? `-${evaluation.estimated_degradation_pp.toFixed(1)} pp` : "Not estimated"}</span><span role="cell" className={`chaos-compare-badge ${typeof evaluation.severity_error_pp === "number" && evaluation.severity_error_pp <= 5 ? "chaos-compare-match" : "chaos-compare-partial"}`}><Gauge className="size-3" /> {typeof evaluation.severity_error_pp === "number" ? `${evaluation.severity_error_pp.toFixed(1)} pp error` : "Unavailable"}</span></div><div className="chaos-compare-row" role="row"><strong role="rowheader">Trial started</strong><span role="cell">{time(runSpec.started_at)}</span><span role="cell">{evaluation.incident_id ? "Associated before reveal" : "No unique incident"}</span><span role="cell" className="chaos-compare-badge chaos-compare-partial"><LockKeyhole className="size-3" /> Blind-safe binding</span></div></div></div>
+          <div className="chaos-score-footer"><div><span className="chaos-proof-pill"><ShieldCheck className="size-3.5" /> Human review required</span><span className="chaos-proof-pill"><Check className="size-3.5" /> No action executed</span>{evaluation.outcome === "inconclusive" ? <span className="chaos-proof-pill"><CircleAlert className="size-3.5" /> Abstention {evaluation.abstention_assessment}</span> : null}</div>{evaluation.incident_id ? <Link href={`/incidents/${evaluation.incident_id}`} className="chaos-incident-link"><Link2 className="size-3.5" /> Open associated report</Link> : null}</div>
+        </> : <div className="chaos-reveal-sealed mt-5"><CircleAlert className="size-4" /><p>This scenario was not registered as a sealed random trial, so PHAROS does not claim an automated score.</p></div>}
+      </section> : null}
     </main></div>
   );
 }

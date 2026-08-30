@@ -16,6 +16,7 @@ from contracts.schemas import ChaosSpec, IncidentReport
 from engine.api import (
     ChaosRandomRequest,
     ChaosRevealRequest,
+    ChaosRevealResponse,
     ControlTowerService,
     IncidentDetail,
 )
@@ -207,10 +208,12 @@ def create_app(
 
     @application.post(
         "/api/chaos/reveal",
-        response_model=ChaosSpec,
+        response_model=ChaosRevealResponse,
         dependencies=[Depends(require_judge_access)],
     )
-    async def reveal_chaos(payload: ChaosRevealRequest | None = None) -> ChaosSpec:
+    async def reveal_chaos(
+        payload: ChaosRevealRequest | None = None,
+    ) -> ChaosRevealResponse:
         revealed = runtime.reveal_chaos(payload.chaos_id if payload else None)
         if revealed is None:
             raise HTTPException(status_code=404, detail="chaos not found")

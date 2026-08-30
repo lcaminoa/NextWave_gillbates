@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, CircleAlert, FileSearch, Landmark, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, FileSearch, Landmark, Minus, ShieldCheck, Sparkles, X } from "lucide-react";
 import { useIncidentDetail } from "@/lib/api/use-control-tower";
 import { percent, time, usd } from "@/lib/format";
 import type { IncidentCandidate } from "@/lib/contracts";
@@ -40,6 +40,15 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
   const citedEvidence = evidence.filter((item) => citedEvidenceIds.has(item.evidence_id));
   const isInconclusive = report.status === "inconclusive";
   const causePath = ["Global", leadCandidate?.dimensions.country, leadCandidate?.dimensions.payment_method, leadCandidate?.dimensions.provider, leadCandidate?.dimensions.issuing_bank].filter(Boolean);
+  const audit = detail.evidence_audit;
+  const visibleAuditChecks = audit.status === "approved" ? audit.checks.filter((check) => check.status === "pass") : audit.checks;
+  const auditTitle = audit.status === "approved"
+    ? isInconclusive ? "Verified safe abstention" : "PHAROS VERIFIED"
+    : audit.status === "rejected"
+      ? "REPORT WITHHELD"
+      : audit.status === "error"
+        ? "SAFE PUBLICATION FAILURE"
+        : "Independent audit not run";
 
   return (
     <div className="control-canvas incident-canvas">
@@ -84,6 +93,22 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
               </div>
               {report.claims.map((claim) => <div key={claim.claim} className="incident-claim"><Sparkles className="mt-0.5 size-4 shrink-0 text-[#e2b1df]" /><div><p className="text-sm leading-6 text-[#f0e6f1]">{claim.claim}</p><p className="mt-1 text-[10px] text-[#aa9cab]">{percent(claim.confidence)} confidence · Evidence: {claim.evidence_ids.join(", ") || "not cited"}</p></div></div>)}
             </article>
+
+            <details className={`incident-audit-seal incident-audit-${audit.status}`} open={audit.status === "rejected" || audit.status === "error"}>
+              <summary>
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="incident-audit-icon"><ShieldCheck className="size-5" /></span>
+                  <div className="min-w-0"><p className="eyebrow">Evidence Audit Seal</p><h2>{auditTitle}</h2><p>{audit.summary}</p></div>
+                </div>
+                <span className="incident-audit-expand">Open audit</span>
+              </summary>
+              <div className="incident-audit-body">
+                <div className="incident-audit-stats"><div><span>Claims reviewed</span><strong>{audit.claims_reviewed}</strong></div><div><span>Evidence reviewed</span><strong>{audit.evidence_reviewed}</strong></div><div><span>Publication state</span><strong>{audit.status.replaceAll("_", " ")}</strong></div></div>
+                <div className="incident-audit-checks">{visibleAuditChecks.map((check) => <div key={check.code} className={`incident-audit-check incident-audit-check-${check.status}`}><span>{check.status === "pass" ? <Check className="size-3.5" /> : check.status === "fail" ? <X className="size-3.5" /> : <Minus className="size-3.5" />}</span><div><strong>{check.label}</strong><p>{check.detail}</p></div></div>)}</div>
+                {audit.issues.length ? <div className="incident-audit-issues"><p className="eyebrow">Why publication was withheld</p>{audit.issues.map((issue, index) => <div key={`${issue.code}-${index}`}><CircleAlert className="mt-0.5 size-4 shrink-0" /><p><strong>{issue.code.replaceAll("_", " ")}</strong>{issue.message}{issue.evidence_ids.length ? <span>Evidence: {issue.evidence_ids.join(", ")}</span> : null}</p></div>)}</div> : null}
+                <div className="incident-audit-safety"><span><CircleAlert className="size-3.5" /> Human review required</span><span><ShieldCheck className="size-3.5" /> No action executed</span></div>
+              </div>
+            </details>
 
             <article className="incident-workspace-card p-5 md:p-6"><p className="eyebrow">Hypotheses</p><h2 className="mt-1 text-[22px] font-medium tracking-[-0.04em] text-[#f8f1f9]">{isInconclusive ? "Close explanations, no asserted cause" : "Ranked investigation candidates"}</h2><div className="mt-5 space-y-2">{relatedCandidates.map((item) => <div key={item.candidate_id} className={item.candidate_id === report.winning_candidate_id ? "incident-hypothesis incident-hypothesis-supported" : "incident-hypothesis incident-hypothesis-less-evidence"}><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-bold tracking-[0.1em] uppercase">{item.candidate_id === report.winning_candidate_id ? "Supported by cited evidence" : "Alternative explanation"}</span><span className="text-[10px] text-[#958a99]">{percent(item.confidence)} confidence</span></div><p className="mt-1.5 text-sm font-semibold text-[#f3ebf4]">{candidateLabel(item)}</p><p className="mt-1 text-[12px] leading-5 text-[#afa4b2]">{item.counterfactual_check ?? "No discriminating evidence is available yet."}</p></div></div>)}</div></article>
 

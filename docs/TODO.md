@@ -30,10 +30,10 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`; defaults calibrados contra stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
 | Mix shift | 🟡 | El pipeline calcula `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una dimensión. | Usarlo como filtro real antes de abrir un incidente; hoy informa, pero no bloquea alertas. |
 | RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y contrafácticos; D011 separa candidatos/evidencia por anomalía concurrente. | Priorización global en UI y casos de cobertura residual más complejos. |
-| Tests | 🟡 | 90 tests: Stream A/B/C, API, caos oculto, dedupe, abstención, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`), completar P1 y evaluar OpenAI auditado con key real. |
+| Tests | 🟡 | 106 tests: Stream A/B/C, API, caos oculto, asociación pre-reveal, scoreboard, dedupe, abstención, retries, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`), completar P1 y evaluar OpenAI auditado con key real. |
 | Investigador OpenAI | 🟡 | Modo `deterministic` por defecto y modo `audited_openai` con tools de solo lectura, Structured Outputs, validadores, Evidence Auditor, fallo cerrado y reintento seguro. | Configurar key/modelo solo en el entorno del engine y hacer el primer smoke auditado real. |
 | API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store, deduplicación y CORS con allowlist explícita. | -- |
-| Dashboard / Chaos Console | 🟡 | PHAROS en Next.js: landing, Control Room, cola, detalle, SSE, estados `unavailable` y Chaos aleatorio/reveal contra el runtime real. | Corregir Chaos manual: la UI envía `canonical_decline_code`, dimensión que el simulador no puede matchear; además restringir combinaciones de dimensiones incompatibles. La API aún no expone `Anomaly`/`BaselinePoint`; no se debe inventar ese gráfico hasta que exista el contrato. |
+| Dashboard / Chaos Console | 🟡 | PHAROS en Next.js: landing, Control Room, cola, detalle, SSE, Evidence Audit Seal y Blind Trial Scoreboard contra el runtime real. | Corregir Chaos manual: la UI envía `canonical_decline_code`, dimensión que el simulador no puede matchear; además restringir combinaciones de dimensiones incompatibles. La API aún no expone `Anomaly`/`BaselinePoint`; no se debe inventar ese gráfico hasta que exista el contrato. |
 | Demo / deploy | 🟡 | Smoke local completo desde UI: `random_unknown` → reveal → reporte → evidencia y pasos reales. | Runbook de un comando y despliegue estable. |
 
 Leyenda: ✅ implementado y verificado; 🟡 parcial o aislado; ❌ aún no implementado.
@@ -105,7 +105,7 @@ legible que no inventa métricas ni referencias.
 - [x] Incident Detail: candidatos, evidencia citable, controles, timeline real y acción humana recomendada.
 - [x] Timeline: mostrar `InvestigationStep[]` registrados por el runtime, sin chain-of-thought.
 - [ ] `/chaos`: inyección manual y `random_unknown`, reveal autorizado y comparación que no afirma correlación automática `chaos_id ↔ incident_id`.
-  - `random_unknown` y reveal live están verificados. El payload manual actual siempre incluye `canonical_decline_code`, pero el simulador no evalúa esa clave al matchear transacciones: el request se acepta sin degradar tráfico. Corregir serialización/validación de dimensiones antes de marcarlo completo.
+  - `random_unknown`, asociación pre-reveal y scoreboard live están verificados. El payload manual actual siempre incluye `canonical_decline_code`, pero el simulador no evalúa esa clave al matchear transacciones: el request se acepta sin degradar tráfico. Corregir serialización/validación de dimensiones antes de marcarlo completo.
 - [x] Mostrar explícitamente `inconclusive` en vez de forzar una causa.
 
 **Criterio de aceptación:** una persona que no conoce el código entiende en diez segundos qué
@@ -131,8 +131,8 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
     candidatos/evidencia. Falta definir y mostrar una priorización global en UI.
 - [x] Incidente que termina: recuperación sin incidente duplicado.
 - [x] Evidencia insuficiente: estado `inconclusive` con explicación de qué falta.
-- [ ] Incidente inyectado al azar: score automático contra la verdad revelada.
-  - El reveal y la comparación manual ya funcionan; el contrato actual no expone relación `chaos_id ↔ incident_id`, por lo que no se puede afirmar un match automático todavía.
+- [x] Incidente inyectado al azar: score automático contra la verdad revelada.
+  - La asociación se cierra antes del reveal por tiempo/fingerprint, no usa dimensiones secretas y expone ambigüedad en vez de elegir retrospectivamente.
 
 ## P2 — Pre-flight de hackathon
 
@@ -164,8 +164,8 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
 - [ ] **Reloj de fuga de ingresos.** Contador visible de pérdida mientras el incidente sigue vivo.
 - [ ] **Árbol de investigación / hipótesis descartadas.** Mostrar qué dimensiones se revisaron y
   qué controles sanos descartaron alternativas.
-- [ ] **Puntaje automático de reveal.** Comparar dimensiones inyectadas vs. detectadas, latencia y
-  error del costo estimado.
+- [x] **Puntaje automático de reveal.** Compara dimensiones inyectadas vs. detectadas, latencias
+  de pared y error de degradación en puntos porcentuales.
 - [ ] **Chaos en lenguaje natural.** Transformar la instrucción del juez en `ChaosSpec` validado;
   mantener los controles estructurados como fallback.
 - [x] **Auditor de evidencia.** Segunda validación que rechace claims sin IDs válidos o con una
@@ -187,7 +187,7 @@ No duplicar endpoints ni crear otra consola de caos. Trabajo paralelo útil:
 ## Orden recomendado de trabajo inmediato
 
 1. Corregir Chaos manual y restringir dimensiones incompatibles para que cada escenario aceptado afecte realmente el stream.
-2. Configurar el entorno del engine para `audited_openai` y definir cómo mostrar el resultado del audit en UI.
+2. Configurar el entorno del engine para `audited_openai` y hacer el primer smoke real con el Evidence Audit Seal ya integrado.
 3. Completar mix-shift como gate y la priorización global de incidentes.
 4. Ejecutar un smoke real auditado y repetir el trial a ciegas desde la UI.
 5. Agregar una suite frontend real para que `pnpm test` sea una validación útil; terminar README, runbook, diagrama exportable, slides, deploy y ensayo del pitch.

@@ -35,7 +35,10 @@ pnpm install && pnpm dev
 ```
 
 La consola de caos vive en `/chaos` del dashboard — ahí el jurado dispara un incidente
-desconocido en vivo para la prueba a ciegas.
+desconocido en vivo para la prueba a ciegas. Al revelar, el Blind Trial Scoreboard compara la
+asociación cerrada antes del reveal con la verdad inyectada, sin entregar esa verdad al detector,
+Investigator o Evidence Auditor. El detalle de incidente muestra además el Evidence Audit Seal;
+solo una auditoría independiente aprobada puede presentarse como `PHAROS VERIFIED`.
 
 El frontend consume `GET /api/incidents`, el detalle, y el SSE de transacciones directamente
 del engine configurado en `NEXT_PUBLIC_CONTROL_TOWER_API_ORIGIN`. El engine permite el origen

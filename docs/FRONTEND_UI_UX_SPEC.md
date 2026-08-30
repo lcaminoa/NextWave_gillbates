@@ -234,13 +234,19 @@ El contenido exacto sale de `IncidentReport`, su `winning_candidate_id` y el `In
    - distinguir “supported” de “not enough evidence”, no “false” salvo que exista evidencia explícita;
    - **pendiente de backend:** no hay un campo formal de hipótesis descartadas con razón. Diseñar el espacio, pero no inventar frases de descarte.
 
-6. **Acción humana recomendada**
+6. **Evidence Audit Seal**
+   - mostrar el estado persistido por el runtime: `approved`, `rejected`, `error` o `not_run`;
+   - `PHAROS VERIFIED` aparece solamente con `approved`; el modo determinístico debe decir que el auditor independiente no corrió;
+   - expandir checks, issues, claims/evidencias revisadas y el motivo de retención;
+   - conservar siempre visibles `Human review required` y `No action executed`.
+
+7. **Acción humana recomendada**
    - tarjeta final clara y con borde diferenciado;
    - texto de `recommended_action`;
    - sello visible: `Recommendation only — no traffic was rerouted`;
    - ningún botón `Apply`, `Fix`, `Reroute` o equivalente.
 
-7. **Incidente similar** (solo si llega `matches_past_incident_id`)
+8. **Incidente similar** (solo si llega `matches_past_incident_id`)
    - una tarjeta pequeña, link a incidente anterior;
    - no construir una página de memoria antes de tener este dato.
 
@@ -292,6 +298,12 @@ Después del reveal, mostrar una comparación limpia:
 | hora de inicio | hora de detección |
 
 No declarar “match” automáticamente si solo coincide una parte de las dimensiones; usar una comparación literal por cada dimensión.
+
+El `Blind Trial Scoreboard` consume exclusivamente la evaluación devuelta por el runtime. Debe
+distinguir `exact`, `partial`, `over_specific`, `mixed`, `incorrect`, `inconclusive`, `no_report`
+y `ambiguous`; mostrar latencias de pared, error absoluto de severidad en puntos porcentuales y
+estado del Evidence Audit. Un `inconclusive` debe indicar si la abstención fue justificada o no
+verificada. La UI no intenta volver a asociar reportes por similitud después del reveal.
 
 ## 9. Sistema de notificaciones: parte del producto, no decoración
 
