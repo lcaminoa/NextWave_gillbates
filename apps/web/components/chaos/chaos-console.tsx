@@ -35,22 +35,32 @@ type ChaosMode = ChaosSpec["mode"];
  * Only the labels come from the shared dictionary, so the injector and the
  * incident workspace finally name the same thing the same way.
  */
-const injectableValues: Record<DimensionField, string[]> = {
+/**
+ * Only the dimensions the simulator actually routes traffic by.
+ *
+ * A decline code is a symptom the degradation produces, not a segment traffic
+ * can be selected on: the stream tags a transaction with merchant, provider,
+ * country, payment method and issuing bank, and nothing else. Offering it here
+ * let an operator build a scenario the injector accepted and then silently
+ * failed to match, because every dimension in the spec has to match and no
+ * transaction ever carries that one.
+ */
+type InjectableField = Exclude<DimensionField, "canonical_decline_code">;
+
+const injectableValues: Record<InjectableField, string[]> = {
   merchant: ["VuelaYa", "Comercio1", "TiendaNorte"],
   provider: ["nova_pay", "atlas_pay", "stripe", "adyen"],
   payment_method: ["card", "pix", "wallet", "pse"],
   country: ["BR", "MX", "CO", "AR"],
   issuing_bank: ["itau", "nubank", "bbva_mx", "galicia"],
-  canonical_decline_code: ["do_not_honor", "issuer_unavailable", "provider_timeout"],
 };
 
-const dimensionOrder: DimensionField[] = [
+const dimensionOrder: InjectableField[] = [
   "merchant",
   "provider",
   "payment_method",
   "country",
   "issuing_bank",
-  "canonical_decline_code",
 ];
 
 const CHAOS_RUN_STORAGE_KEY = "pharos.active-chaos-run";
@@ -125,7 +135,6 @@ export function ChaosConsole() {
     payment_method: "card",
     country: "BR",
     issuing_bank: "itau",
-    canonical_decline_code: "do_not_honor",
   });
   const [severity, setSeverity] = useState(-25);
   const [duration, setDuration] = useState(20);
@@ -416,7 +425,6 @@ export function ChaosConsole() {
                       : [
                           displayValue("country", dimensions.country),
                           displayValue("issuing_bank", dimensions.issuing_bank),
-                          displayValue("canonical_decline_code", dimensions.canonical_decline_code),
                         ].join(" · ")}
                   </span>
                 </div>
