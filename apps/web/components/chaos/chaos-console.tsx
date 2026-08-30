@@ -271,7 +271,6 @@ export function ChaosConsole() {
               <strong>{isRandom ? "Blind-safe" : "Operator defined"}</strong>
             </div>
           </div>
-          <div className="pointer-events-none absolute -top-28 -right-10 size-80 rounded-full bg-pharos-accent/10 blur-3xl" />
         </header>
 
         <section className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1.48fr)_minmax(360px,0.82fr)]">

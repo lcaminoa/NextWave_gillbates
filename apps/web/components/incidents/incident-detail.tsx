@@ -147,7 +147,6 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             </div>
           ))}
         </dl>
-        <div className="pointer-events-none absolute -top-32 -right-12 size-80 rounded-full bg-pharos-accent/10 blur-3xl" />
       </header>
 
       <section className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(300px,0.95fr)]">
@@ -296,7 +295,6 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
                 rerouted
               </span>
             </div>
-            <div className="pointer-events-none absolute -right-12 -bottom-12 size-44 rounded-full bg-pharos-accent/10 blur-3xl" />
           </article>
         </div>
 

@@ -125,7 +125,6 @@ export function ControlTowerDashboard() {
               <MonitorUp className="size-3.5" aria-hidden="true" />
               {presentationMode ? "Exit presentation" : "Presentation mode"}
             </Button>
-            <div className="pointer-events-none absolute -top-28 -right-12 size-80 rounded-full bg-pharos-accent/10 blur-3xl" />
           </header>
 
           {/* Global status bar. Every value carries its unit and an interpretation. */}

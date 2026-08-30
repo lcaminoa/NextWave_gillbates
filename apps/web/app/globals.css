@@ -153,60 +153,58 @@
   --sidebar-border: oklch(0.9 0.01 321 / 10%);
   --sidebar-ring: oklch(0.79 0.1 326);
 
-  /* Surfaces and text tiers, extracted from the values the screens already used. */
-  --pharos-canvas: #09070d;
-  --pharos-surface: #1a1220;
-  --pharos-raised: #241a2a;
-  --pharos-line: var(--line);
-  --pharos-ink: #f5eef7;
-  --pharos-strong: #fbf7fc;
-  --pharos-muted: #b8adbd;
-  --pharos-faint: #9c91a2;
-  --pharos-dim: #847a8a;
-  --pharos-accent: #dca6dd;
-  /* The pale accent used for text on a dark tinted accent background. */
-  --pharos-accent-ink: #f0c9ec;
+  /* Palette: Lamp. PHAROS is a lighthouse, so the ground is the cold dark and the
+     accent is the warm lamp inside it. That is where the colours come from —
+     not from a mood board — which is also the answer to "why this colour".
 
-  /* Signal colours â€” FRONTEND_UI_UX_SPEC Â§10. Never the only carrier of meaning:
-     every use is paired with a label, an icon or a shape. */
-  --signal-healthy: #2dd4a7;
-  --signal-warning: #fbbf24;
-  --signal-critical: #fb7185;
-  --signal-uncertain: #a78bfa;
-  --signal-info: #60a5fa;
+     Surfaces are flat. They used to be gradients, and a page of gently graded
+     panels reads as haze rather than as structure; depth now comes from the
+     surface step and the hairline, not from a fade. */
+  --pharos-canvas: #080a0f;
+  --pharos-surface: #10141b;
+  --pharos-raised: #171d26;
+  --pharos-ink: #edeae3;
+  --pharos-strong: #fbfaf7;
+  --pharos-muted: #a6a79f;
+  --pharos-faint: #7c8089;
+  --pharos-dim: #5d626b;
+  --pharos-accent: #e8c88a;
+  /* The lamp at reading size: pale enough to sit on the dark as text. */
+  --pharos-accent-ink: #f3ddb0;
 
-  /* Readable text on a dark tinted signal background. The base signal colour is
-     tuned for fills and borders; these are its legible counterparts for labels. */
-  --signal-healthy-ink: #77e4c4;
-  --signal-warning-ink: #f4d27d;
-  --signal-critical-ink: #fba1b5;
-  --signal-uncertain-ink: #c9b6f5;
+  /* Signal colours — FRONTEND_UI_UX_SPEC 10. Never the only carrier of meaning:
+     every use is paired with a label, an icon or a shape. Kept clearly apart
+     from the brass accent so "warning" never reads as "brand". */
+  --signal-healthy: #4cc38a;
+  --signal-warning: #f5a524;
+  --signal-critical: #f2555a;
+  --signal-uncertain: #9b8afb;
+  --signal-info: #5ea9f0;
 
-  /* Surfaces. The panels used to carry seven near-identical gradient recipes that
-     differed by a degree of angle or two hundredths of alpha — drift, not design.
-     Two recipes now cover every panel and every hero. */
-  --surface-panel: linear-gradient(145deg, rgba(41, 29, 45, 0.9), rgba(20, 14, 24, 0.94));
-  --surface-hero: linear-gradient(115deg, rgba(28, 18, 32, 0.97), rgba(18, 13, 22, 0.96));
-  /* Accent fills. Kept apart from the panel surfaces on purpose: they share an
-     angle, so anything that treats them as one flattens every active control. */
-  --fill-accent-wash: linear-gradient(90deg, rgba(210, 136, 207, 0.1), rgba(10, 8, 13, 0.2));
-  --fill-accent-soft: linear-gradient(135deg, rgba(182, 111, 182, 0.34), rgba(105, 65, 116, 0.4));
-  --fill-accent: linear-gradient(135deg, rgba(175, 108, 177, 0.75), rgba(106, 64, 117, 0.78));
-  --fill-accent-strong: linear-gradient(135deg, #ce80c6, #9d619f);
-  --fill-accent-strong-hover: linear-gradient(135deg, #e1a0d9, #ae72b0);
+  --signal-healthy-ink: #7ad7ab;
+  --signal-warning-ink: #f7c266;
+  --signal-critical-ink: #f78e91;
+  --signal-uncertain-ink: #b6a9fc;
 
-  /* Critical-tinted surface for the standing incident alert. It reads as a warning
-     panel, so it must not collapse into the neutral panel recipe. */
-  --surface-alert: linear-gradient(145deg, rgba(62, 26, 41, 0.97), rgba(30, 17, 31, 0.98));
+  /* Flat fills for the accent, at three strengths. */
+  --fill-accent-wash: color-mix(in srgb, var(--pharos-accent) 7%, transparent);
+  --fill-accent-soft: color-mix(in srgb, var(--pharos-accent) 13%, transparent);
+  --fill-accent: color-mix(in srgb, var(--pharos-accent) 24%, transparent);
+  --fill-accent-strong: var(--pharos-accent);
+  --fill-accent-strong-hover: #f0d6a1;
 
+  --surface-panel: var(--pharos-surface);
+  --surface-hero: #0d1117;
+  --surface-alert: #1b1216;
   --surface-raised: rgba(255, 255, 255, 0.05);
   --surface-overlay: rgba(255, 255, 255, 0.035);
-  --surface-well: rgba(6, 4, 8, 0.34);
+  --surface-well: rgba(0, 0, 0, 0.24);
 
-  /* Hairlines. Three weights instead of eight near-identical alphas. */
-  --line-subtle: rgba(255, 255, 255, 0.08);
-  --line: rgba(255, 255, 255, 0.11);
-  --line-strong: rgba(255, 255, 255, 0.16);
+  /* Hairlines carry the structure now that the fades are gone, so they warm
+     slightly to match the ink rather than staying pure white. */
+  --line-subtle: rgba(237, 234, 227, 0.08);
+  --line: rgba(237, 234, 227, 0.12);
+  --line-strong: rgba(237, 234, 227, 0.18);
 
   /* Layout rhythm. --measure is the one content width the whole site shares —
      the navigation already used it, while every landing section ran edge to
@@ -270,8 +268,6 @@ html {
 body {
   min-width: 320px;
   background:
-    radial-gradient(circle at 48% -10%, rgba(190, 123, 199, 0.15), transparent 32rem),
-    radial-gradient(circle at 2% 78%, rgba(109, 64, 122, 0.13), transparent 35rem),
     var(--pharos-canvas);
   font-variant-numeric: tabular-nums;
 }
@@ -306,7 +302,7 @@ a {
   padding: 6px 8px 6px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  background: rgba(11, 8, 15, 0.55);
+  background: rgba(8, 10, 15, 0.55);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
   backdrop-filter: blur(18px);
   transition:
@@ -319,7 +315,7 @@ a {
 .site-nav-condensed .site-nav-frame {
   min-height: 52px;
   border-color: var(--line-strong);
-  background: rgba(11, 8, 15, 0.82);
+  background: rgba(8, 10, 15, 0.82);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 12px 34px rgba(0, 0, 0, 0.34);
@@ -425,7 +421,7 @@ a {
 .site-nav-link-active {
   color: var(--pharos-accent-ink);
   background: var(--fill-accent-soft);
-  box-shadow: 0 0 24px rgba(198, 123, 199, 0.1) inset;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--pharos-accent) 10%, transparent) inset;
 }
 
 .site-nav-link em {
@@ -459,9 +455,9 @@ a {
   gap: 6px;
   min-height: 36px;
   padding: 0 12px;
-  border: 1px solid rgba(224, 204, 239, 0.2);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 20%, transparent);
   border-radius: 10px;
-  background: rgba(233, 225, 239, 0.08);
+  background: color-mix(in srgb, var(--pharos-ink) 8%, transparent);
   color: var(--pharos-strong);
   font-size: var(--text-nano);
   font-weight: 750;
@@ -471,8 +467,8 @@ a {
 }
 
 .site-nav-cta:hover {
-  border-color: rgba(224, 204, 239, 0.42);
-  background: rgba(233, 225, 239, 0.16);
+  border-color: color-mix(in srgb, var(--pharos-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--pharos-ink) 16%, transparent);
 }
 
 .control-canvas {
@@ -497,7 +493,6 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius-hero);
   background:
-    radial-gradient(circle at 24% 0%, rgba(211, 148, 214, 0.13), transparent 36%),
     var(--surface-hero);
   box-shadow: var(--shadow-elev-2);
 }
@@ -548,9 +543,8 @@ a {
 .segmented-control .segmented-active {
   color: var(--pharos-accent-ink);
   background:
-    radial-gradient(circle at 50% 0%, rgba(235, 180, 231, 0.32), transparent 100%),
-    rgba(170, 105, 177, 0.38);
-  box-shadow: 0 4px 14px rgba(190, 119, 196, 0.16);
+    color-mix(in srgb, var(--pharos-ink) 38%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--pharos-accent) 16%, transparent);
 }
 
 .eyebrow {
@@ -567,7 +561,6 @@ a {
 .globe-stage {
   position: relative;
   background:
-    radial-gradient(circle at 50% 38%, rgba(211, 157, 222, 0.12), transparent 23rem),
     var(--surface-panel);
 }
 
@@ -618,7 +611,7 @@ a {
 .globe-facts > div {
   min-width: 0;
   padding: 9px;
-  background: rgba(20, 14, 24, 0.6);
+  background: rgba(8, 10, 15, 0.6);
 }
 
 .globe-facts dt {
@@ -647,14 +640,14 @@ a {
   height: 15px;
   flex: 0 0 auto;
   margin-top: 2px;
-  border: 3px solid #211723;
+  border: 3px solid var(--pharos-raised);
   border-radius: var(--radius-pill);
-  background: #a78ab0;
+  background: var(--pharos-muted);
 }
 
 .timeline-dot-live {
   background: var(--pharos-accent);
-  box-shadow: 0 0 0 4px rgba(220, 166, 221, 0.12), 0 0 16px rgba(220, 166, 221, 0.58);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pharos-accent) 12%, transparent), 0 0 16px color-mix(in srgb, var(--pharos-accent) 58%, transparent);
 }
 
 .stream-state {
@@ -680,8 +673,7 @@ a {
 
 .incident-canvas {
   background:
-    radial-gradient(circle at 70% 8%, rgba(211, 148, 211, 0.09), transparent 26rem),
-    radial-gradient(circle at 22% 70%, rgba(100, 58, 111, 0.08), transparent 30rem);
+    var(--pharos-surface);
 }
 
 .incident-hero {
@@ -691,7 +683,6 @@ a {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-hero);
   background:
-    radial-gradient(circle at 76% 18%, rgba(225, 167, 220, 0.13), transparent 23rem),
     var(--surface-hero);
   box-shadow: var(--shadow-elev-2);
 }
@@ -699,7 +690,7 @@ a {
 .incident-hero-stat {
   min-height: 101px;
   padding: 15px 16px;
-  background: rgba(17, 12, 21, 0.56);
+  background: rgba(8, 10, 15, 0.56);
 }
 
 .incident-hero-stat dt {
@@ -767,9 +758,9 @@ a {
 }
 
 .incident-cause-node-strong {
-  border-color: rgba(226, 169, 223, 0.3);
+  border-color: color-mix(in srgb, var(--pharos-accent) 30%, transparent);
   color: var(--pharos-accent-ink);
-  background: rgba(214, 133, 208, 0.14);
+  background: color-mix(in srgb, var(--pharos-accent) 14%, transparent);
 }
 
 .incident-evidence-row {
@@ -795,9 +786,9 @@ a {
   gap: 10px;
   margin-top: 14px;
   padding: 13px 14px;
-  border: 1px solid rgba(226, 169, 223, 0.18);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 18%, transparent);
   border-radius: var(--radius-field);
-  background: rgba(215, 147, 211, 0.06);
+  background: color-mix(in srgb, var(--pharos-accent) 6%, transparent);
 }
 
 .incident-hypothesis {
@@ -829,11 +820,10 @@ a {
   position: relative;
   overflow: hidden;
   padding: clamp(20px, 3vw, 30px);
-  border: 1px solid rgba(244, 198, 236, 0.17);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 17%, transparent);
   border-radius: var(--radius-panel);
   background:
-    radial-gradient(circle at 88% 10%, rgba(216, 145, 212, 0.18), transparent 19rem),
-    linear-gradient(130deg, rgba(58, 33, 62, 0.94), rgba(26, 18, 31, 0.95));
+    linear-gradient(130deg, rgba(23, 29, 38, 0.94), rgba(16, 20, 27, 0.95));
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16);
 }
 
@@ -865,14 +855,14 @@ a {
   height: 13px;
   flex: 0 0 auto;
   margin-top: 3px;
-  border: 3px solid #251a28;
+  border: 3px solid var(--pharos-raised);
   border-radius: var(--radius-pill);
   background: #a99aac;
 }
 
 .incident-timeline-dot-live {
   background: var(--pharos-accent);
-  box-shadow: 0 0 0 4px rgba(220, 166, 221, 0.12), 0 0 16px rgba(220, 166, 221, 0.5);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pharos-accent) 12%, transparent), 0 0 16px color-mix(in srgb, var(--pharos-accent) 50%, transparent);
 }
 
 .investigations-hero {
@@ -887,7 +877,6 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius-hero);
   background:
-    radial-gradient(circle at 22% 0%, rgba(211, 148, 214, 0.13), transparent 36%),
     var(--surface-hero);
   box-shadow: var(--shadow-elev-2);
 }
@@ -905,7 +894,7 @@ a {
 .investigations-summary > div {
   min-height: 78px;
   padding: 14px;
-  background: rgba(17, 12, 21, 0.76);
+  background: rgba(8, 10, 15, 0.76);
 }
 
 .investigations-summary span {
@@ -974,7 +963,6 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius-hero);
   background:
-    radial-gradient(circle at 24% 0%, rgba(208, 140, 207, 0.13), transparent 36%),
     var(--surface-hero);
   box-shadow: var(--shadow-elev-2);
 }
@@ -993,7 +981,7 @@ a {
 .chaos-header-meta > div {
   min-height: 72px;
   padding: 14px;
-  background: rgba(18, 13, 22, 0.74);
+  background: rgba(8, 10, 15, 0.74);
 }
 
 .chaos-header-meta span,
@@ -1034,8 +1022,8 @@ a {
 }
 
 .chaos-phase-active {
-  border-color: rgba(222, 176, 223, 0.38);
-  background: rgba(222, 176, 223, 0.1);
+  border-color: color-mix(in srgb, var(--pharos-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--pharos-accent) 10%, transparent);
   color: var(--pharos-accent);
 }
 
@@ -1118,20 +1106,20 @@ a {
 }
 
 .chaos-field select option {
-  background: #1d1522;
+  background: var(--pharos-surface);
   color: var(--pharos-ink);
 }
 
 .chaos-field:focus-within {
-  border-color: rgba(222, 176, 223, 0.43);
-  box-shadow: 0 0 0 3px rgba(222, 176, 223, 0.09);
+  border-color: color-mix(in srgb, var(--pharos-accent) 43%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pharos-accent) 9%, transparent);
 }
 
 .chaos-blind-state,
 .chaos-running-blind {
   display: flex;
   gap: 12px;
-  border: 1px solid rgba(196, 181, 253, 0.2);
+  border: 1px solid color-mix(in srgb, var(--signal-uncertain) 20%, transparent);
   border-radius: var(--radius-card);
   background: var(--surface-hero);
 }
@@ -1225,9 +1213,9 @@ a {
   gap: 18px;
   margin-top: 12px;
   padding: 15px;
-  border: 1px solid rgba(220, 166, 221, 0.15);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 15%, transparent);
   border-radius: var(--radius-card);
-  background: linear-gradient(110deg, rgba(220, 166, 221, 0.08), rgba(255, 255, 255, 0.025));
+  background: var(--fill-accent-wash);
 }
 
 .chaos-review-card > div > strong,
@@ -1299,10 +1287,10 @@ a {
 }
 
 .chaos-primary-button {
-  border: 1px solid rgba(233, 181, 231, 0.38);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 38%, transparent);
   background: var(--fill-accent-strong);
-  box-shadow: 0 10px 22px rgba(158, 82, 150, 0.23), inset 0 1px 0 rgba(255, 255, 255, 0.24);
-  color: #221426;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--pharos-ink) 23%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  color: var(--pharos-canvas);
 }
 
 .chaos-primary-button:hover:not(:disabled) {
@@ -1433,7 +1421,7 @@ a {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: #201824;
+  background: var(--pharos-surface);
   font-size: var(--text-micro);
   font-weight: 800;
 }
@@ -1457,9 +1445,9 @@ a {
 }
 
 .chaos-log-entry.chaos-log-active > span {
-  border-color: rgba(232, 181, 228, 0.62);
-  background: #8f508d;
-  box-shadow: 0 0 0 4px rgba(225, 160, 217, 0.1);
+  border-color: color-mix(in srgb, var(--pharos-accent) 62%, transparent);
+  background: var(--pharos-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pharos-accent) 10%, transparent);
   color: #fff;
 }
 
@@ -1476,14 +1464,14 @@ a {
 .chaos-incident-link {
   width: 100%;
   margin-top: 18px;
-  border: 1px solid rgba(226, 177, 223, 0.26);
-  background: rgba(226, 177, 223, 0.07);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 26%, transparent);
+  background: color-mix(in srgb, var(--pharos-accent) 7%, transparent);
   color: var(--pharos-accent);
 }
 
 .chaos-incident-link:hover {
-  border-color: rgba(226, 177, 223, 0.46);
-  background: rgba(226, 177, 223, 0.12);
+  border-color: color-mix(in srgb, var(--pharos-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--pharos-accent) 12%, transparent);
 }
 
 .chaos-reset-button {
@@ -1842,17 +1830,15 @@ a {
 
 /* Public landing â€” all selectors stay inside this namespace so the product UI remains untouched. */
 .landing-page {
-  --landing-ink: #f5f0f6;
-  --landing-muted: #a9a0ad;
-  --landing-line: rgba(242, 233, 247, 0.13);
-  --landing-surface: #110d16;
+  --landing-ink: var(--pharos-ink);
+  --landing-muted: var(--pharos-muted);
+  --landing-line: var(--line);
+  --landing-surface: var(--pharos-surface);
   position: relative;
   isolation: isolate;
   overflow: clip;
   background:
-    radial-gradient(ellipse 68% 42% at 55% 14%, rgba(134, 112, 174, 0.14), transparent 72%),
-    radial-gradient(ellipse 58% 35% at 8% 88%, rgba(102, 67, 120, 0.11), transparent 76%),
-    #09070d;
+    var(--pharos-canvas);
   color: var(--landing-ink);
 }
 
@@ -1866,8 +1852,7 @@ a {
   height: 100svh;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 70% 68% at 56% 44%, rgba(71, 54, 92, 0.2), transparent 68%),
-    linear-gradient(112deg, #0b0910 0%, #0a080e 48%, #0d0a12 100%);
+    linear-gradient(112deg, var(--pharos-canvas) 0%, var(--pharos-canvas) 48%, var(--pharos-canvas) 100%);
 }
 
 .landing-hero-atmosphere {
@@ -1876,8 +1861,7 @@ a {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 58% 36%, rgba(211, 201, 239, 0.08), transparent 13rem),
-    radial-gradient(circle at 38% 72%, rgba(160, 116, 156, 0.075), transparent 24rem);
+    var(--pharos-surface);
 }
 
 .landing-giant-type {
@@ -1890,7 +1874,7 @@ a {
 
 .landing-giant-type span {
   position: absolute;
-  color: rgba(235, 225, 244, 0.07);
+  color: color-mix(in srgb, var(--pharos-accent) 7%, transparent);
   font-size: clamp(3.5rem, 13.5vw, 15.5rem);
   font-weight: 720;
   letter-spacing: -0.11em;
@@ -1946,7 +1930,7 @@ a {
   border: 1px solid rgba(225, 231, 246, 0.28);
   border-radius: inherit;
   background:
-    linear-gradient(148deg, rgba(166, 178, 204, 0.72), rgba(42, 46, 56, 0.97) 16%, #0a0c11 62%, rgba(98, 89, 118, 0.9));
+    linear-gradient(148deg, rgba(166, 178, 204, 0.72), rgba(42, 46, 56, 0.97) 16%, #0a0c11 62%, color-mix(in srgb, var(--pharos-ink) 90%, transparent));
   box-shadow:
     11px 17px 29px rgba(0, 0, 0, 0.5),
     0 0 22px rgba(174, 190, 232, 0.08),
@@ -1961,8 +1945,6 @@ a {
   border: 1px solid rgba(188, 199, 224, 0.14);
   border-radius: calc(clamp(13px, 1.3vw, 19px) - 2px);
   background:
-    radial-gradient(circle at 23% 14%, rgba(183, 194, 229, 0.2), transparent 26%),
-    radial-gradient(circle at 85% 84%, rgba(111, 82, 132, 0.18), transparent 34%),
     linear-gradient(142deg, #252a34 0%, #14171e 27%, #0b0d12 73%, #20212a 100%);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
@@ -1973,7 +1955,7 @@ a {
 .landing-payment-card-face::after {
   position: absolute;
   inset: 7px;
-  border: 1px solid rgba(214, 215, 237, 0.06);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 6%, transparent);
   border-radius: inherit;
   content: "";
 }
@@ -2019,7 +2001,7 @@ a {
 }
 
 .landing-payment-card-fallback-evidence .landing-payment-card-marking::after {
-  color: rgba(244, 194, 211, 0.92);
+  color: color-mix(in srgb, var(--pharos-accent) 92%, transparent);
 }
 
 .landing-payment-card-chip {
@@ -2057,10 +2039,10 @@ a {
 .landing-payment-card-evidence-layer {
   z-index: 1;
   inset: -1px;
-  border: 1px solid rgba(237, 173, 198, 0.3);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 30%, transparent);
   border-radius: inherit;
-  background: rgba(205, 120, 153, 0.13);
-  box-shadow: 0 0 17px rgba(224, 124, 158, 0.13);
+  background: color-mix(in srgb, var(--pharos-accent) 13%, transparent);
+  box-shadow: 0 0 17px color-mix(in srgb, var(--pharos-accent) 13%, transparent);
   opacity: calc(var(--card-unseal) * 0.58);
   pointer-events: none;
 }
@@ -2087,8 +2069,8 @@ a {
 }
 
 .landing-payment-card-fallback-evidence {
-  --card-signal: #dd7a99;
-  filter: drop-shadow(0 0 18px rgba(221, 122, 153, 0.15));
+  --card-signal: var(--signal-critical-ink);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--pharos-accent) 15%, transparent));
 }
 
 .landing-payment-card-fallback-evidence .landing-payment-card-chip::after {
@@ -2126,7 +2108,7 @@ a {
    costs one custom-property write instead of a React render per line. */
 .landing-mask-inner {
   transform: translate3d(0, calc((1 - var(--reveal, 1)) * 112%), 0);
-  color: #bcb2c5;
+  color: var(--pharos-muted);
   font-size: 10px;
   font-weight: 760;
   letter-spacing: 0.13em;
@@ -2135,7 +2117,7 @@ a {
 
 .landing-hero-intro h1 {
   margin-top: 18px;
-  color: #f6f0f7;
+  color: var(--pharos-accent);
   font-size: clamp(3.2rem, 5.5vw, 6.8rem);
   font-weight: 560;
   letter-spacing: -0.085em;
@@ -2143,14 +2125,14 @@ a {
 }
 
 .landing-hero-intro h1 em {
-  color: #ddc0ea;
+  color: var(--pharos-accent);
   font-style: normal;
 }
 
 .landing-hero-intro p {
   max-width: 390px;
   margin-top: 21px;
-  color: #b8afbd;
+  color: var(--pharos-muted);
   font-size: 14px;
   line-height: 1.55;
 }
@@ -2193,9 +2175,9 @@ a {
 }
 
 .landing-action-primary {
-  border-color: rgba(235, 223, 244, 0.45);
-  background: #eee7f1;
-  color: #17121a;
+  border-color: color-mix(in srgb, var(--pharos-accent) 45%, transparent);
+  background: var(--pharos-ink);
+  color: var(--pharos-canvas);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
@@ -2204,13 +2186,13 @@ a {
 }
 
 .landing-action-secondary {
-  border-color: rgba(244, 237, 247, 0.16);
+  border-color: color-mix(in srgb, var(--pharos-accent) 16%, transparent);
   background: rgba(255, 255, 255, 0.035);
-  color: #e5dce8;
+  color: var(--pharos-ink);
 }
 
 .landing-action-secondary:hover {
-  border-color: rgba(244, 237, 247, 0.3);
+  border-color: color-mix(in srgb, var(--pharos-accent) 30%, transparent);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
@@ -2230,7 +2212,7 @@ a {
 .landing-stage-caption strong {
   display: block;
   margin-top: 8px;
-  color: #f6f1f7;
+  color: var(--pharos-ink);
   font-size: clamp(1.7rem, 2.65vw, 3.65rem);
   font-weight: 570;
   letter-spacing: -0.075em;
@@ -2239,7 +2221,7 @@ a {
 
 .landing-stage-caption p {
   margin-top: 11px;
-  color: #b7aebe;
+  color: var(--pharos-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -2248,10 +2230,10 @@ a {
   display: inline-flex;
   margin-top: 15px;
   padding: 5px 8px;
-  border: 1px solid rgba(232, 145, 171, 0.35);
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 35%, transparent);
   border-radius: 999px;
-  background: rgba(232, 145, 171, 0.09);
-  color: #f0a9bd;
+  background: color-mix(in srgb, var(--pharos-accent) 9%, transparent);
+  color: var(--signal-critical-ink);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -2296,7 +2278,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #a99fac;
+  color: var(--pharos-muted);
   font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.03em;
@@ -2325,7 +2307,7 @@ a {
 }
 
 .landing-reduced-facts span {
-  color: #b4a9bb;
+  color: var(--pharos-muted);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -2334,14 +2316,14 @@ a {
 
 .landing-reduced-facts strong {
   margin-top: 5px;
-  color: #f4ecf6;
+  color: var(--pharos-accent);
   font-size: 16px;
   font-weight: 650;
 }
 
 .landing-reduced-facts p {
   margin-top: 3px;
-  color: #a79cac;
+  color: var(--pharos-muted);
   font-size: 11px;
 }
 
@@ -2394,7 +2376,6 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   background:
-    radial-gradient(circle at 38% 50%, rgba(220, 166, 221, 0.07), transparent 20rem),
     var(--surface-panel);
   box-shadow: var(--shadow-elev-1);
 }
@@ -2498,9 +2479,8 @@ a {
   border-color: color-mix(in srgb, var(--pharos-accent) 34%, transparent);
   border-radius: var(--radius-pill);
   background:
-    radial-gradient(circle at 50% 30%, rgba(220, 166, 221, 0.22), transparent 70%),
     var(--surface-well);
-  box-shadow: 0 0 42px rgba(198, 123, 199, 0.18);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--pharos-accent) 18%, transparent);
 }
 
 .pipeline-node-person {
@@ -2837,7 +2817,7 @@ a {
 
 .landing-section-intro h2,
 .landing-final-cta h2 {
-  color: #f3edf5;
+  color: var(--pharos-ink);
   font-size: clamp(2.6rem, 5.1vw, 6rem);
   font-weight: 560;
   letter-spacing: -0.085em;
@@ -2846,7 +2826,7 @@ a {
 
 .landing-section-intro p,
 .landing-final-cta p {
-  color: #aaa0b0;
+  color: var(--pharos-muted);
   font-size: 14px;
   line-height: 1.65;
 }
@@ -2885,7 +2865,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #b5aabe;
+  color: var(--pharos-muted);
   font-family: var(--font-app-mono), monospace;
   font-size: 10px;
   font-weight: 700;
@@ -2897,7 +2877,7 @@ a {
 
 .landing-evidence-panel h3 {
   margin-top: 55px;
-  color: #c8bdcd;
+  color: var(--pharos-muted);
   font-size: 12px;
   font-weight: 700;
 }
@@ -2905,7 +2885,7 @@ a {
 .landing-evidence-panel strong {
   display: block;
   margin-top: 8px;
-  color: #f5edf6;
+  color: var(--pharos-accent);
   font-size: clamp(1.6rem, 2.1vw, 2.4rem);
   font-weight: 600;
   letter-spacing: -0.07em;
@@ -2914,7 +2894,7 @@ a {
 .landing-evidence-panel p {
   max-width: 340px;
   margin-top: 15px;
-  color: #a69baa;
+  color: var(--pharos-muted);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -2922,7 +2902,7 @@ a {
 .landing-evidence-panel code {
   display: inline-block;
   margin-top: 21px;
-  color: #cfbdd6;
+  color: var(--pharos-muted);
   font-family: var(--font-app-mono), monospace;
   font-size: 10px;
 }
@@ -2952,7 +2932,7 @@ a {
   gap: 12px;
   padding: 15px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: #aea4b4;
+  color: var(--pharos-muted);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.08em;
@@ -2969,12 +2949,12 @@ a {
   width: 7px;
   height: 7px;
   border-radius: 99px;
-  background: #f18aa4;
-  box-shadow: 0 0 0 4px rgba(241, 138, 164, 0.13);
+  background: var(--signal-critical-ink);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pharos-accent) 13%, transparent);
 }
 
 .landing-preview-topline span:last-child {
-  color: #e7b7c7;
+  color: var(--signal-critical-ink);
 }
 
 .landing-preview-core {
@@ -2990,7 +2970,7 @@ a {
 }
 
 .landing-preview-anomaly {
-  background: linear-gradient(145deg, rgba(125, 60, 87, 0.24), rgba(34, 20, 32, 0.26));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--pharos-accent) 24%, transparent), rgba(16, 20, 27, 0.26));
 }
 
 .landing-preview-candidate {
@@ -3001,7 +2981,7 @@ a {
 .landing-preview-candidate > span,
 .landing-proof-heading span,
 .landing-preview-recommendation span {
-  color: #aea2b3;
+  color: var(--pharos-muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -3011,7 +2991,7 @@ a {
 .landing-preview-anomaly strong {
   display: block;
   margin-top: 20px;
-  color: #ffeaf0;
+  color: var(--signal-critical-ink);
   font-size: clamp(3.3rem, 5.5vw, 5.8rem);
   font-weight: 570;
   letter-spacing: -0.1em;
@@ -3020,7 +3000,7 @@ a {
 
 .landing-preview-anomaly p {
   margin-top: 17px;
-  color: #e7c5d0;
+  color: var(--signal-critical-ink);
   font-size: 13px;
   font-weight: 650;
 }
@@ -3028,14 +3008,14 @@ a {
 .landing-preview-anomaly small {
   display: block;
   margin-top: 5px;
-  color: #b99eaa;
+  color: var(--pharos-muted);
   font-size: 11px;
 }
 
 .landing-preview-candidate h3 {
   max-width: 600px;
   margin-top: 16px;
-  color: #f5edf7;
+  color: var(--pharos-accent);
   font-size: clamp(1.7rem, 3.1vw, 3.2rem);
   font-weight: 570;
   letter-spacing: -0.07em;
@@ -3045,7 +3025,7 @@ a {
 .landing-preview-candidate p {
   max-width: 590px;
   margin-top: 14px;
-  color: #ada2b1;
+  color: var(--pharos-muted);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -3058,7 +3038,7 @@ a {
 }
 
 .landing-preview-confidence span {
-  color: #a99eae;
+  color: var(--pharos-muted);
   font-size: 10px;
 }
 
@@ -3077,7 +3057,7 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #d8bdd9;
+  color: var(--pharos-muted);
 }
 
 .landing-proof-row {
@@ -3094,13 +3074,13 @@ a {
 }
 
 .landing-proof-row code {
-  color: #d8c4df;
+  color: var(--pharos-ink);
   font-family: var(--font-app-mono), monospace;
   font-size: 10px;
 }
 
 .landing-proof-row p {
-  color: #b7adbc;
+  color: var(--pharos-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -3115,17 +3095,17 @@ a {
   gap: 14px;
   align-items: start;
   padding: 19px clamp(21px, 2.8vw, 34px);
-  background: linear-gradient(90deg, rgba(204, 183, 220, 0.075), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pharos-accent) 8%, transparent), rgba(255, 255, 255, 0.02));
 }
 
 .landing-preview-recommendation > svg:first-child {
   margin-top: 1px;
-  color: #d8bfdc;
+  color: var(--pharos-ink);
 }
 
 .landing-preview-recommendation p {
   margin-top: 6px;
-  color: #d9d0dd;
+  color: var(--pharos-ink);
   font-size: 12px;
   line-height: 1.48;
 }
@@ -3141,14 +3121,14 @@ a {
   justify-content: center;
   gap: 8px;
   min-height: 60px;
-  color: #edd7ed;
+  color: var(--pharos-accent);
   font-size: 12px;
   font-weight: 730;
   transition: background 160ms ease, color 160ms ease;
 }
 
 .landing-preview-link:hover {
-  background: rgba(235, 216, 237, 0.07);
+  background: color-mix(in srgb, var(--pharos-accent) 7%, transparent);
   color: #fff;
 }
 
@@ -3438,7 +3418,7 @@ a {
 }
 
 .landing-stage-watermark span {
-  color: rgba(236, 228, 244, 0.043);
+  color: color-mix(in srgb, var(--pharos-accent) 4%, transparent);
   font-size: clamp(3.2rem, 8.2vw, 9.8rem);
   font-weight: 680;
   letter-spacing: -0.1em;
@@ -3465,7 +3445,7 @@ a {
 
 .landing-trajectory-spine {
   fill: none;
-  stroke: rgba(218, 211, 225, 0.16);
+  stroke: color-mix(in srgb, var(--pharos-ink) 16%, transparent);
   stroke-linecap: round;
   stroke-width: 1.2;
 }
@@ -3488,8 +3468,8 @@ a {
 }
 
 [data-tone="evidence"] .landing-trajectory-trace {
-  stroke: #dd7a99;
-  filter: drop-shadow(0 0 9px rgba(221, 122, 153, 0.38));
+  stroke: var(--signal-critical-ink);
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--pharos-accent) 38%, transparent));
 }
 
 /* Each node fades against its own start, so the reveal is a pure function of
@@ -3517,7 +3497,7 @@ a {
 }
 
 .landing-trajectory-node {
-  fill: #0e0b12;
+  fill: var(--pharos-canvas);
   stroke: #c9d2ed;
   stroke-width: 1.65;
 }
@@ -3532,7 +3512,7 @@ a {
 .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node {
   transform: scale(1.74);
   fill: #e4e9f8;
-  stroke: #f7f3ff;
+  stroke: var(--pharos-accent);
 }
 
 /* The leader is always in the DOM and fades, rather than being mounted and
@@ -3540,7 +3520,7 @@ a {
 .landing-trajectory-leader {
   fill: none;
   opacity: 0;
-  stroke: rgba(228, 221, 236, 0.72);
+  stroke: color-mix(in srgb, var(--pharos-ink) 72%, transparent);
   stroke-linecap: round;
   stroke-width: 1.2;
   transition: opacity 280ms ease, stroke 220ms ease;
@@ -3561,13 +3541,13 @@ a {
 }
 
 [data-tone="evidence"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node-halo {
-  fill: rgba(221, 122, 153, 0.16);
-  stroke: rgba(238, 156, 183, 0.68);
+  fill: color-mix(in srgb, var(--pharos-accent) 16%, transparent);
+  stroke: color-mix(in srgb, var(--pharos-accent) 68%, transparent);
 }
 
 [data-tone="evidence"] .landing-trajectory-checkpoint[data-active="true"] .landing-trajectory-node {
-  fill: #ef9ab5;
-  stroke: #ffd7e4;
+  fill: var(--signal-critical-ink);
+  stroke: var(--signal-critical-ink);
 }
 
 [data-tone="deviation"] .landing-trajectory-leader {
@@ -3575,7 +3555,7 @@ a {
 }
 
 [data-tone="evidence"] .landing-trajectory-leader {
-  stroke: rgba(239, 154, 181, 0.85);
+  stroke: color-mix(in srgb, var(--pharos-accent) 85%, transparent);
 }
 
 
@@ -3662,7 +3642,7 @@ a {
 }
 
 .landing-checkpoint-eyebrow {
-  color: #bcb2c5;
+  color: var(--pharos-muted);
   font-size: 10px;
   font-weight: 760;
   letter-spacing: 0.13em;
@@ -3672,7 +3652,7 @@ a {
 .landing-checkpoint-caption strong {
   display: block;
   margin-top: 8px;
-  color: #f7f2f8;
+  color: var(--pharos-accent);
   font-size: clamp(1.8rem, 2.6vw, 3.45rem);
   font-weight: 570;
   letter-spacing: -0.075em;
@@ -3682,17 +3662,17 @@ a {
 .landing-checkpoint-caption p {
   max-width: 350px;
   margin-top: 11px;
-  color: #bcb2c3;
+  color: var(--pharos-muted);
   font-size: 13px;
   line-height: 1.48;
 }
 
 .landing-checkpoint-caption-evidence strong {
-  color: #f1dce5;
+  color: var(--signal-critical-ink);
 }
 
 .landing-checkpoint-caption-evidence p {
-  color: #e9a9bd;
+  color: var(--signal-critical-ink);
   font-weight: 660;
 }
 

@@ -65,7 +65,6 @@ export function InvestigationsQueue() {
               <strong>{status === "live" && reports.length ? `${usd(atRisk)}/hr` : "—"}</strong>
             </div>
           </div>
-          <div className="pointer-events-none absolute -top-28 -right-12 size-80 rounded-full bg-pharos-accent/10 blur-3xl" />
         </header>
 
         <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
