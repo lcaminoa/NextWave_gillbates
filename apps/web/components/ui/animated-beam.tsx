@@ -92,16 +92,28 @@ export const AnimatedBeam: React.FC<AnimatedBeamProps> = ({
       }
     };
 
+    // Observing only the container is not enough. A path is measured from the two
+    // endpoints, and those can move without the container ever changing size —
+    // a web font swapping in, an image settling, a sibling reflowing. When that
+    // happened the beam kept its first measurement and drew to the wrong place.
     const resizeObserver = new ResizeObserver(() => updatePath());
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
+    for (const element of [containerRef.current, fromRef.current, toRef.current]) {
+      if (element) resizeObserver.observe(element);
     }
 
+    // Font swap is the common case: text metrics change after first paint.
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) updatePath();
+    });
+
+    window.addEventListener("resize", updatePath);
     updatePath();
 
     return () => {
+      cancelled = true;
       resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePath);
     };
   }, [
     containerRef,

@@ -36,23 +36,38 @@ const CHANNELS = [
   { key: "whatsapp", icon: MessageCircle, label: "WhatsApp", detail: "High & critical" },
 ] as const;
 
-const Node = forwardRef<HTMLDivElement, { className?: string; children: React.ReactNode }>(
-  function Node({ className, children }, ref) {
-    return (
-      <div ref={ref} className={cn("pipeline-node", className)}>
-        {children}
-      </div>
-    );
-  },
-);
+/**
+ * A node with optional connector ports on its edges. The beam anchors to the port
+ * rather than to the node's centre: these cards are several hundred pixels wide,
+ * and a centre anchor buried the first half of every path behind the card that
+ * emitted it, which is what made the lines look severed.
+ */
+const Node = forwardRef<
+  HTMLDivElement,
+  {
+    className?: string;
+    children: React.ReactNode;
+    portLeft?: React.Ref<HTMLSpanElement>;
+    portRight?: React.Ref<HTMLSpanElement>;
+  }
+>(function Node({ className, children, portLeft, portRight }, ref) {
+  return (
+    <div ref={ref} className={cn("pipeline-node", className)}>
+      {portLeft ? <span ref={portLeft} className="pipeline-port pipeline-port-left" aria-hidden="true" /> : null}
+      {children}
+      {portRight ? <span ref={portRight} className="pipeline-port pipeline-port-right" aria-hidden="true" /> : null}
+    </div>
+  );
+});
 
 export function LandingPipeline() {
   const container = useRef<HTMLDivElement>(null);
   // Stable ref objects, created once. A fresh `{ current }` literal per render
   // would re-run every beam's measuring effect on every render; holding them in
   // state rather than in a ref keeps them readable during render.
-  const [evidenceRefs] = useState(() => EVIDENCE.map(() => createRef<HTMLDivElement>()));
-  const [channelRefs] = useState(() => CHANNELS.map(() => createRef<HTMLDivElement>()));
+  const [evidencePorts] = useState(() => EVIDENCE.map(() => createRef<HTMLSpanElement>()));
+  const [channelInPorts] = useState(() => CHANNELS.map(() => createRef<HTMLSpanElement>()));
+  const [channelOutPorts] = useState(() => CHANNELS.map(() => createRef<HTMLSpanElement>()));
   const coreRef = useRef<HTMLDivElement>(null);
   const personRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +92,7 @@ export function LandingPipeline() {
               <Node
                 key={item.key}
                 className="pipeline-node-wide"
-                ref={evidenceRefs[index]}
+                portRight={evidencePorts[index]}
               >
                 <span className="pipeline-node-icon">
                   <Icon className="size-4" aria-hidden="true" />
@@ -112,7 +127,8 @@ export function LandingPipeline() {
             return (
               <Node
                 key={item.key}
-                ref={channelRefs[index]}
+                portLeft={channelInPorts[index]}
+                portRight={channelOutPorts[index]}
               >
                 <span className="pipeline-node-icon">
                   <Icon className="size-4" aria-hidden="true" />
@@ -139,16 +155,16 @@ export function LandingPipeline() {
           <AnimatedBeam
             key={`in-${item.key}`}
             containerRef={container}
-            fromRef={evidenceRefs[index]}
+            fromRef={evidencePorts[index]}
             toRef={coreRef}
-            curvature={(index - 1.5) * 34}
+            curvature={(1.5 - index) * 18}
             duration={4.2}
             delay={index * 0.28}
-            pathColor="var(--line-strong)"
-            pathWidth={1.4}
-            pathOpacity={1}
-            gradientStartColor="#8de4ca"
-            gradientStopColor="#dca6dd"
+            pathColor="#cbbcd6"
+            pathWidth={2}
+            pathOpacity={0.32}
+            gradientStartColor="#7ef0cd"
+            gradientStopColor="#f0b6ef"
           />
         ))}
 
@@ -157,15 +173,15 @@ export function LandingPipeline() {
             key={`out-${item.key}`}
             containerRef={container}
             fromRef={coreRef}
-            toRef={channelRefs[index]}
-            curvature={(index - 1) * 30}
+            toRef={channelInPorts[index]}
+            curvature={(1 - index) * 16}
             duration={3.4}
             delay={1.5 + index * 0.2}
-            pathColor="var(--line-strong)"
-            pathWidth={1.4}
-            pathOpacity={1}
-            gradientStartColor="#dca6dd"
-            gradientStopColor="#f4d27d"
+            pathColor="#cbbcd6"
+            pathWidth={2}
+            pathOpacity={0.32}
+            gradientStartColor="#f0b6ef"
+            gradientStopColor="#ffd98f"
           />
         ))}
 
@@ -173,16 +189,16 @@ export function LandingPipeline() {
           <AnimatedBeam
             key={`person-${item.key}`}
             containerRef={container}
-            fromRef={channelRefs[index]}
+            fromRef={channelOutPorts[index]}
             toRef={personRef}
-            curvature={(index - 1) * 24}
+            curvature={(1 - index) * 14}
             duration={3}
             delay={2.6 + index * 0.18}
-            pathColor="var(--line-strong)"
-            pathWidth={1.4}
-            pathOpacity={1}
-            gradientStartColor="#f4d27d"
-            gradientStopColor="#f4d27d"
+            pathColor="#cbbcd6"
+            pathWidth={2}
+            pathOpacity={0.32}
+            gradientStartColor="#ffd98f"
+            gradientStopColor="#ffd98f"
           />
         ))}
       </div>

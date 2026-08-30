@@ -2399,6 +2399,7 @@ a {
 
 .pipeline-node {
   display: flex;
+  position: relative;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -2406,6 +2407,27 @@ a {
   border-radius: var(--radius-field);
   background: var(--surface-well);
   backdrop-filter: blur(6px);
+}
+
+/* The point a beam attaches to. Visible on purpose: a small terminal on the card
+   edge reads as a connector, and it explains where each line comes from. */
+.pipeline-port {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--pharos-accent) 55%, transparent);
+  border-radius: var(--radius-pill);
+  background: var(--pharos-canvas);
+  transform: translateY(-50%);
+}
+
+.pipeline-port-left {
+  left: -4px;
+}
+
+.pipeline-port-right {
+  right: -4px;
 }
 
 .pipeline-node-icon {
