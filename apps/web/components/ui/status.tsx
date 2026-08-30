@@ -33,7 +33,7 @@ export function ReportStatusBadge({ status, className }: { status: ReportStatus;
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-micro font-bold tracking-[0.08em] uppercase",
         meta.className,
         className,
       )}
@@ -49,7 +49,7 @@ export function HumanReviewChip({ required, className }: { required: boolean; cl
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-micro font-bold tracking-[0.08em] uppercase",
         required
           ? "border-signal-warning/30 bg-signal-warning/[0.08] text-signal-warning"
           : "border-pharos-line bg-white/[0.03] text-pharos-faint",
@@ -85,7 +85,7 @@ export function RuntimeIndicator({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em]",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-nano font-bold tracking-[0.12em]",
         meta.className,
         className,
       )}

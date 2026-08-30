@@ -58,12 +58,47 @@
   --color-pharos-strong: var(--pharos-strong);
   --color-pharos-muted: var(--pharos-muted);
   --color-pharos-faint: var(--pharos-faint);
+  --color-pharos-dim: var(--pharos-dim);
   --color-pharos-accent: var(--pharos-accent);
+  --color-pharos-accent-ink: var(--pharos-accent-ink);
+  --color-signal-healthy-ink: var(--signal-healthy-ink);
+  --color-signal-warning-ink: var(--signal-warning-ink);
+  --color-signal-critical-ink: var(--signal-critical-ink);
+  --color-signal-uncertain-ink: var(--signal-uncertain-ink);
   --color-signal-healthy: var(--signal-healthy);
   --color-signal-warning: var(--signal-warning);
   --color-signal-critical: var(--signal-critical);
   --color-signal-uncertain: var(--signal-uncertain);
   --color-signal-info: var(--signal-info);
+
+  /* Type scale. Sizes used to be picked per component — four different display
+     clamps, and 17/19/21/22/24 all doing the job of "card heading" — so a
+     typographic change meant hunting. These generate text-display, text-title,
+     text-section, text-body, text-small, text-caption, text-micro, text-nano
+     and text-figure. */
+  --text-display: clamp(28px, 3.4vw, 44px);
+  --text-title: 22px;
+  --text-section: 18px;
+  --text-body: 15px;
+  --text-small: 13px;
+  --text-caption: 12px;
+  --text-micro: 11px;
+  --text-nano: 9px;
+  /* Data figures, which are read as numbers rather than as headings. */
+  --text-figure: 27px;
+  --text-figure-lg: 34px;
+
+  /* Corner scale. Fourteen distinct radii collapsed to five tiers. */
+  --radius-field: 12px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
+  --radius-hero: 24px;
+  --radius-pill: 999px;
+
+  /* Elevation. Three steps: resting panel, floating panel, overlay. */
+  --shadow-elev-1: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 18px 40px rgba(0, 0, 0, 0.12);
+  --shadow-elev-2: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 70px rgba(0, 0, 0, 0.19);
+  --shadow-elev-3: 0 18px 48px rgba(0, 0, 0, 0.35);
 }
 
 :root {
@@ -104,12 +139,15 @@
   --pharos-canvas: #09070d;
   --pharos-surface: #1a1220;
   --pharos-raised: #241a2a;
-  --pharos-line: rgba(245, 232, 247, 0.11);
+  --pharos-line: var(--line);
   --pharos-ink: #f5eef7;
   --pharos-strong: #fbf7fc;
   --pharos-muted: #b8adbd;
   --pharos-faint: #9c91a2;
+  --pharos-dim: #847a8a;
   --pharos-accent: #dca6dd;
+  /* The pale accent used for text on a dark tinted accent background. */
+  --pharos-accent-ink: #f0c9ec;
 
   /* Signal colours â€” FRONTEND_UI_UX_SPEC Â§10. Never the only carrier of meaning:
      every use is paired with a label, an icon or a shape. */
@@ -118,6 +156,43 @@
   --signal-critical: #fb7185;
   --signal-uncertain: #a78bfa;
   --signal-info: #60a5fa;
+
+  /* Readable text on a dark tinted signal background. The base signal colour is
+     tuned for fills and borders; these are its legible counterparts for labels. */
+  --signal-healthy-ink: #77e4c4;
+  --signal-warning-ink: #f4d27d;
+  --signal-critical-ink: #fba1b5;
+  --signal-uncertain-ink: #c9b6f5;
+
+  /* Surfaces. The panels used to carry seven near-identical gradient recipes that
+     differed by a degree of angle or two hundredths of alpha — drift, not design.
+     Two recipes now cover every panel and every hero. */
+  --surface-panel: linear-gradient(145deg, rgba(41, 29, 45, 0.9), rgba(20, 14, 24, 0.94));
+  --surface-hero: linear-gradient(115deg, rgba(28, 18, 32, 0.97), rgba(18, 13, 22, 0.96));
+  /* Accent fills. Kept apart from the panel surfaces on purpose: they share an
+     angle, so anything that treats them as one flattens every active control. */
+  --fill-accent-wash: linear-gradient(90deg, rgba(210, 136, 207, 0.1), rgba(10, 8, 13, 0.2));
+  --fill-accent-soft: linear-gradient(135deg, rgba(182, 111, 182, 0.34), rgba(105, 65, 116, 0.4));
+  --fill-accent: linear-gradient(135deg, rgba(175, 108, 177, 0.75), rgba(106, 64, 117, 0.78));
+  --fill-accent-strong: linear-gradient(135deg, #ce80c6, #9d619f);
+  --fill-accent-strong-hover: linear-gradient(135deg, #e1a0d9, #ae72b0);
+
+  /* Critical-tinted surface for the standing incident alert. It reads as a warning
+     panel, so it must not collapse into the neutral panel recipe. */
+  --surface-alert: linear-gradient(145deg, rgba(62, 26, 41, 0.97), rgba(30, 17, 31, 0.98));
+
+  --surface-raised: rgba(255, 255, 255, 0.05);
+  --surface-overlay: rgba(255, 255, 255, 0.035);
+  --surface-well: rgba(6, 4, 8, 0.34);
+
+  /* Hairlines. Three weights instead of eight near-identical alphas. */
+  --line-subtle: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Layout rhythm. */
+  --pad-panel: clamp(20px, 2.2vw, 28px);
+  --pad-hero: clamp(26px, 3.4vw, 46px);
 }
 
 .dark {
@@ -167,7 +242,7 @@
 }
 
 html {
-  background: #09070d;
+  background: var(--pharos-canvas);
 }
 
 body {
@@ -175,7 +250,7 @@ body {
   background:
     radial-gradient(circle at 48% -10%, rgba(190, 123, 199, 0.15), transparent 32rem),
     radial-gradient(circle at 2% 78%, rgba(109, 64, 122, 0.13), transparent 35rem),
-    #09070d;
+    var(--pharos-canvas);
   font-variant-numeric: tabular-nums;
 }
 
@@ -198,8 +273,8 @@ a {
   align-items: center;
   min-height: 64px;
   padding: 6px 10px 6px 15px;
-  border: 1px solid rgba(245, 232, 247, 0.13);
-  border-radius: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
   background: linear-gradient(105deg, rgba(34, 23, 38, 0.92), rgba(15, 11, 18, 0.9));
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.035);
   backdrop-filter: blur(20px);
@@ -209,7 +284,7 @@ a {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  border-radius: 7px;
+  border-radius: 8px;
 }
 
 .pharos-brand-tower {
@@ -226,15 +301,15 @@ a {
 }
 
 .pharos-brand-copy strong {
-  color: #f4f0ea;
-  font-size: 13px;
+  color: var(--pharos-ink);
+  font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.24em;
   line-height: 1;
 }
 
 .pharos-brand-copy span {
-  color: #8c8c99;
+  color: var(--pharos-faint);
   font-family: var(--font-geist-mono), monospace;
   font-size: 6px;
   font-weight: 500;
@@ -255,9 +330,9 @@ a {
   justify-content: center;
   gap: 2px;
   padding: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  background: rgba(5, 4, 7, 0.22);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
 }
 
 .app-nav-link {
@@ -268,21 +343,21 @@ a {
   padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: #a99eac;
-  font-size: 11px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   font-weight: 600;
   transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .app-nav-link:hover {
-  color: #f5edf7;
+  color: var(--pharos-ink);
 }
 
 .app-nav-link-active {
   border-color: rgba(223, 174, 222, 0.18);
-  background: linear-gradient(135deg, rgba(182, 111, 182, 0.34), rgba(105, 65, 116, 0.4));
+  background: var(--fill-accent-soft);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 5px 12px rgba(0, 0, 0, 0.1);
-  color: #fff8ff;
+  color: var(--pharos-accent-ink);
 }
 
 .app-nav-link em {
@@ -290,10 +365,10 @@ a {
   min-width: 16px;
   height: 16px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.12);
-  color: #f5d9f4;
-  font-size: 9px;
+  color: var(--pharos-accent-ink);
+  font-size: var(--text-nano);
   font-style: normal;
   font-weight: 800;
 }
@@ -323,34 +398,32 @@ a {
   position: relative;
   overflow: hidden;
   padding: clamp(26px, 3.4vw, 46px);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-hero);
   background:
     radial-gradient(circle at 24% 0%, rgba(211, 148, 214, 0.13), transparent 36%),
-    linear-gradient(115deg, rgba(28, 18, 32, 0.97), rgba(18, 13, 22, 0.96));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.19);
+    var(--surface-hero);
+  box-shadow: var(--shadow-elev-2);
 }
 
 .control-card {
-  border: 1px solid rgba(245, 232, 247, 0.11);
-  border-radius: 19px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
   background:
-    linear-gradient(145deg, rgba(41, 29, 45, 0.88), rgba(21, 15, 24, 0.92));
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.035) inset,
-    0 18px 40px rgba(0, 0, 0, 0.12);
+    var(--surface-panel);
+  box-shadow: var(--shadow-elev-1);
 }
 
 .live-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid rgba(45, 212, 167, 0.23);
-  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--signal-healthy) 23%, transparent);
+  border-radius: var(--radius-pill);
   padding: 4px 8px;
-  background: rgba(45, 212, 167, 0.08);
-  color: #77e4c4;
-  font-size: 9px;
+  background: color-mix(in srgb, var(--signal-healthy) 8%, transparent);
+  color: var(--signal-healthy-ink);
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.12em;
 }
@@ -358,26 +431,26 @@ a {
 .segmented-control {
   display: inline-flex;
   gap: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   padding: 3px;
-  background: rgba(6, 4, 8, 0.38);
+  background: var(--surface-well);
 }
 
 .segmented-control button {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 7px 13px;
-  color: #a99eac;
-  font-size: 11px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   transition: 160ms ease;
 }
 
 .segmented-control button:hover {
-  color: #f8f1fa;
+  color: var(--pharos-strong);
 }
 
 .segmented-control .segmented-active {
-  color: #fff7ff;
+  color: var(--pharos-accent-ink);
   background:
     radial-gradient(circle at 50% 0%, rgba(235, 180, 231, 0.32), transparent 100%),
     rgba(170, 105, 177, 0.38);
@@ -385,8 +458,8 @@ a {
 }
 
 .eyebrow {
-  color: #a79baa;
-  font-size: 9px;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.125em;
   text-transform: uppercase;
@@ -399,7 +472,7 @@ a {
   position: relative;
   background:
     radial-gradient(circle at 50% 38%, rgba(211, 157, 222, 0.12), transparent 23rem),
-    linear-gradient(145deg, rgba(44, 30, 50, 0.93), rgba(16, 12, 20, 0.97));
+    var(--surface-panel);
 }
 
 .globe-stage::after {
@@ -427,11 +500,11 @@ a {
   right: 24px;
   width: min(322px, calc(100% - 48px));
   padding: 16px;
-  border: 1px solid rgba(236, 205, 239, 0.16);
-  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
   background:
-    linear-gradient(145deg, rgba(46, 28, 51, 0.92), rgba(18, 13, 22, 0.9));
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.25);
+    var(--surface-panel);
+  box-shadow: var(--shadow-elev-3);
   backdrop-filter: blur(18px);
 }
 
@@ -441,9 +514,9 @@ a {
   gap: 1px;
   margin-top: 14px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-raised);
 }
 
 .globe-facts > div {
@@ -453,8 +526,8 @@ a {
 }
 
 .globe-facts dt {
-  color: #998e9d;
-  font-size: 8px;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -463,8 +536,8 @@ a {
 .globe-facts dd {
   margin-top: 4px;
   overflow: hidden;
-  color: #f4eaf5;
-  font-size: 11px;
+  color: var(--pharos-ink);
+  font-size: var(--text-micro);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -479,12 +552,12 @@ a {
   flex: 0 0 auto;
   margin-top: 2px;
   border: 3px solid #211723;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #a78ab0;
 }
 
 .timeline-dot-live {
-  background: #dca6dd;
+  background: var(--pharos-accent);
   box-shadow: 0 0 0 4px rgba(220, 166, 221, 0.12), 0 0 16px rgba(220, 166, 221, 0.58);
 }
 
@@ -494,19 +567,19 @@ a {
   height: 19px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 6px;
-  font-size: 10px;
+  border-radius: 8px;
+  font-size: var(--text-micro);
   font-weight: 800;
 }
 
 .stream-approved {
-  color: #7ee2c4;
-  background: rgba(45, 212, 167, 0.12);
+  color: var(--signal-healthy-ink);
+  background: color-mix(in srgb, var(--signal-healthy) 12%, transparent);
 }
 
 .stream-declined {
-  color: #fba0b4;
-  background: rgba(251, 113, 133, 0.12);
+  color: var(--signal-critical-ink);
+  background: color-mix(in srgb, var(--signal-critical) 12%, transparent);
 }
 
 .incident-canvas {
@@ -519,14 +592,12 @@ a {
   position: relative;
   overflow: hidden;
   padding: clamp(25px, 4vw, 48px);
-  border: 1px solid rgba(245, 232, 247, 0.13);
-  border-radius: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-hero);
   background:
     radial-gradient(circle at 76% 18%, rgba(225, 167, 220, 0.13), transparent 23rem),
-    linear-gradient(132deg, rgba(41, 28, 46, 0.96), rgba(18, 13, 22, 0.96));
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 24px 60px rgba(0, 0, 0, 0.22);
+    var(--surface-hero);
+  box-shadow: var(--shadow-elev-2);
 }
 
 .incident-hero-stat {
@@ -537,7 +608,7 @@ a {
 
 .incident-hero-stat dt {
   color: var(--pharos-faint);
-  font-size: 9px;
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -546,7 +617,7 @@ a {
 .incident-hero-stat dd {
   display: block;
   margin-top: 7px;
-  font-size: 19px;
+  font-size: var(--text-section);
   font-weight: 650;
   letter-spacing: -0.03em;
 }
@@ -555,17 +626,17 @@ a {
   display: block;
   margin-top: 4px;
   color: var(--pharos-faint);
-  font-size: 10px;
+  font-size: var(--text-micro);
   line-height: 1.35;
 }
 
 .incident-workspace-card,
 .incident-timeline-card {
-  border: 1px solid rgba(245, 232, 247, 0.11);
-  border-radius: 19px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
   background:
-    linear-gradient(145deg, rgba(40, 28, 44, 0.88), rgba(19, 14, 23, 0.93));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 18px 40px rgba(0, 0, 0, 0.1);
+    var(--surface-panel);
+  box-shadow: var(--shadow-elev-1);
 }
 
 .incident-cause-path {
@@ -581,18 +652,18 @@ a {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
   padding: 7px 12px;
   color: var(--pharos-ink);
-  background: rgba(255, 255, 255, 0.035);
-  font-size: 12px;
+  background: var(--surface-overlay);
+  font-size: var(--text-caption);
   font-weight: 550;
 }
 
 .incident-cause-node em {
   color: var(--pharos-faint);
-  font-size: 8px;
+  font-size: var(--text-nano);
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.11em;
@@ -601,7 +672,7 @@ a {
 
 .incident-cause-node-strong {
   border-color: rgba(226, 169, 223, 0.3);
-  color: #f3cfed;
+  color: var(--pharos-accent-ink);
   background: rgba(214, 133, 208, 0.14);
 }
 
@@ -617,7 +688,7 @@ a {
    the sentence it supports instead of only inside the prose. */
 .incident-evidence-index {
   color: var(--pharos-accent);
-  font-size: 13px;
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -629,33 +700,33 @@ a {
   margin-top: 14px;
   padding: 13px 14px;
   border: 1px solid rgba(226, 169, 223, 0.18);
-  border-radius: 13px;
+  border-radius: var(--radius-field);
   background: rgba(215, 147, 211, 0.06);
 }
 
 .incident-hypothesis {
   padding: 14px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-subtle);
   border-left-width: 3px;
-  border-radius: 13px;
-  background: rgba(10, 8, 13, 0.23);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
 }
 
 .incident-hypothesis-supported {
-  border-left-color: #dc9cda;
-  background: linear-gradient(90deg, rgba(210, 136, 207, 0.1), rgba(10, 8, 13, 0.2));
+  border-left-color: var(--pharos-accent);
+  background: var(--fill-accent-wash);
 }
 
 .incident-hypothesis-supported .uppercase {
-  color: #efc1e9;
+  color: var(--pharos-accent);
 }
 
 .incident-hypothesis-less-evidence {
-  border-left-color: #d6b777;
+  border-left-color: var(--signal-warning-ink);
 }
 
 .incident-hypothesis-less-evidence .uppercase {
-  color: #e3c98c;
+  color: var(--signal-warning-ink);
 }
 
 .incident-recommendation {
@@ -663,7 +734,7 @@ a {
   overflow: hidden;
   padding: clamp(20px, 3vw, 30px);
   border: 1px solid rgba(244, 198, 236, 0.17);
-  border-radius: 19px;
+  border-radius: var(--radius-panel);
   background:
     radial-gradient(circle at 88% 10%, rgba(216, 145, 212, 0.18), transparent 19rem),
     linear-gradient(130deg, rgba(58, 33, 62, 0.94), rgba(26, 18, 31, 0.95));
@@ -699,12 +770,12 @@ a {
   flex: 0 0 auto;
   margin-top: 3px;
   border: 3px solid #251a28;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #a99aac;
 }
 
 .incident-timeline-dot-live {
-  background: #dca6dd;
+  background: var(--pharos-accent);
   box-shadow: 0 0 0 4px rgba(220, 166, 221, 0.12), 0 0 16px rgba(220, 166, 221, 0.5);
 }
 
@@ -717,12 +788,12 @@ a {
   overflow: hidden;
   min-height: 244px;
   padding: clamp(28px, 4vw, 52px);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-hero);
   background:
     radial-gradient(circle at 22% 0%, rgba(211, 148, 214, 0.13), transparent 36%),
-    linear-gradient(115deg, rgba(28, 18, 32, 0.97), rgba(18, 13, 22, 0.96));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.19);
+    var(--surface-hero);
+  box-shadow: var(--shadow-elev-2);
 }
 
 .investigations-summary {
@@ -730,9 +801,9 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
 }
 
 .investigations-summary > div {
@@ -743,8 +814,8 @@ a {
 
 .investigations-summary span {
   display: block;
-  color: #9e90a5;
-  font-size: 9px;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -753,17 +824,17 @@ a {
 .investigations-summary strong {
   display: block;
   margin-top: 8px;
-  color: #f2ebf4;
-  font-size: 14px;
+  color: var(--pharos-ink);
+  font-size: var(--text-body);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
 .investigations-sidecard {
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 19px;
-  background: linear-gradient(135deg, rgba(33, 22, 38, 0.92), rgba(20, 15, 25, 0.95));
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.13);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-elev-3);
 }
 
 .investigations-sidecard {
@@ -771,8 +842,8 @@ a {
 }
 
 .investigations-sidecard .flex p {
-  color: #b7abbc;
-  font-size: 11px;
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
   line-height: 1.5;
 }
 
@@ -782,8 +853,8 @@ a {
 }
 
 .investigations-sidecard .flex strong {
-  color: #eee6ef;
-  font-size: 12px;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
 }
 
 .investigations-sidecard .flex span {
@@ -804,12 +875,12 @@ a {
   overflow: hidden;
   min-height: 244px;
   padding: clamp(26px, 4vw, 52px);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-hero);
   background:
     radial-gradient(circle at 24% 0%, rgba(208, 140, 207, 0.13), transparent 36%),
-    linear-gradient(115deg, rgba(27, 17, 31, 0.98), rgba(18, 13, 22, 0.96));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.19);
+    var(--surface-hero);
+  box-shadow: var(--shadow-elev-2);
 }
 
 .chaos-header-meta {
@@ -818,9 +889,9 @@ a {
   gap: 1px;
   overflow: hidden;
   min-width: 365px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
 }
 
 .chaos-header-meta > div {
@@ -836,8 +907,8 @@ a {
 .chaos-compare-header,
 .chaos-secondary-incident em {
   display: block;
-  color: #9e90a5;
-  font-size: 10px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   font-weight: 700;
   letter-spacing: 0.1em;
   line-height: 1.2;
@@ -847,8 +918,8 @@ a {
 .chaos-header-meta strong {
   display: block;
   margin-top: 7px;
-  color: #eee8f0;
-  font-size: 12px;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 
@@ -857,10 +928,10 @@ a {
   align-items: center;
   min-height: 25px;
   padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  color: #c2b8c5;
-  font-size: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -869,57 +940,57 @@ a {
 .chaos-phase-active {
   border-color: rgba(222, 176, 223, 0.38);
   background: rgba(222, 176, 223, 0.1);
-  color: #e7b9e4;
+  color: var(--pharos-accent);
 }
 
 .chaos-phase-complete {
   border-color: rgba(126, 226, 196, 0.32);
   background: rgba(126, 226, 196, 0.09);
-  color: #8de4ca;
+  color: var(--signal-healthy-ink);
 }
 
 .chaos-phase-warning {
-  border-color: rgba(250, 204, 126, 0.3);
-  background: rgba(250, 204, 126, 0.08);
-  color: #f2c77e;
+  border-color: color-mix(in srgb, var(--signal-warning) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-warning) 8%, transparent);
+  color: var(--signal-warning-ink);
 }
 
 .chaos-config-card,
 .chaos-run-card,
 .chaos-reveal-card {
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(32, 21, 37, 0.92), rgba(20, 15, 25, 0.94));
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.13);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-elev-3);
 }
 
 .chaos-segmented-control {
   display: inline-flex;
   gap: 3px;
   padding: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 12px;
-  background: rgba(8, 6, 10, 0.35);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
 }
 
 .chaos-segmented-control button {
   min-height: 33px;
   padding: 0 12px;
   border-radius: 8px;
-  color: #aa9dad;
-  font-size: 11px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   font-weight: 600;
   transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
 .chaos-segmented-control button:hover:not(:disabled) {
-  color: #f7f2f8;
+  color: var(--pharos-strong);
 }
 
 .chaos-segmented-control .chaos-segment-active {
-  background: linear-gradient(135deg, rgba(175, 108, 177, 0.75), rgba(106, 64, 117, 0.78));
+  background: var(--fill-accent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 5px 14px rgba(0, 0, 0, 0.17);
-  color: #fffaff;
+  color: var(--pharos-accent-ink);
 }
 
 .chaos-segmented-control button:disabled,
@@ -934,9 +1005,9 @@ a {
   gap: 8px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-overlay);
 }
 
 .chaos-field select {
@@ -945,14 +1016,14 @@ a {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #f5eef6;
-  font-size: 13px;
+  color: var(--pharos-ink);
+  font-size: var(--text-small);
   font-weight: 600;
 }
 
 .chaos-field select option {
   background: #1d1522;
-  color: #f5eef6;
+  color: var(--pharos-ink);
 }
 
 .chaos-field:focus-within {
@@ -965,8 +1036,8 @@ a {
   display: flex;
   gap: 12px;
   border: 1px solid rgba(196, 181, 253, 0.2);
-  border-radius: 14px;
-  background: linear-gradient(115deg, rgba(139, 92, 246, 0.1), rgba(255, 255, 255, 0.03));
+  border-radius: var(--radius-card);
+  background: var(--surface-hero);
 }
 
 .chaos-blind-state {
@@ -974,16 +1045,16 @@ a {
 }
 
 .chaos-blind-state p {
-  color: #f1eafa;
-  font-size: 14px;
+  color: var(--signal-uncertain-ink);
+  font-size: var(--text-body);
   font-weight: 700;
 }
 
 .chaos-blind-state span {
   display: block;
   margin-top: 4px;
-  color: #b8adc3;
-  font-size: 12px;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 
@@ -991,26 +1062,26 @@ a {
   display: grid;
   gap: 10px;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 13px;
-  background: rgba(7, 5, 9, 0.22);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-well);
 }
 
 .chaos-range-field strong {
-  color: #e9b4e5;
-  font-size: 13px;
+  color: var(--pharos-accent);
+  font-size: var(--text-small);
   font-weight: 700;
 }
 
 .chaos-range-field input {
   width: 100%;
-  accent-color: #d993d2;
+  accent-color: var(--pharos-accent);
 }
 
 .chaos-range-field small,
 .chaos-secondary-incident small {
-  color: #9f94a4;
-  font-size: 11px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   line-height: 1.4;
 }
 
@@ -1021,22 +1092,22 @@ a {
   align-items: center;
   margin-top: 12px;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-overlay);
   opacity: 0.7;
 }
 
 .chaos-secondary-incident input {
   width: 14px;
   height: 14px;
-  accent-color: #d993d2;
+  accent-color: var(--pharos-accent);
 }
 
 .chaos-secondary-incident strong {
   display: block;
-  color: #e8e0ea;
-  font-size: 12px;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
   font-weight: 650;
 }
 
@@ -1046,7 +1117,7 @@ a {
 }
 
 .chaos-secondary-incident em {
-  color: #aa9cab;
+  color: var(--pharos-faint);
   font-style: normal;
 }
 
@@ -1059,7 +1130,7 @@ a {
   margin-top: 12px;
   padding: 15px;
   border: 1px solid rgba(220, 166, 221, 0.15);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: linear-gradient(110deg, rgba(220, 166, 221, 0.08), rgba(255, 255, 255, 0.025));
 }
 
@@ -1070,15 +1141,15 @@ a {
 
 .chaos-review-card > div > strong {
   margin-top: 5px;
-  color: #f3ecf5;
-  font-size: 13px;
+  color: var(--pharos-ink);
+  font-size: var(--text-small);
   font-weight: 700;
 }
 
 .chaos-review-card > div > span {
   margin-top: 3px;
-  color: #b5a9ba;
-  font-size: 11px;
+  color: var(--pharos-faint);
+  font-size: var(--text-micro);
   line-height: 1.45;
 }
 
@@ -1088,8 +1159,8 @@ a {
 }
 
 .chaos-review-card dt {
-  color: #988b9e;
-  font-size: 9px;
+  color: var(--pharos-faint);
+  font-size: var(--text-nano);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1097,8 +1168,8 @@ a {
 
 .chaos-review-card dd {
   margin-top: 4px;
-  color: #e8b3e4;
-  font-size: 13px;
+  color: var(--pharos-accent);
+  font-size: var(--text-small);
   font-weight: 700;
 }
 
@@ -1110,9 +1181,9 @@ a {
   gap: 16px;
   margin-top: 20px;
   padding: 15px;
-  border: 1px solid rgba(250, 204, 126, 0.2);
-  border-radius: 14px;
-  background: rgba(250, 204, 126, 0.05);
+  border: 1px solid color-mix(in srgb, var(--signal-warning) 20%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--signal-warning) 5%, transparent);
 }
 
 .chaos-primary-button,
@@ -1125,22 +1196,22 @@ a {
   gap: 7px;
   min-height: 37px;
   padding: 0 13px;
-  border-radius: 10px;
-  font-size: 12px;
+  border-radius: var(--radius-field);
+  font-size: var(--text-caption);
   font-weight: 700;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 .chaos-primary-button {
   border: 1px solid rgba(233, 181, 231, 0.38);
-  background: linear-gradient(135deg, #ce80c6, #9d619f);
+  background: var(--fill-accent-strong);
   box-shadow: 0 10px 22px rgba(158, 82, 150, 0.23), inset 0 1px 0 rgba(255, 255, 255, 0.24);
   color: #221426;
 }
 
 .chaos-primary-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #e1a0d9, #ae72b0);
+  background: var(--fill-accent-strong-hover);
 }
 
 .chaos-primary-button:disabled {
@@ -1150,14 +1221,14 @@ a {
 
 .chaos-secondary-button,
 .chaos-reset-button {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #d9cddd;
+  border: 1px solid var(--line);
+  background: var(--surface-overlay);
+  color: var(--pharos-muted);
 }
 
 .chaos-secondary-button:hover,
 .chaos-reset-button:hover {
-  border-color: rgba(255, 255, 255, 0.23);
+  border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
@@ -1172,16 +1243,16 @@ a {
   gap: 1px;
   overflow: hidden;
   margin-top: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-field);
+  background: var(--surface-raised);
 }
 
 .chaos-run-summary > div {
   position: relative;
   min-height: 84px;
   padding: 13px 14px;
-  background: rgba(9, 7, 12, 0.31);
+  background: var(--surface-well);
 }
 
 .chaos-run-summary svg {
@@ -1197,8 +1268,8 @@ a {
 .chaos-run-summary strong {
   display: block;
   margin-top: 4px;
-  color: #f2ebf4;
-  font-size: 16px;
+  color: var(--pharos-ink);
+  font-size: var(--text-section);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -1212,7 +1283,7 @@ a {
 .chaos-running-blind svg {
   flex: none;
   margin-top: 2px;
-  color: #c4b5fd;
+  color: var(--signal-uncertain-ink);
 }
 
 .chaos-running-blind strong,
@@ -1221,15 +1292,15 @@ a {
 }
 
 .chaos-running-blind strong {
-  color: #efeaff;
-  font-size: 12px;
+  color: var(--signal-uncertain-ink);
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
 .chaos-running-blind span {
   margin-top: 3px;
-  color: #bcb3c7;
-  font-size: 11px;
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
   line-height: 1.45;
 }
 
@@ -1245,7 +1316,7 @@ a {
   grid-template-columns: 27px minmax(0, 1fr);
   gap: 10px;
   min-height: 60px;
-  color: #817787;
+  color: var(--pharos-dim);
 }
 
 .chaos-log-entry:not(:last-child)::after {
@@ -1264,29 +1335,29 @@ a {
   width: 27px;
   height: 27px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid var(--line);
   border-radius: 50%;
   background: #201824;
-  font-size: 10px;
+  font-size: var(--text-micro);
   font-weight: 800;
 }
 
 .chaos-log-entry p {
   color: inherit;
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
 .chaos-log-entry small {
   display: block;
   margin-top: 3px;
-  color: #847a8a;
-  font-size: 11px;
+  color: var(--pharos-dim);
+  font-size: var(--text-micro);
   line-height: 1.4;
 }
 
 .chaos-log-entry.chaos-log-active {
-  color: #e6b6e2;
+  color: var(--pharos-accent);
 }
 
 .chaos-log-entry.chaos-log-active > span {
@@ -1297,13 +1368,13 @@ a {
 }
 
 .chaos-log-entry.chaos-log-complete {
-  color: #a4dfcc;
+  color: var(--signal-healthy-ink);
 }
 
 .chaos-log-entry.chaos-log-complete > span {
   border-color: rgba(126, 226, 196, 0.3);
   background: rgba(126, 226, 196, 0.12);
-  color: #91e4cb;
+  color: var(--signal-healthy-ink);
 }
 
 .chaos-incident-link {
@@ -1311,7 +1382,7 @@ a {
   margin-top: 18px;
   border: 1px solid rgba(226, 177, 223, 0.26);
   background: rgba(226, 177, 223, 0.07);
-  color: #e6b6e2;
+  color: var(--pharos-accent);
 }
 
 .chaos-incident-link:hover {
@@ -1343,29 +1414,29 @@ a {
 
 .chaos-compare-list {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
 }
 
 .chaos-compare-row {
   min-height: 55px;
   padding: 11px 15px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-overlay);
 }
 
 .chaos-compare-row + .chaos-compare-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .chaos-compare-row strong {
-  color: #efe8f1;
-  font-size: 12px;
+  color: var(--pharos-ink);
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
 .chaos-compare-row > span {
-  color: #bdb1c2;
-  font-size: 12px;
+  color: var(--pharos-muted);
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 
@@ -1378,8 +1449,8 @@ a {
   min-height: 24px;
   padding: 0 8px;
   border: 1px solid;
-  border-radius: 999px;
-  font-size: 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1388,13 +1459,13 @@ a {
 .chaos-compare-match {
   border-color: rgba(126, 226, 196, 0.3);
   background: rgba(126, 226, 196, 0.09);
-  color: #8be2c8;
+  color: var(--signal-healthy-ink);
 }
 
 .chaos-compare-partial {
-  border-color: rgba(250, 204, 126, 0.3);
-  background: rgba(250, 204, 126, 0.09);
-  color: #f1c77f;
+  border-color: color-mix(in srgb, var(--signal-warning) 30%, transparent);
+  background: color-mix(in srgb, var(--signal-warning) 9%, transparent);
+  color: var(--signal-warning-ink);
 }
 
 .persistent-alert {
@@ -1404,11 +1475,11 @@ a {
   bottom: 22px;
   width: min(365px, calc(100vw - 32px));
   padding: 14px;
-  border: 1px solid rgba(251, 113, 133, 0.27);
-  border-radius: 15px;
+  border: 1px solid color-mix(in srgb, var(--signal-critical) 27%, transparent);
+  border-radius: var(--radius-card);
   background:
-    linear-gradient(145deg, rgba(62, 26, 41, 0.97), rgba(30, 17, 31, 0.98));
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 0 32px rgba(251, 113, 133, 0.08);
+    var(--surface-alert);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 0 32px color-mix(in srgb, var(--signal-critical) 8%, transparent);
 }
 
 /* Presentation mode used to be a no-op: max-width was already none and the padding
@@ -1424,19 +1495,19 @@ a {
 }
 
 .presentation-mode h1 {
-  font-size: clamp(34px, 3.4vw, 48px);
+  font-size: var(--text-display);
 }
 
 .presentation-mode h2 {
-  font-size: 21px;
+  font-size: var(--text-title);
 }
 
 .presentation-mode .eyebrow {
-  font-size: 10px;
+  font-size: var(--text-micro);
 }
 
 .presentation-mode [data-metric-value] {
-  font-size: 34px;
+  font-size: var(--text-figure-lg);
 }
 
 @media (max-width: 1100px) {
@@ -1460,7 +1531,7 @@ a {
     gap: 7px;
     min-height: 0;
     padding: 8px;
-    border-radius: 14px;
+    border-radius: var(--radius-card);
   }
 
   /* Explicit placement: with auto-placement the full-width link row pushed the
@@ -1501,7 +1572,7 @@ a {
     gap: 5px;
     min-height: 32px;
     padding: 0 5px;
-    font-size: 10px;
+    font-size: var(--text-micro);
     white-space: nowrap;
   }
 
@@ -1512,7 +1583,7 @@ a {
   .app-nav-link em {
     min-width: 14px;
     height: 14px;
-    font-size: 8px;
+    font-size: var(--text-nano);
   }
 
   /* The runtime indicator stays visible at every width. It is the signal that
@@ -1520,7 +1591,7 @@ a {
      save space is exactly the wrong trade. */
   .app-nav-runtime {
     padding: 3px 7px;
-    font-size: 8px;
+    font-size: var(--text-nano);
     letter-spacing: 0.1em;
   }
 
@@ -1579,11 +1650,11 @@ a {
 
   .investigations-summary strong {
     overflow-wrap: anywhere;
-    font-size: 12px;
+    font-size: var(--text-caption);
   }
 
   .investigations-sidecard {
-    border-radius: 16px;
+    border-radius: var(--radius-card);
   }
 
   .chaos-header {
@@ -1611,7 +1682,7 @@ a {
   .chaos-config-card,
   .chaos-run-card,
   .chaos-reveal-card {
-    border-radius: 16px;
+    border-radius: var(--radius-card);
   }
 
   .chaos-secondary-incident {
@@ -1639,8 +1710,8 @@ a {
   .chaos-compare-row > span::before {
     display: block;
     margin-bottom: 2px;
-    color: #8f8294;
-    font-size: 9px;
+    color: var(--pharos-dim);
+    font-size: var(--text-nano);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;

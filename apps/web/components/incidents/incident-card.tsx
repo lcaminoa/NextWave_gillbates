@@ -42,13 +42,13 @@ export function IncidentCard({
         <ReportStatusBadge status={report.status} />
         {report.requires_human_review ? <HumanReviewChip required /> : null}
         {/* The id stays available for operators to quote, but it is no longer the headline. */}
-        <code className="ml-auto font-mono text-[10px] text-pharos-faint">{report.incident_id}</code>
+        <code className="ml-auto font-mono text-micro text-pharos-faint">{report.incident_id}</code>
       </div>
 
       <p
         className={cn(
           "mt-3 text-left leading-6 text-pharos-ink",
-          compact ? "line-clamp-2 text-[13px]" : "text-[15px]",
+          compact ? "line-clamp-2 text-small" : "text-body",
         )}
       >
         {report.summary}
@@ -63,13 +63,13 @@ export function IncidentCard({
         {(compact ? facts.slice(0, 2) : facts).map((fact) => (
           <div key={fact.label} className="bg-black/40 px-3 py-2.5" title={fact.title}>
             <dt className="eyebrow">{fact.label}</dt>
-            <dd className="mt-1 text-[13px] font-semibold text-pharos-strong">{fact.value}</dd>
+            <dd className="mt-1 text-small font-semibold text-pharos-strong">{fact.value}</dd>
           </div>
         ))}
       </dl>
 
       {!compact && leadClaim ? (
-        <p className="mt-4 text-[12px] leading-5 text-pharos-faint">
+        <p className="mt-4 text-caption leading-5 text-pharos-faint">
           <span className="text-pharos-muted">Recommendation ·</span> {report.recommended_action}
         </p>
       ) : null}

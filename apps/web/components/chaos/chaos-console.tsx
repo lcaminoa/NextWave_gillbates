@@ -250,7 +250,7 @@ export function ChaosConsole() {
               </span>
               <span className={`chaos-phase-pill chaos-phase-${meta.tone}`}>{meta.label}</span>
             </div>
-            <h1 className="mt-3 text-[clamp(29px,3.6vw,42px)] font-medium tracking-[-0.06em] text-pharos-strong">
+            <h1 className="mt-3 text-display font-medium tracking-[-0.06em] text-pharos-strong">
               Controlled chaos, <span className="text-pharos-accent">visible proof.</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-pharos-muted">
@@ -279,7 +279,7 @@ export function ChaosConsole() {
             <div className="flex flex-wrap items-start justify-between gap-4 p-5 md:p-6">
               <div>
                 <p className="eyebrow">Scenario configuration</p>
-                <h2 className="mt-1 text-[21px] font-medium tracking-[-0.04em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
                   {controlsLocked ? "Scenario locked for this run" : "Define the experiment"}
                 </h2>
               </div>
@@ -461,7 +461,7 @@ export function ChaosConsole() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Run status</p>
-                <h2 className="mt-1 text-[21px] font-medium tracking-[-0.04em] text-pharos-ink">{meta.label}</h2>
+                <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">{meta.label}</h2>
               </div>
               {isRunning ? (
                 <LoaderCircle className="size-5 text-pharos-accent motion-safe:animate-spin" aria-hidden="true" />
@@ -562,7 +562,7 @@ export function ChaosConsole() {
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <p className="eyebrow">Reveal comparison</p>
-                <h2 className="mt-1 text-[24px] font-medium tracking-[-0.045em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium tracking-[-0.045em] text-pharos-ink">
                   Injected truth, returned by the runtime
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-pharos-muted">

@@ -100,7 +100,7 @@ export function ControlTowerDashboard() {
                   status={streamStatus}
                   label={streamStatus === "live" ? "STREAM LIVE" : streamStatus === "loading" ? "CONNECTING" : "STREAM OFFLINE"}
                 />
-                <span className="text-[11px] text-pharos-faint">
+                <span className="text-micro text-pharos-faint">
                   {reportsStatus === "live"
                     ? "Reports polled every 10s"
                     : reportsStatus === "loading"
@@ -108,10 +108,10 @@ export function ControlTowerDashboard() {
                       : "Reports unavailable"}
                 </span>
               </div>
-              <h1 className="mt-3 text-[clamp(26px,2.4vw,34px)] font-medium tracking-[-0.05em] text-pharos-strong">
+              <h1 className="mt-3 text-display font-medium tracking-[-0.05em] text-pharos-strong">
                 Payment health, <span className="text-pharos-accent">with evidence.</span>
               </h1>
-              <p className="mt-1 text-[13px] text-pharos-muted">
+              <p className="mt-1 text-small text-pharos-muted">
                 Live transaction stream and active investigations from the PHAROS runtime.
               </p>
             </div>
@@ -197,13 +197,13 @@ export function ControlTowerDashboard() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="eyebrow">Active investigations</p>
-                  <h2 className="mt-1 text-[17px] font-medium tracking-[-0.03em] text-pharos-ink">
+                  <h2 className="mt-1 text-section font-medium tracking-[-0.03em] text-pharos-ink">
                     Prioritised by reported impact
                   </h2>
                 </div>
                 <Link
                   href="/investigations"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-pharos-accent transition hover:text-pharos-strong"
+                  className="inline-flex items-center gap-1 text-micro font-semibold text-pharos-accent transition hover:text-pharos-strong"
                 >
                   Open queue <ArrowUpRight className="size-3" aria-hidden="true" />
                 </Link>
@@ -240,7 +240,7 @@ export function ControlTowerDashboard() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow">Investigation lane</p>
-                  <h2 className="mt-1 truncate text-[17px] font-medium tracking-[-0.03em] text-pharos-ink">
+                  <h2 className="mt-1 truncate text-section font-medium tracking-[-0.03em] text-pharos-ink">
                     {activeSegment ?? "Observable steps"}
                   </h2>
                 </div>
@@ -257,12 +257,12 @@ export function ControlTowerDashboard() {
                       <span className={index === visible.length - 1 ? "timeline-dot timeline-dot-live" : "timeline-dot"} />
                       <div className="min-w-0 pb-1">
                         <div className="flex flex-wrap items-center gap-x-2">
-                          <span className="text-[11px] font-semibold text-pharos-ink">{actionLabel(step.action)}</span>
-                          <time className="text-[10px] text-pharos-faint" dateTime={step.timestamp}>
+                          <span className="text-micro font-semibold text-pharos-ink">{actionLabel(step.action)}</span>
+                          <time className="text-micro text-pharos-faint" dateTime={step.timestamp}>
                             {time(step.timestamp)} {DISPLAY_TIME_ZONE_LABEL}
                           </time>
                         </div>
-                        <p className="mt-0.5 text-[11px] leading-5 text-pharos-muted">{step.result_summary}</p>
+                        <p className="mt-0.5 text-micro leading-5 text-pharos-muted">{step.result_summary}</p>
                       </div>
                     </li>
                   ))
@@ -284,7 +284,7 @@ export function ControlTowerDashboard() {
               {activeReport ? (
                 <Link
                   href={`/incidents/${activeReport.incident_id}`}
-                  className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-pharos-accent transition hover:text-pharos-strong"
+                  className="mt-4 inline-flex items-center gap-1 text-micro font-semibold text-pharos-accent transition hover:text-pharos-strong"
                 >
                   Open full investigation <ChevronRight className="size-3" aria-hidden="true" />
                 </Link>
@@ -300,7 +300,7 @@ export function ControlTowerDashboard() {
               <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 p-5">
                 <div>
                   <p className="eyebrow">Impact geography</p>
-                  <h2 className="mt-1 text-[19px] font-medium tracking-[-0.04em] text-pharos-ink">
+                  <h2 className="mt-1 text-section font-medium tracking-[-0.04em] text-pharos-ink">
                     Incidents, <span className="text-pharos-accent">located.</span>
                   </h2>
                 </div>
@@ -340,7 +340,7 @@ export function ControlTowerDashboard() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">Live payment stream</p>
-                <h2 className="mt-1 text-[17px] font-medium tracking-[-0.03em] text-pharos-ink">Recent transactions</h2>
+                <h2 className="mt-1 text-section font-medium tracking-[-0.03em] text-pharos-ink">Recent transactions</h2>
               </div>
               <Network className="size-4 text-pharos-faint" aria-hidden="true" />
             </div>
@@ -354,15 +354,15 @@ export function ControlTowerDashboard() {
                     <span className={transaction.approved ? "stream-state stream-approved" : "stream-state stream-declined"}>
                       {transaction.approved ? "✓" : "×"}
                     </span>
-                    <p className="truncate text-[11px] text-pharos-muted">
+                    <p className="truncate text-micro text-pharos-muted">
                       {dimensionValueLabel("country", transaction.country)} ·{" "}
                       {dimensionValueLabel("provider", transaction.provider)} ·{" "}
                       {dimensionValueLabel("payment_method", transaction.payment_method)}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[11px] font-medium text-pharos-ink">{usd(transaction.amount, 2)}</p>
-                    <p className="text-[9px] text-pharos-faint">{transaction.latency_ms} ms</p>
+                    <p className="text-micro font-medium text-pharos-ink">{usd(transaction.amount, 2)}</p>
+                    <p className="text-nano text-pharos-faint">{transaction.latency_ms} ms</p>
                   </div>
                 </div>
               ))}
@@ -395,13 +395,13 @@ export function ControlTowerDashboard() {
               <ShieldCheck className="size-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold tracking-[0.1em] text-signal-critical uppercase">
+              <p className="text-micro font-bold tracking-[0.1em] text-signal-critical uppercase">
                 Active payment investigation
               </p>
               <p className="mt-1 line-clamp-2 text-xs font-medium text-pharos-ink">{activeReport.summary}</p>
               <Link
                 href={`/incidents/${activeReport.incident_id}`}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-pharos-accent"
+                className="mt-2 inline-flex items-center gap-1 text-micro font-semibold text-pharos-accent"
               >
                 Review evidence <ChevronRight className="size-3" aria-hidden="true" />
               </Link>

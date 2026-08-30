@@ -43,7 +43,7 @@ export function InvestigationsQueue() {
         <header className="investigations-hero">
           <div className="relative z-10">
             <p className="eyebrow">Investigation queue</p>
-            <h1 className="mt-2 text-[clamp(29px,3.6vw,44px)] font-medium tracking-[-0.06em] text-pharos-strong">
+            <h1 className="mt-2 text-display font-medium tracking-[-0.06em] text-pharos-strong">
               Evidence before <span className="text-pharos-accent">conclusion.</span>
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-pharos-muted">
@@ -73,11 +73,11 @@ export function InvestigationsQueue() {
             <div className="flex flex-wrap items-end justify-between gap-3 px-1 pb-3">
               <div>
                 <p className="eyebrow">Priority queue</p>
-                <h2 className="mt-1 text-[21px] font-medium tracking-[-0.04em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
                   Open evidence workspaces
                 </h2>
               </div>
-              <span className="text-[11px] text-pharos-faint">
+              <span className="text-micro text-pharos-faint">
                 Ranked by revenue at risk · polled every 10 seconds
               </span>
             </div>
@@ -106,7 +106,7 @@ export function InvestigationsQueue() {
           <aside className="investigations-sidecard xl:sticky xl:top-24">
             <FileSearch className="size-5 text-pharos-accent" aria-hidden="true" />
             <p className="eyebrow mt-5">How to read this queue</p>
-            <h2 className="mt-1 text-[19px] font-medium tracking-[-0.04em] text-pharos-ink">
+            <h2 className="mt-1 text-section font-medium tracking-[-0.04em] text-pharos-ink">
               Priority is not certainty.
             </h2>
             <p className="mt-3 text-xs leading-5 text-pharos-muted">

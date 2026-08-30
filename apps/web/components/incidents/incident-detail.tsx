@@ -114,7 +114,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
     <Shell>
       <header className="incident-hero">
         <div className="relative z-10">
-          <nav className="flex items-center gap-2 text-[11px] font-medium text-pharos-faint" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-2 text-micro font-medium text-pharos-faint" aria-label="Breadcrumb">
             <Link href="/investigations" className="transition hover:text-white">
               Investigations
             </Link>
@@ -126,16 +126,16 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             <ReportStatusBadge status={report.status} />
             <HumanReviewChip required={report.requires_human_review} />
             {lead?.dominant_decline_code ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-pharos-line bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-pharos-muted uppercase">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-pharos-line bg-white/[0.04] px-2.5 py-1 text-micro font-bold tracking-[0.08em] text-pharos-muted uppercase">
                 {dimensionValueLabel("canonical_decline_code", lead.dominant_decline_code)}
               </span>
             ) : null}
           </div>
 
-          <h1 className="mt-4 max-w-4xl text-[clamp(28px,3.6vw,44px)] leading-[1.04] font-medium tracking-[-0.06em] text-pharos-strong">
+          <h1 className="mt-4 max-w-4xl text-display leading-[1.04] font-medium tracking-[-0.06em] text-pharos-strong">
             {isInconclusive || !segment ? "No single cause meets the evidence threshold." : segment}
           </h1>
-          <p className="mt-3 max-w-3xl text-[15px] leading-6 text-pharos-muted">{report.summary}</p>
+          <p className="mt-3 max-w-3xl text-body leading-6 text-pharos-muted">{report.summary}</p>
         </div>
 
         <dl className="relative z-10 mt-8 grid gap-px overflow-hidden rounded-2xl border border-pharos-line bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-4">
@@ -156,7 +156,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Cause path</p>
-                <h2 className="mt-1 text-[21px] font-medium tracking-[-0.04em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
                   {isInconclusive ? "Investigation scope, not a root cause" : "Most-supported segment"}
                 </h2>
               </div>
@@ -199,7 +199,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="eyebrow">Evidence board</p>
-                <h2 className="mt-1 text-[22px] font-medium tracking-[-0.045em] text-pharos-ink">
+                <h2 className="mt-1 text-title font-medium tracking-[-0.045em] text-pharos-ink">
                   What supports the investigation
                 </h2>
               </div>
@@ -220,12 +220,12 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
                           <div className="min-w-0">
                             <p className="text-sm leading-6 text-pharos-ink">{item.summary}</p>
                             {item.dimension_key ? (
-                              <p className="mt-1 font-mono text-[10px] break-all text-pharos-faint">
+                              <p className="mt-1 font-mono text-micro break-all text-pharos-faint">
                                 {item.dimension_key}
                               </p>
                             ) : null}
                           </div>
-                          <code className="self-start font-mono text-[10px] text-pharos-faint">
+                          <code className="self-start font-mono text-micro text-pharos-faint">
                             {item.evidence_id}
                           </code>
                         </div>
@@ -247,7 +247,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
                   <Sparkles className="mt-0.5 size-4 shrink-0 text-pharos-accent" aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-sm leading-6 text-pharos-ink">{claim.claim}</p>
-                    <p className="mt-1.5 text-[10px] text-pharos-faint">
+                    <p className="mt-1.5 text-micro text-pharos-faint">
                       {percent(claim.confidence)} confidence ·{" "}
                       {claim.evidence_ids.length ? (
                         <span className="font-mono">{claim.evidence_ids.join(", ")}</span>
@@ -261,7 +261,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             </div>
 
             {uncited.length ? (
-              <p className="mt-5 text-[11px] leading-5 text-pharos-faint">
+              <p className="mt-5 text-micro leading-5 text-pharos-faint">
                 {uncited.length} further evidence item{uncited.length === 1 ? " was" : "s were"} collected but not
                 cited by any claim.
               </p>
@@ -270,7 +270,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
 
           <article className="incident-workspace-card p-5 md:p-6">
             <p className="eyebrow">Hypotheses evaluated</p>
-            <h2 className="mt-1 text-[22px] font-medium tracking-[-0.04em] text-pharos-ink">
+            <h2 className="mt-1 text-title font-medium tracking-[-0.04em] text-pharos-ink">
               {isInconclusive ? "Close explanations, no asserted cause" : "Ranked investigation candidates"}
             </h2>
             <div className="mt-5 space-y-2">
@@ -278,7 +278,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
                 <CandidateRow key={item.candidate_id} candidate={item} winning={item.candidate_id === report.winning_candidate_id} />
               ))}
             </div>
-            <p className="mt-4 text-[11px] leading-5 text-pharos-faint">
+            <p className="mt-4 text-micro leading-5 text-pharos-faint">
               Candidates the runtime did not return are not shown. The contract carries no field for a
               discarded hypothesis or its reason, so none is invented here.
             </p>
@@ -287,11 +287,11 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
           <article className="incident-recommendation">
             <div className="relative z-10">
               <p className="eyebrow">Recommended human action</p>
-              <h2 className="mt-1 text-[22px] font-medium tracking-[-0.045em] text-pharos-strong">
+              <h2 className="mt-1 text-title font-medium tracking-[-0.045em] text-pharos-strong">
                 Review before any external change.
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-pharos-muted">{report.recommended_action}</p>
-              <span className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-signal-warning/20 bg-signal-warning/[0.07] px-3 py-1.5 text-[10px] font-semibold text-signal-warning">
+              <span className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-signal-warning/20 bg-signal-warning/[0.07] px-3 py-1.5 text-micro font-semibold text-signal-warning">
                 <ShieldCheck className="size-3.5" aria-hidden="true" /> Recommendation only — no traffic was
                 rerouted
               </span>
@@ -304,7 +304,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="eyebrow">Investigation timeline</p>
-              <h2 className="mt-1 text-[19px] font-medium tracking-[-0.04em] text-pharos-ink">The incident story</h2>
+              <h2 className="mt-1 text-section font-medium tracking-[-0.04em] text-pharos-ink">The incident story</h2>
             </div>
             <RuntimeIndicator status={status} />
           </div>
@@ -325,11 +325,11 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
                     }
                   />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold tracking-[0.09em] text-pharos-accent uppercase">
+                    <p className="text-micro font-semibold tracking-[0.09em] text-pharos-accent uppercase">
                       {actionLabel(step.action)}
                     </p>
                     <p className="mt-1 text-sm leading-5 text-pharos-ink">{step.result_summary}</p>
-                    <time className="mt-2 block text-[10px] text-pharos-faint" dateTime={step.timestamp}>
+                    <time className="mt-2 block text-micro text-pharos-faint" dateTime={step.timestamp}>
                       {time(step.timestamp)} {DISPLAY_TIME_ZONE_LABEL}
                     </time>
                   </div>
@@ -342,7 +342,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             )}
           </ol>
 
-          <p className="mt-6 border-t border-pharos-line pt-4 text-[11px] leading-5 text-pharos-faint">
+          <p className="mt-6 border-t border-pharos-line pt-4 text-micro leading-5 text-pharos-faint">
             The incident API returns candidates, evidence and steps. It does not expose the anomaly or baseline
             series, so this workspace shows no approval chart rather than a fabricated one.
           </p>
@@ -364,20 +364,20 @@ function CandidateRow({ candidate, winning }: { candidate: IncidentCandidate; wi
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-bold tracking-[0.1em] uppercase">
+          <span className="text-micro font-bold tracking-[0.1em] uppercase">
             {winning ? "Supported by cited evidence" : "Alternative explanation"}
           </span>
-          <span className="text-[10px] text-pharos-faint">
+          <span className="text-micro text-pharos-faint">
             {percent(candidate.confidence)} confidence · priority {candidate.rca_score.toFixed(2)}
           </span>
         </div>
         <p className="mt-1.5 text-sm font-semibold text-pharos-ink">{label}</p>
-        <p className="mt-1.5 text-[11px] text-pharos-faint">
+        <p className="mt-1.5 text-micro text-pharos-faint">
           {integer(candidate.affected_count)} affected ·{" "}
           {approvalDeltaPp(candidate.baseline_decline_rate, candidate.current_decline_rate)} approval ·{" "}
           {usd(candidate.estimated_revenue_loss_usd_per_hour)}/hr
         </p>
-        <p className="mt-1.5 text-[12px] leading-5 text-pharos-muted">
+        <p className="mt-1.5 text-caption leading-5 text-pharos-muted">
           {candidate.counterfactual_check ?? "No discriminating evidence is available for this hypothesis yet."}
         </p>
       </div>

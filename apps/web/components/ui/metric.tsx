@@ -44,12 +44,12 @@ export function Metric({
       </div>
       <p
         data-metric-value
-        className={cn("mt-3 flex items-baseline gap-1.5 text-[27px] leading-none font-semibold tracking-[-0.05em]", toneClass)}
+        className={cn("mt-3 flex items-baseline gap-1.5 text-figure leading-none font-semibold tracking-[-0.05em]", toneClass)}
       >
         {value}
-        {unit ? <span className="text-[13px] font-medium tracking-normal text-pharos-faint">{unit}</span> : null}
+        {unit ? <span className="text-small font-medium tracking-normal text-pharos-faint">{unit}</span> : null}
       </p>
-      <p className="mt-2 text-[11px] leading-4 text-pharos-faint">{caption}</p>
+      <p className="mt-2 text-micro leading-4 text-pharos-faint">{caption}</p>
     </article>
   );
 }
