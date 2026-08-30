@@ -7,6 +7,7 @@ describe request bodies and the incident-detail envelope for the frozen HTTP rou
 from __future__ import annotations
 
 import math
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -67,12 +68,38 @@ class EvidenceAuditView(ApiModel):
     checks: list[EvidenceAuditCheck]
 
 
+DispatchState = Literal["queued", "sending", "accepted", "failed", "unknown", "skipped"]
+
+
+class NotificationDispatchView(ApiModel):
+    """What became of one external alert, for one incident, on one channel.
+
+    A projection of the outbox record, not the record itself. `recipient_fingerprint`
+    is deliberately absent: recipients live in process configuration and must not
+    reach a browser, not even hashed.
+
+    `accepted` means the provider took the message. It is not `delivered`, and this
+    API never says `delivered`, because only a provider delivery callback can make
+    that claim and there is no such callback yet.
+    """
+
+    channel: Literal["email", "whatsapp"]
+    state: DispatchState
+    updated_at: datetime
+    attempt_count: int = Field(ge=0)
+    provider_reference: str | None = None
+    error_code: str | None = None
+
+
 class IncidentDetail(ApiModel):
     report: IncidentReport
     candidates: list[IncidentCandidate]
     evidence: list[Evidence]
     investigation_steps: list[InvestigationStep]
     evidence_audit: EvidenceAuditView
+    # Additive and optional-by-default: a consumer that ignores it is unaffected,
+    # and an empty list is the honest answer when nothing was ever queued.
+    notification_dispatches: list[NotificationDispatchView] = Field(default_factory=list)
 
 
 BlindTrialOutcome = Literal[

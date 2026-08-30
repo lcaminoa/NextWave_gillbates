@@ -11,7 +11,6 @@ import { HumanReviewChip, ReportStatusBadge, RuntimeIndicator } from "@/componen
 import { LoadingState, NotFoundState, RuntimeUnavailableState } from "@/components/ui/states";
 import { AlertDelivery } from "./alert-delivery";
 import { useNotifications } from "@/components/notifications/notifications-provider";
-import type { NotificationDispatch } from "@/lib/notifications";
 
 /** Human grouping for the evidence board. Unknown sources keep their own group. */
 const evidenceGroupLabels: Record<string, string> = {
@@ -291,11 +290,7 @@ export function IncidentDetail({ incidentId }: { incidentId: string }) {
             status={report.status}
             raisedInApp={alerts.some((alert) => alert.incidentId === report.incident_id)}
             raisedAt={report.generated_at}
-            /* Read defensively so the panel lights up the day the runtime starts
-               returning this, without widening a shared type today. */
-            dispatches={
-              (detail as { notification_dispatches?: NotificationDispatch[] }).notification_dispatches
-            }
+            dispatches={detail.notification_dispatches}
           />
 
           <article className="incident-recommendation">

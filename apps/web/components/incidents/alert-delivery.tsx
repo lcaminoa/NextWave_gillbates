@@ -10,16 +10,14 @@ import { cn } from "@/lib/utils";
 /**
  * Where an incident's alert went, per channel.
  *
- * The honest position today: the in-app channel is the only one this interface
- * can speak for, because it raised that alert itself. Email and WhatsApp are
- * sent by the runtime through Resend and the WhatsApp Cloud API, and the
- * incident endpoint does not report what happened to them — so this panel says
- * so, rather than showing a green tick it has no basis for.
+ * In-app is first-hand: this interface raised that alert, so it can say when.
+ * Email and WhatsApp come from the runtime's own outbox ledger, which reports
+ * `accepted` when a provider took the message — never `delivered`, because only
+ * a provider delivery callback could justify that and there is no such callback.
  *
- * The day the runtime includes `notification_dispatches` on the incident detail
- * response, this component renders it with no further change. It reads the field
- * defensively instead of widening a shared type, so nothing in contracts/ or in
- * the API adapter has to move to make that work.
+ * An empty ledger is a real answer, not a gap: it means nothing was queued for
+ * this incident, which is what happens when the channels are switched off in the
+ * runtime environment. The panel says that rather than implying a failure.
  */
 
 const stateMeta: Record<DispatchState, { label: string; icon: typeof Send; tone: string }> = {
@@ -29,7 +27,8 @@ const stateMeta: Record<DispatchState, { label: string; icon: typeof Send; tone:
   // same claim as it reaching a person, and only the provider can make the second.
   accepted: { label: "Accepted by provider", icon: Bell, tone: "delivery-state-good" },
   failed: { label: "Failed", icon: CircleAlert, tone: "delivery-state-bad" },
-  not_configured: { label: "Not configured", icon: CircleSlash, tone: "delivery-state-neutral" },
+  unknown: { label: "Outcome unknown", icon: CircleAlert, tone: "delivery-state-unknown" },
+  skipped: { label: "Not sent", icon: CircleSlash, tone: "delivery-state-neutral" },
 };
 
 const channelMeta: Record<AlertChannel, { label: string; icon: typeof Mail; role: string }> = {
@@ -40,8 +39,8 @@ const channelMeta: Record<AlertChannel, { label: string; icon: typeof Mail; role
 
 /** Illustrative only — used by the preview switch, never mixed with real data. */
 const previewDispatches: NotificationDispatch[] = [
-  { channel: "email", state: "accepted", provider_reference: "resend:re_2f…", updated_at: new Date().toISOString() },
-  { channel: "whatsapp", state: "sending", updated_at: new Date().toISOString() },
+  { channel: "email", state: "accepted", provider_reference: "resend:re_2f…" },
+  { channel: "whatsapp", state: "sending" },
 ];
 
 export function AlertDelivery({
@@ -145,7 +144,7 @@ export function AlertDelivery({
               {dispatch?.provider_reference ? (
                 <p className="delivery-channel-meta font-mono">{dispatch.provider_reference}</p>
               ) : null}
-              {dispatch?.detail ? <p className="delivery-channel-meta">{dispatch.detail}</p> : null}
+              {dispatch?.error_code ? <p className="delivery-channel-meta">{dispatch.error_code}</p> : null}
             </div>
           );
         })}
@@ -158,9 +157,9 @@ export function AlertDelivery({
         </p>
       ) : (
         <p className="delivery-note">
-          Email and WhatsApp are sent server-side by the runtime; the credentials never reach this
-          interface. The incident endpoint does not yet report what became of those sends, so this
-          panel shows nothing for them rather than guessing.
+          {escalated
+            ? "The runtime queued nothing for this incident on either external channel — which is what happens when they are switched off in its environment. Sending is server-side; the credentials and the recipients never reach this interface."
+            : "Sending is server-side. The credentials and the recipients never reach this interface."}
         </p>
       )}
     </article>

@@ -1,3 +1,4 @@
+import type { NotificationDispatch } from "@/lib/notifications";
 import type {
   ChaosSpec,
   Evidence,
@@ -13,6 +14,8 @@ export type IncidentDetail = {
   evidence: Evidence[];
   investigation_steps: InvestigationStep[];
   evidence_audit: EvidenceAuditView;
+  /** What became of each external alert. Empty when nothing was ever queued. */
+  notification_dispatches: NotificationDispatch[];
 };
 
 export type EvidenceAuditStatus = "approved" | "rejected" | "error" | "not_run";

@@ -7,6 +7,7 @@ from engine.api.models import (
     ChaosRevealResponse,
     EvidenceAuditView,
     IncidentDetail,
+    NotificationDispatchView,
 )
 from engine.api.runtime import ControlTowerService, TransactionBroker
 
@@ -18,5 +19,6 @@ __all__ = [
     "ControlTowerService",
     "EvidenceAuditView",
     "IncidentDetail",
+    "NotificationDispatchView",
     "TransactionBroker",
 ]

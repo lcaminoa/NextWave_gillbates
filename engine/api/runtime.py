@@ -40,6 +40,7 @@ from engine.api.models import (
     ChaosRevealResponse,
     EvidenceAuditView,
     IncidentDetail,
+    NotificationDispatchView,
 )
 from engine.detection.pipeline import AnomalyDiagnosis, DetectionPipeline, WindowResult
 from engine.investigator import (
@@ -82,6 +83,8 @@ class NotificationSink(Protocol):
 
     def enqueue_report(self, report: IncidentReport, *, episode_key: str) -> object: ...
 
+    def records_for_incident(self, incident_id: str) -> list[object]: ...
+
 
 @dataclass(frozen=True)
 class StoredIncident:
@@ -93,13 +96,17 @@ class StoredIncident:
     publication_reason: PublicationReason
     retryable: bool = False
 
-    def detail(self) -> IncidentDetail:
+    def detail(
+        self,
+        notification_dispatches: list[NotificationDispatchView] | None = None,
+    ) -> IncidentDetail:
         return IncidentDetail(
             report=self.investigation.report,
             candidates=list(self.candidates),
             evidence=list(self.evidence),
             investigation_steps=list(self.investigation.steps),
             evidence_audit=self.evidence_audit,
+            notification_dispatches=list(notification_dispatches or []),
         )
 
 
@@ -1073,9 +1080,43 @@ class ControlTowerService:
             for stored in reversed(tuple(self._incidents.values()))
         ]
 
+    def _notification_dispatches(self, incident_id: str) -> list[NotificationDispatchView]:
+        """Project the outbox ledger for one incident.
+
+        Read-only and best-effort: the alert channels are a side effect of an
+        incident, never a precondition for reading one, so an outbox fault must
+        degrade to "nothing to report" rather than fail the detail request.
+        """
+        reader = getattr(self.notifications, "records_for_incident", None)
+        if reader is None:
+            return []
+        try:
+            records = reader(incident_id)
+        except Exception:  # pragma: no cover - defensive; the ledger is not the incident
+            logger.exception("Control Tower could not read the notification ledger")
+            return []
+
+        views: list[NotificationDispatchView] = []
+        for record in records:
+            channel = getattr(record.channel, "value", record.channel)
+            state = getattr(record.state, "value", record.state)
+            views.append(
+                NotificationDispatchView(
+                    channel=channel,
+                    state=state,
+                    updated_at=record.updated_at,
+                    attempt_count=record.attempt_count,
+                    provider_reference=record.provider_message_id,
+                    error_code=record.error_code,
+                )
+            )
+        return views
+
     def get_incident(self, incident_id: str) -> IncidentDetail | None:
         stored = self._incidents.get(incident_id)
-        return stored.detail() if stored is not None else None
+        if stored is None:
+            return None
+        return stored.detail(self._notification_dispatches(incident_id))
 
     def inject_manual(self, spec: ChaosSpec) -> ChaosSpec:
         if spec.mode is not ChaosMode.manual:

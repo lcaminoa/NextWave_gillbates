@@ -13,26 +13,30 @@ import type { IncidentReport, ReportStatus } from "@/lib/contracts";
 export type AlertChannel = "in_app" | "email" | "whatsapp";
 
 /**
- * The shape the incident-detail endpoint is expected to grow. It is declared
- * here rather than in contracts/ so the frontend can consume it the day the
- * backend starts sending it, without anyone changing a shared contract now.
+ * What the runtime reports about one external alert, mirroring the outbox's own
+ * vocabulary. `accepted` means a provider took the message — it is not
+ * "delivered", and neither this type nor the API has a word for that, because
+ * only a provider delivery callback could justify it.
+ *
+ * `in_app` never appears here: it is raised by this interface, not dispatched.
  */
 export type DispatchState =
   | "queued"
   | "sending"
   | "accepted"
   | "failed"
-  | "not_configured";
+  | "unknown"
+  | "skipped";
 
 export type NotificationDispatch = {
-  channel: AlertChannel;
+  channel: "email" | "whatsapp";
   state: DispatchState;
   /** ISO 8601. When the runtime last moved this dispatch. */
   updated_at?: string;
+  attempt_count?: number;
   /** Provider-side identifier, if the provider returned one. */
-  provider_reference?: string;
-  /** Human-readable reason, present when state is "failed". */
-  detail?: string;
+  provider_reference?: string | null;
+  error_code?: string | null;
 };
 
 export type Alert = {
