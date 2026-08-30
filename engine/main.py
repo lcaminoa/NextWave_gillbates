@@ -9,12 +9,14 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from contracts.schemas import ChaosSpec, IncidentReport
 from engine.api import (
     ChaosRandomRequest,
     ChaosRevealRequest,
+    ChaosRevealResponse,
     ControlTowerService,
     IncidentDetail,
 )
@@ -122,6 +124,18 @@ def create_app(
                 await runtime.stop()
 
     application = FastAPI(title="Control Tower API", lifespan=lifespan)
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CONTROL_TOWER_CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "Last-Event-ID", "X-Control-Tower-Judge-Key"],
+    )
     application.state.control_tower = runtime
 
     @application.get("/api/health", response_model=HealthResponse)
@@ -202,10 +216,12 @@ def create_app(
 
     @application.post(
         "/api/chaos/reveal",
-        response_model=ChaosSpec,
+        response_model=ChaosRevealResponse,
         dependencies=[Depends(require_judge_access)],
     )
-    async def reveal_chaos(payload: ChaosRevealRequest | None = None) -> ChaosSpec:
+    async def reveal_chaos(
+        payload: ChaosRevealRequest | None = None,
+    ) -> ChaosRevealResponse:
         revealed = runtime.reveal_chaos(payload.chaos_id if payload else None)
         if revealed is None:
             raise HTTPException(status_code=404, detail="chaos not found")

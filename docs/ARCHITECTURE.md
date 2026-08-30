@@ -22,11 +22,21 @@ IncidentCandidate + Evidence (Stream B — motor de RCA/diagnóstico)
 InvestigationStep + IncidentReport (Stream C — agente investigador OpenAI)
       |
       v
-Dashboard (Stream D) — muestra todo lo anterior + la consola de caos
+Evidence Audit gate (API/orquestación — aprueba o retiene el draft)
+      |
+      v
+Dashboard (Stream D) — reporte + sello de auditoría + consola de caos
 ```
 
 `ChaosSpec` corre al revés: Stream D (o el jurado) lo dispara, Stream A lo consume para inyectar
-la anomalía, y solo se revela mediante `POST /api/chaos/reveal`.
+la anomalía, y solo se revela mediante `POST /api/chaos/reveal`. El runtime asocia un blind trial
+con un episodio antes del reveal usando únicamente tiempo y fingerprints nuevos. Después del
+reveal, un evaluador determinista compara esa asociación ya cerrada contra la verdad y agrega el
+score al envelope API-local de la respuesta.
+
+`EvidenceAuditView`, `BlindTrialRun`, `BlindTrialEvaluation`, `IncidentDetail` y
+`ChaosRevealResponse` son modelos API-locales en `engine/api/`; no modifican las ocho entidades
+compartidas. La verdad revelada nunca vuelve al detector, Investigator o Evidence Auditor.
 
 ## Streams -> carpetas -> contratos
 

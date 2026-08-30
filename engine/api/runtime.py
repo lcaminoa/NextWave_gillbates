@@ -8,9 +8,11 @@ memory for the hackathon demo and is deliberately isolated from the shared contr
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import math
 import threading
+import time
 from collections import deque
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -26,16 +28,29 @@ from contracts.schemas import (
     IncidentReport,
     Transaction,
 )
-from engine.api.models import IncidentDetail
+from engine.api.assurance import (
+    PublicationReason,
+    completed_audit_view,
+    error_audit_view,
+    evaluate_blind_trial,
+    not_run_audit_view,
+)
+from engine.api.models import (
+    BlindTrialEvaluation,
+    ChaosRevealResponse,
+    EvidenceAuditView,
+    IncidentDetail,
+    NotificationDispatchView,
+)
 from engine.detection.pipeline import AnomalyDiagnosis, DetectionPipeline, WindowResult
 from engine.investigator import (
     AuditedInvestigationResult,
-    EvidenceAuditError,
     InvestigationResult,
     run_investigation,
 )
 from engine.investigator.memory import IncidentMemory, NullIncidentMemory
 from engine.investigator.validation import validate_report
+from engine.notifications import NotificationService
 from simulator import PaymentSimulator
 
 
@@ -60,20 +75,39 @@ AuditedInvestigator = Callable[
 ]
 
 
+class NotificationSink(Protocol):
+    """Internal boundary so notification failures never couple to the runtime core."""
+
+    def start(self) -> None: ...
+
+    def stop(self) -> None: ...
+
+    def enqueue_report(self, report: IncidentReport, *, episode_key: str) -> object: ...
+
+    def records_for_incident(self, incident_id: str) -> list[object]: ...
+
+
 @dataclass(frozen=True)
 class StoredIncident:
     anomaly: Anomaly
     candidates: tuple[IncidentCandidate, ...]
     evidence: tuple[Evidence, ...]
     investigation: InvestigationResult
+    evidence_audit: EvidenceAuditView
+    publication_reason: PublicationReason
     retryable: bool = False
 
-    def detail(self) -> IncidentDetail:
+    def detail(
+        self,
+        notification_dispatches: list[NotificationDispatchView] | None = None,
+    ) -> IncidentDetail:
         return IncidentDetail(
             report=self.investigation.report,
             candidates=list(self.candidates),
             evidence=list(self.evidence),
             investigation_steps=list(self.investigation.steps),
+            evidence_audit=self.evidence_audit,
+            notification_dispatches=list(notification_dispatches or []),
         )
 
 
@@ -93,6 +127,23 @@ class InvestigationSelection:
     diagnosis: AnomalyDiagnosis
     existing_id: str | None
     promotes_provisional: bool = False
+
+
+@dataclass
+class BlindTrialRun:
+    """Pre-reveal association state that deliberately contains no secret dimensions."""
+
+    chaos_id: str
+    virtual_started_at: datetime
+    virtual_ends_at: datetime | None
+    known_fingerprints: frozenset[str]
+    wall_started_at: float
+    fingerprint: str | None = None
+    incident_id: str | None = None
+    detection_wall_at: float | None = None
+    report_wall_at: float | None = None
+    ambiguous: bool = False
+    evaluation: BlindTrialEvaluation | None = None
 
 
 class TransactionBroker:
@@ -385,8 +436,10 @@ class ControlTowerService:
         simulated_interval_seconds: float = 0.05,
         emit_delay_seconds: float = 0.005,
         broker: TransactionBroker | None = None,
+        notifications: NotificationSink | None = None,
         max_chaos_specs: int = DEFAULT_MAX_CHAOS_SPECS,
         episode_grace_windows: int = 2,
+        monotonic_clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if simulated_interval_seconds <= 0:
             raise ValueError("simulated_interval_seconds must be positive")
@@ -419,16 +472,20 @@ class ControlTowerService:
         self.simulated_interval_seconds = simulated_interval_seconds
         self.emit_delay_seconds = emit_delay_seconds
         self.broker = broker or TransactionBroker()
+        self.notifications = notifications or NotificationService.from_environment()
         self.max_chaos_specs = max_chaos_specs
         self.episode_grace_windows = episode_grace_windows
+        self._monotonic_clock = monotonic_clock
 
         self._incidents: dict[str, StoredIncident] = {}
         self._active_episodes: dict[str, str] = {}
         self._episode_match_fingerprints: dict[str, str] = {}
         self._episode_direct: dict[str, bool] = {}
+        self._episode_notification_keys: dict[str, str] = {}
         self._episode_misses: dict[str, int] = {}
         self._pending_episodes: set[str] = set()
         self._api_chaos_ids: set[str] = set()
+        self._blind_trials: dict[str, BlindTrialRun] = {}
         self._producer_task: asyncio.Task[None] | None = None
         self._investigator_task: asyncio.Task[None] | None = None
         self._investigation_queue: asyncio.Queue[InvestigationSelection] | None = None
@@ -476,7 +533,16 @@ class ControlTowerService:
             fingerprint: self._episode_direct.get(fingerprint, False)
             for fingerprint in self._active_episodes
         }
+        self._episode_notification_keys = {
+            fingerprint: episode_key
+            for fingerprint, episode_key in self._episode_notification_keys.items()
+            if fingerprint in self._active_episodes
+        }
         self._investigation_queue = asyncio.Queue()
+        try:
+            self.notifications.start()
+        except Exception:
+            logger.exception("Control Tower notification worker could not start")
         self._investigator_task = asyncio.create_task(
             self._investigate_forever(), name="control-tower-investigator-worker"
         )
@@ -515,6 +581,10 @@ class ControlTowerService:
             except asyncio.CancelledError:
                 pass
         self._investigation_queue = None
+        try:
+            self.notifications.stop()
+        except Exception:
+            logger.exception("Control Tower notification worker could not stop")
         self.broker.close()
 
     async def _produce_forever(self) -> None:
@@ -649,6 +719,7 @@ class ControlTowerService:
                 resolved_incident_id = self._active_episodes.pop(fingerprint, None)
                 self._episode_match_fingerprints.pop(fingerprint, None)
                 self._episode_direct.pop(fingerprint, None)
+                self._episode_notification_keys.pop(fingerprint, None)
                 self._episode_misses.pop(fingerprint, None)
                 if resolved_incident_id:
                     self._remember_resolved_incident(resolved_incident_id)
@@ -736,8 +807,83 @@ class ControlTowerService:
                         group.match_fingerprint
                     )
                     self._episode_direct[fingerprint] = group.direct
+                    self._episode_notification_keys[fingerprint] = (
+                        self._notification_episode_key(
+                            fingerprint,
+                            diagnosis.anomaly.anomaly_id,
+                        )
+                    )
                 self._episode_misses[fingerprint] = 0
+        self._associate_blind_trials(selected)
         return selected
+
+    def _associate_blind_trials(
+        self,
+        selections: Sequence[InvestigationSelection],
+    ) -> None:
+        """Bind new episodes using time and fingerprints only, before any reveal.
+
+        The method has no ChaosSpec parameter and BlindTrialRun stores neither dimensions nor
+        severity. Ambiguous batches remain explicitly unbound instead of using truth later.
+        """
+        open_trials = [
+            trial
+            for trial in self._blind_trials.values()
+            if trial.evaluation is None
+            and not trial.ambiguous
+            and trial.fingerprint is None
+        ]
+        if not open_trials or not selections:
+            return
+
+        candidates_by_trial: dict[str, list[InvestigationSelection]] = {}
+        for trial in open_trials:
+            eligible = []
+            for selection in selections:
+                anomaly = selection.diagnosis.anomaly
+                if selection.fingerprint in trial.known_fingerprints:
+                    continue
+                if anomaly.window_end < trial.virtual_started_at:
+                    continue
+                if (
+                    trial.virtual_ends_at is not None
+                    and anomaly.window_start > trial.virtual_ends_at
+                ):
+                    continue
+                eligible.append(selection)
+            if eligible:
+                candidates_by_trial[trial.chaos_id] = eligible
+
+        observed_at = self._monotonic_clock()
+        singleton_by_fingerprint: dict[str, list[BlindTrialRun]] = {}
+        for chaos_id, candidates in candidates_by_trial.items():
+            trial = self._blind_trials[chaos_id]
+            if len(candidates) != 1:
+                trial.ambiguous = True
+                trial.detection_wall_at = observed_at
+                continue
+            singleton_by_fingerprint.setdefault(
+                candidates[0].fingerprint,
+                [],
+            ).append(trial)
+
+        for fingerprint, trials in singleton_by_fingerprint.items():
+            if len(trials) != 1:
+                for trial in trials:
+                    trial.ambiguous = True
+                    trial.detection_wall_at = observed_at
+                continue
+            trial = trials[0]
+            trial.fingerprint = fingerprint
+            trial.detection_wall_at = observed_at
+
+    def _record_blind_trial_report(self, fingerprint: str, incident_id: str) -> None:
+        recorded_at = self._monotonic_clock()
+        for trial in self._blind_trials.values():
+            if trial.evaluation is not None or trial.fingerprint != fingerprint:
+                continue
+            trial.incident_id = incident_id
+            trial.report_wall_at = recorded_at
 
     def _store_investigation(
         self,
@@ -752,8 +898,16 @@ class ControlTowerService:
             self._incidents.pop(selection.existing_id, None)
         incident_id = stored.investigation.report.incident_id
         self._incidents[incident_id] = stored
+        self._record_blind_trial_report(selection.fingerprint, incident_id)
         if activate:
             fingerprint = selection.fingerprint
+            self._episode_notification_keys.setdefault(
+                fingerprint,
+                self._notification_episode_key(
+                    fingerprint,
+                    selection.diagnosis.anomaly.anomaly_id,
+                ),
+            )
             self._active_episodes[fingerprint] = incident_id
             if selection.direct or fingerprint not in self._episode_match_fingerprints:
                 self._episode_match_fingerprints[fingerprint] = (
@@ -764,6 +918,25 @@ class ControlTowerService:
                 or selection.direct
             )
             self._episode_misses[fingerprint] = 0
+            if selection.direct and not stored.retryable:
+                try:
+                    self.notifications.enqueue_report(
+                        stored.investigation.report,
+                        episode_key=self._episode_notification_keys[fingerprint],
+                    )
+                except Exception:
+                    # A report was already validated and published. An outbox fault must never
+                    # suppress it or mark the control tower as unhealthy.
+                    logger.exception(
+                        "Control Tower could not queue an incident notification"
+                    )
+
+    @staticmethod
+    def _notification_episode_key(fingerprint: str, initial_anomaly_id: str) -> str:
+        """Opaque once-per-episode key; avoids persisting raw dimension values in the outbox."""
+
+        material = f"pharos-notification-episode:v1:{fingerprint}:{initial_anomaly_id}"
+        return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
     def _remember_resolved_incident(self, incident_id: str) -> None:
         """Persist only a recovered, publishable episode; memory is never on the hot path."""
@@ -824,46 +997,115 @@ class ControlTowerService:
         }
 
         retryable = False
+        publication_reason: PublicationReason = "published"
+        evidence_audit: EvidenceAuditView | None = None
         if candidates and not fully_covering_ids:
             investigation = run_investigation(diagnosis.anomaly.anomaly_id, (), ())
+            publication_reason = "insufficient_candidate_coverage"
+            evidence_audit = not_run_audit_view(
+                investigation,
+                summary=(
+                    "The independent auditor was not run because no candidate covered the "
+                    "detected anomaly dimensions."
+                ),
+            )
         else:
-            try:
-                if self.audited_investigator is not None:
+            if self.audited_investigator is not None:
+                try:
                     audited = self.audited_investigator(
                         diagnosis.anomaly,
                         candidates,
                         evidence,
                     )
-                    if not audited.audit.approved:
-                        raise EvidenceAuditError(
-                            "evidence audit rejected the report; it must not be published"
+                    draft = audited.investigation
+                    if draft.report.anomaly_id != diagnosis.anomaly.anomaly_id:
+                        raise ValueError("investigator returned a report for another anomaly")
+                    if draft.report.incident_id != f"inc_{diagnosis.anomaly.anomaly_id}":
+                        raise ValueError("investigator returned an unexpected incident_id")
+                    validate_report(
+                        draft.report,
+                        candidates=candidates,
+                        evidence=evidence,
+                        steps=draft.steps,
+                        consulted_evidence_ids=draft.consulted_evidence_ids,
+                    )
+                    evidence_audit = completed_audit_view(audited.audit, draft)
+                    if audited.audit.approved:
+                        investigation = draft
+                    else:
+                        investigation = run_investigation(
+                            diagnosis.anomaly.anomaly_id,
+                            (),
+                            (),
                         )
-                    investigation = audited.investigation
-                else:
+                        publication_reason = "audit_rejected"
+                        retryable = True
+                except Exception:
+                    investigation = run_investigation(
+                        diagnosis.anomaly.anomaly_id,
+                        (),
+                        (),
+                    )
+                    evidence_audit = error_audit_view(
+                        summary=(
+                            "The audited investigation did not return a safe publication "
+                            "decision. PHAROS withheld the cause."
+                        )
+                    )
+                    publication_reason = "audit_error"
+                    retryable = True
+            else:
+                try:
                     investigation = self.investigator(
                         diagnosis.anomaly.anomaly_id,
                         candidates,
                         evidence,
                     )
-                if investigation.report.anomaly_id != diagnosis.anomaly.anomaly_id:
-                    raise ValueError("investigator returned a report for another anomaly")
-                if investigation.report.incident_id != f"inc_{diagnosis.anomaly.anomaly_id}":
-                    raise ValueError("investigator returned an unexpected incident_id")
-                validate_report(
-                    investigation.report,
-                    candidates=candidates,
-                    evidence=evidence,
-                    steps=investigation.steps,
-                    consulted_evidence_ids=investigation.consulted_evidence_ids,
-                )
-            except Exception:
-                investigation = run_investigation(diagnosis.anomaly.anomaly_id, (), ())
-                retryable = True
+                    if investigation.report.anomaly_id != diagnosis.anomaly.anomaly_id:
+                        raise ValueError("investigator returned a report for another anomaly")
+                    if investigation.report.incident_id != f"inc_{diagnosis.anomaly.anomaly_id}":
+                        raise ValueError("investigator returned an unexpected incident_id")
+                    validate_report(
+                        investigation.report,
+                        candidates=candidates,
+                        evidence=evidence,
+                        steps=investigation.steps,
+                        consulted_evidence_ids=investigation.consulted_evidence_ids,
+                    )
+                    evidence_audit = not_run_audit_view(investigation)
+                except Exception:
+                    investigation = run_investigation(
+                        diagnosis.anomaly.anomaly_id,
+                        (),
+                        (),
+                    )
+                    evidence_audit = not_run_audit_view(
+                        investigation,
+                        summary=(
+                            "The deterministic investigation failed publication checks. "
+                            "The independent auditor was not run."
+                        ),
+                    )
+                    publication_reason = "investigation_error"
+                    retryable = True
 
             winner_id = investigation.report.winning_candidate_id
             if winner_id is not None and winner_id not in fully_covering_ids:
                 investigation = run_investigation(diagnosis.anomaly.anomaly_id, (), ())
+                evidence_audit = error_audit_view(
+                    summary=(
+                        "The deterministic publication gate withheld a winner that did not "
+                        "cover the detected anomaly."
+                    )
+                )
+                publication_reason = "unproven_winner"
                 retryable = True
+
+        if (
+            publication_reason == "published"
+            and investigation.report.status.value == "inconclusive"
+        ):
+            publication_reason = "investigator_inconclusive"
 
         investigation = _align_investigation_clock(investigation, diagnosis.anomaly)
         investigation = self._attach_historical_match(
@@ -878,12 +1120,16 @@ class ControlTowerService:
             steps=investigation.steps,
             consulted_evidence_ids=investigation.consulted_evidence_ids,
         )
+        if evidence_audit is None:
+            evidence_audit = not_run_audit_view(investigation)
 
         return StoredIncident(
             anomaly=diagnosis.anomaly,
             candidates=candidates,
             evidence=evidence,
             investigation=investigation,
+            evidence_audit=evidence_audit,
+            publication_reason=publication_reason,
             retryable=retryable,
         )
 
@@ -893,9 +1139,43 @@ class ControlTowerService:
             for stored in reversed(tuple(self._incidents.values()))
         ]
 
+    def _notification_dispatches(self, incident_id: str) -> list[NotificationDispatchView]:
+        """Project the outbox ledger for one incident.
+
+        Read-only and best-effort: the alert channels are a side effect of an
+        incident, never a precondition for reading one, so an outbox fault must
+        degrade to "nothing to report" rather than fail the detail request.
+        """
+        reader = getattr(self.notifications, "records_for_incident", None)
+        if reader is None:
+            return []
+        try:
+            records = reader(incident_id)
+        except Exception:  # pragma: no cover - defensive; the ledger is not the incident
+            logger.exception("Control Tower could not read the notification ledger")
+            return []
+
+        views: list[NotificationDispatchView] = []
+        for record in records:
+            channel = getattr(record.channel, "value", record.channel)
+            state = getattr(record.state, "value", record.state)
+            views.append(
+                NotificationDispatchView(
+                    channel=channel,
+                    state=state,
+                    updated_at=record.updated_at,
+                    attempt_count=record.attempt_count,
+                    provider_reference=record.provider_message_id,
+                    error_code=record.error_code,
+                )
+            )
+        return views
+
     def get_incident(self, incident_id: str) -> IncidentDetail | None:
         stored = self._incidents.get(incident_id)
-        return stored.detail() if stored is not None else None
+        if stored is None:
+            return None
+        return stored.detail(self._notification_dispatches(incident_id))
 
     def inject_manual(self, spec: ChaosSpec) -> ChaosSpec:
         if spec.mode is not ChaosMode.manual:
@@ -936,14 +1216,64 @@ class ControlTowerService:
                 duration_minutes=duration_minutes,
             )
         self._api_chaos_ids.add(internal.chaos_id)
+        self._blind_trials[internal.chaos_id] = BlindTrialRun(
+            chaos_id=internal.chaos_id,
+            virtual_started_at=internal.started_at,
+            virtual_ends_at=(
+                internal.started_at + timedelta(minutes=internal.duration_minutes)
+                if internal.duration_minutes is not None
+                else None
+            ),
+            known_fingerprints=frozenset(self._active_episodes),
+            wall_started_at=self._monotonic_clock(),
+        )
         public = self.simulator.chaos.public_spec(internal.chaos_id)
         if public is None:
             raise RuntimeError("random chaos was not stored")
         return public
 
-    def reveal_chaos(self, chaos_id: str | None = None) -> ChaosSpec | None:
+    def reveal_chaos(self, chaos_id: str | None = None) -> ChaosRevealResponse | None:
         with self._simulator_lock:
-            return self.simulator.chaos.reveal(chaos_id)
+            revealed = self.simulator.chaos.reveal(chaos_id)
+        if revealed is None:
+            return None
+
+        trial = self._blind_trials.get(revealed.chaos_id)
+        evaluation: BlindTrialEvaluation | None = None
+        if trial is not None:
+            if trial.evaluation is None:
+                stored = (
+                    self._incidents.get(trial.incident_id)
+                    if trial.incident_id is not None
+                    else None
+                )
+                trial.evaluation = evaluate_blind_trial(
+                    revealed=revealed,
+                    incident_id=trial.incident_id if stored is not None else None,
+                    anomaly=stored.anomaly if stored is not None else None,
+                    report=stored.investigation.report if stored is not None else None,
+                    candidates=stored.candidates if stored is not None else (),
+                    evidence_audit=stored.evidence_audit if stored is not None else None,
+                    publication_reason=(
+                        stored.publication_reason if stored is not None else None
+                    ),
+                    ambiguous=trial.ambiguous,
+                    detection_latency_seconds=(
+                        trial.detection_wall_at - trial.wall_started_at
+                        if trial.detection_wall_at is not None
+                        else None
+                    ),
+                    explanation_latency_seconds=(
+                        trial.report_wall_at - trial.wall_started_at
+                        if trial.report_wall_at is not None
+                        else None
+                    ),
+                )
+            evaluation = trial.evaluation
+        return ChaosRevealResponse(
+            **revealed.model_dump(),
+            evaluation=evaluation,
+        )
 
     def _validate_chaos_request(
         self,

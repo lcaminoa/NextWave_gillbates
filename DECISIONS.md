@@ -74,8 +74,207 @@ absoluto quede opacado por uno mas grande pero menos preciso -- exactamente el t
 negativo que un juez inyectando un incidente nuevo (trial by fire) puede exponer. La opcion 2
 se probo contra el chaos simulado y encontro el segmento correcto en primer lugar.
 
+## D019 — Geografía de impacto como globo 3D orientado a evidencia
+
+Alternativas:
+1. omitir geografía del Control Tower
+2. usar un mapa 2D estático
+3. usar un globo 3D interactivo, limitado a países que ya cuentan con evidencia del incidente
+
+Decisión: 3
+
+Por qué:
+- el alcance internacional de los pagos se entiende de un vistazo y aporta una señal de producto
+  útil durante la demo
+- el país es una dimensión ya definida en Evidence, IncidentCandidate y Transaction; el globo
+  no requiere campos ni endpoints nuevos
+- drag y zoom permiten inspección, pero los marcadores enlazan siempre a una investigación
+  existente y no reemplazan la evidencia citable
+- en random_unknown no se alimenta el globo con ground truth ni se muestran dimensiones antes
+  de que el backend confirme el reveal
+
+Tradeoff: suma una dependencia visual y carga de render. Se usa como pieza principal de
+orientación geográfica, con una card de detalle por marcador; aun así no reemplaza el approval
+chart ni la evidencia citable, y no incluye arcos decorativos ni telemetría inventada.
+
+## D020 — Detail de incidente como workspace de evidencia
+
+Alternativas:
+1. una grilla de muchos KPIs y mini-cards
+2. un chat o resumen generado como pantalla principal
+3. un hero narrativo seguido por un workspace 68/32: evidencia y diagnóstico a la izquierda,
+   timeline de investigación sticky a la derecha
+
+Decisión: 3
+
+Por qué:
+- el producto debe defender qué ocurrió y por qué, no solo listar métricas
+- los tres bloques de evidencia conservan legibilidad y permiten citar baseline, control de
+  proveedor y cambio de decline code sin diluirlos en widgets pequeños
+- la timeline muestra únicamente Anomaly e InvestigationStep; construye una historia verificable
+  sin exponer razonamiento interno
+- el estado inconclusive puede mantener el mismo flujo con hipótesis cercanas y evidencia no
+  establecida, sin fingir una causa raíz
+
+Tradeoff: la pantalla es más larga que un resumen de una vista. La jerarquía del hero, el panel
+sticky y la recomendación final mantienen el recorrido claro y la acción sigue siendo humana.
+
 Verificado con: `uv run python -m engine.detection.demo` (engine/detection/demo.py).
 
+## D021 — Chaos Console separa configuración, ejecución ciega y comparación verificable
+
+Alternativas:
+1. mostrar siempre el escenario completo para simplificar la demo
+2. construir un panel tipo terminal con logs técnicos y un resultado de match único
+3. modelar tres fases explícitas: configuración, ejecución con verdad sellada y comparación por campo
+
+Decisión: 3
+
+Por qué:
+- el modo `random_unknown` debe demostrar que el investigador no recibe una respuesta
+  hardcodeada; por eso no representa dimensiones ni parcialmente hasta que el backend revele
+  el ground truth
+- el operador puede revisar y confirmar un escenario manual sin convertir la consola en una
+  herramienta de remediación: inyectar no desvía tráfico ni ejecuta cambios externos
+- la comparación final conserva los matices de la investigación: cada dimensión, severidad y
+  tiempo se califica como match, partial o mismatch, sin ocultar un resultado parcial detrás de
+  un indicador global
+
+Tradeoff: el flujo real depende de que el backend entregue el ground truth autorizado mediante
+`POST /api/chaos/reveal`. El contrato todavía no vincula `chaos_id` con `incident_id`, por lo que
+la comparación nunca afirma una correlación automática entre la inyección y un reporte.
+
+## D022 — Navegación global como header de producto y bandeja de investigaciones
+
+Alternativas:
+1. conservar la sidebar solo en Control Tower y usar enlaces de regreso en las demás pantallas
+2. agregar una pill aislada que solo conecte Overview y Chaos Lab
+3. usar un header compacto compartido con `Overview`, `Investigations` y `Chaos Lab`, y crear
+   una bandeja de investigaciones basada en los `IncidentReport` existentes
+
+Decisión: 3
+
+Por qué:
+- los tres destinos se entienden como partes de una sola herramienta de investigación, no como
+  pantallas sueltas de demo
+- un header horizontal preserva el ancho del workspace y el aire de las vistas de evidencia;
+  una sidebar permanente sería desproporcionada para tres destinos
+- `Investigations` deja de ser un enlace artificial hacia un único detalle: ordena los casos por
+  impacto y distingue de forma explícita `probable` de `inconclusive`
+- la nueva ruta compone `GET /api/incidents` sin agregar endpoint, campo de contrato ni capacidad
+  de remediación
+
+Tradeoff: la bandeja y el badge dependen del runtime; si este no está disponible, la UI muestra
+ese estado explícitamente en vez de sustituir reportes live por fixtures.
+
+## D023 — Landing pública con señal procedimental y scroll nativo
+
+Alternativas:
+1. resolver la landing como una hero estática o un video de fondo
+2. importar un modelo 3D externo o un iframe para recrear la referencia
+3. construir una única señal de aprobación procedimental en Three.js, cargada solo en cliente,
+   y coreografiarla con el scroll nativo de la página
+
+Decisión: 3
+
+Por qué:
+- la pieza puede representar el dato de producto (salud, desviación, control y evidencia) sin
+  reutilizar el producto, la marca ni los assets de la referencia
+- no depende de una GLB, CDN ni video; la señal, sus capas y sus fragmentos se construyen con
+  geometría y materiales locales, y la experiencia conserva un fallback DOM cuando WebGL no
+  está disponible
+- el progreso se amortigua mediante `requestAnimationFrame` sobre scroll nativo, por lo que el
+  objeto conserva inercia sin secuestrar la barra de desplazamiento ni interferir con rutas del
+  producto
+- `three` y React Three Fiber se cargan con `ssr: false` dentro de la landing: el dashboard y
+  el resto de la aplicación no pagan ni arriesgan render WebGL en servidor
+
+Tradeoff: agrega peso de JavaScript solo a `/` y una escena de render que debe seguir siendo
+sobria. Se limita a una única pieza focal, DPR acotado, sombras moderadas y una composición
+estática accesible para `prefers-reduced-motion`.
+
+## D024 — Hero PHAROS como trayectoria de incidente sincronizada
+
+Alternativas:
+1. conservar la caída libre de la señal y agregar captions independientes
+2. convertir el hero en un gráfico tradicional sin objeto físico
+3. sincronizar una trayectoria SVG de seis hitos con el objeto WebGL y las captions de evidencia
+
+Decisión: 3
+
+Por qué:
+- los seis hitos hacen legible la investigación completa: baseline, caída sostenida, alcance,
+  control de proveedor, patrón de decline y explicación probable
+- el SVG provee un rail esperado, una ruta observada, nodos y conectores sin reemplazar la señal
+  física como foco de la composición
+- DOM, SVG, WebGL y fallback leen el mismo modelo de checkpoints, por lo que la narrativa no
+  puede desalinearse entre animación, valores y accesibilidad
+- el scroll nativo amortiguado conserva masa visual sin impedir scrub manual ni accesibilidad
+
+Tradeoff: la sección pinned pasa a 740vh para dar tiempo a cada conclusión. La superficie
+adicional se compensa con una sola caption visible por vez, trayectoria central y un handoff
+final sobrio hacia la evidencia ya existente.
+
+## D025 — Timeline central como protagonista del hero PHAROS
+
+Alternativas:
+1. dejar que la señal 3D recorra físicamente el mismo espacio que la trayectoria
+2. ubicar la trayectoria como un detalle lateral y mantener la señal como protagonista
+3. separar zonas: señal lateral, rail de investigación central y estado que nace del nodo activo
+
+Decisión: 3
+
+Por qué:
+- el rail central vuelve visible el método de investigación, no solo el resultado visual de la
+  anomalía
+- cada checkpoint extiende un conector corto hacia su estado, haciendo explícita la relación
+  entre evidencia, etapa y conclusión sin atravesar la señal
+- la señal permanece sincronizada en métrica, luz, profundidad y apertura final, pero deja de
+  competir espacialmente con el timeline
+
+Tradeoff: la señal deja de recorrer la línea de forma literal. La progresión compartida conserva
+la causalidad visual y gana legibilidad en desktop y mobile.
+
+## D026 — Evidence spine en vez de pseudo-gráfico dentro del hero PHAROS
+
+Alternativas:
+1. mantener un rail con etiquetas `expected` y `observed`, banda de rango y nodos numerados
+2. convertir la secuencia en un gráfico de aprobación completo dentro del hero
+3. usar un único spine de investigación con nodos silenciosos y un conector sólido al estado activo
+
+Decisión: 3
+
+Por qué:
+- sin eje ni escala, el rail anterior parecía telemetría decorativa y no explicaba la diferencia
+  entre baseline y caída observada
+- los valores viven ahora en las primeras dos conclusiones, con lenguaje directo; el spine solo
+  comunica la progresión de la investigación
+- quitar números duplicados y líneas punteadas conserva la jerarquía: estado, evidencia y luego
+  la señal física
+
+Tradeoff: el hero renuncia a simular un gráfico. La comparación cuantitativa completa sigue en
+las vistas de producto, donde tiene contexto y evidencia citable.
+
+## D027 — Tarjeta física como señal de aprobación de la landing
+
+Alternativas:
+1. conservar el dispositivo abstracto con display de métricas
+2. usar una tarjeta plana o un modelo externo descargado
+3. construir una tarjeta de pago de grafito con geometría local, chip EMV y capas contenidas de evidencia
+
+Decisión: 3
+
+Por qué:
+- una tarjeta es el objeto físico correcto para una investigación de pagos y elimina la lectura de
+  pager, POS o hardware inventado
+- mantiene los datos en el spine y en captions DOM, donde son legibles y auditables; el objeto solo
+  comunica materialidad, estado y el origen del signal en el chip
+- la geometría local conserva carga cliente, fallback y la coreografía existente sin importar modelos,
+  marcas ni contenido de terceros
+
+Tradeoff: la tarjeta solo lleva la identidad física `PHAROS` y microcopy de producto; no lleva
+números, titular, banco, métricas ni marcas de red. La identificación del incidente permanece
+en la narrativa y no en la tarjeta.
 ## D004 — Construir el investigador contra mocks y guardrails antes de conectar OpenAI
 
 Alternativas:
@@ -467,6 +666,47 @@ corridas reales de 2.400 transacciones a traves de simulador -> pipeline -> inve
 endpoints de incidentes. Una caida global de `provider=nova_pay`, que sin consolidacion producia
 muchos sintomas publicables, queda en un reporte.
 
+## D028 — Conectar el dashboard al runtime mediante CORS con allowlist explícita
+
+Contexto: el dashboard Next.js corre localmente en `http://localhost:3000` y el engine FastAPI
+en `http://localhost:8000`. Para que el navegador pueda consumir reportes, detalle, SSE y Chaos
+Lab sin copiar fixtures ni exponer el engine a cualquier origen, el runtime necesita una política
+de origen explícita.
+
+Alternativas:
+1. usar `Access-Control-Allow-Origin: *`;
+2. crear un proxy Next.js nuevo;
+3. habilitar CORS en FastAPI con una allowlist configurable.
+
+Decisión: 3. `CONTROL_TOWER_CORS_ORIGINS` acepta una lista separada por comas y por defecto
+admite solamente el dashboard local. Los métodos permitidos son `GET` y `POST`; el SSE continúa
+siendo el endpoint congelado `/api/stream`. No se agregan rutas ni campos de contrato.
+
+Tradeoff: en cada entorno se debe declarar el origen público exacto. Es preferible a usar un
+comodín porque los endpoints de caos pueden estar protegidos por `CONTROL_TOWER_JUDGE_TOKEN`.
+Esa clave sigue siendo exclusivamente server-side; nunca se expone como `NEXT_PUBLIC_*`.
+
+## D029 — Sistema de marca PHAROS como fuente única de identidad visual
+
+Alternativas:
+1. conservar las siglas y lockups ad-hoc de cada pantalla;
+2. redibujar una marca nueva dentro de la UI;
+3. integrar el paquete aprobado de PHAROS en navegación, iconos de plataforma y metadata.
+
+Decisión: 3.
+
+Por qué:
+- el lighthouse y su beam orientado a la izquierda resuelven la identidad del producto sin sumar
+  otro lenguaje visual al control room ni a la landing;
+- el lighthouse completo aprobado es la marca visible en desktop; el mark simplificado queda
+  reservado para anchos compactos;
+- favicon, app icons, manifest y social preview comparten los assets del mismo paquete, de modo
+  que el navegador y los enlaces compartidos reconocen PHAROS igual que la aplicación.
+
+Tradeoff: se preservan las tipografías de producto existentes para no remaquetar pantallas ya
+validadas; el wordmark acompaña la torre sin aplicarse como logo decorativo dentro de métricas,
+evidencia o la tarjeta 3D.
+
 ## D018 — Auditor como gate y evidencia incremental para publicar causas especificas
 
 Contexto: en un smoke a ciegas, un caos real de `merchant=Comercio2` termino explicado como
@@ -541,7 +781,7 @@ Verificado con una prueba end-to-end reproducible de cuatro inyecciones de 35 pp
 provider x country, merchant e issuing_bank), usando el simulador y pipeline reales; las cuatro
 producen una causa `probable` o `confirmed` que coincide exactamente con la inyeccion.
 
-## D020 — Memoria histórica estructurada, posterior a RCA y sin valor probatorio
+## D034 — Memoria histórica estructurada, posterior a RCA y sin valor probatorio
 
 Contexto: el contrato ya incluía `IncidentReport.matches_past_incident_id` como SHOULD (§9.10),
 pero el runtime no conservaba incidentes entre episodios. El plan sugiere huella estructurada más
@@ -573,7 +813,7 @@ Verificado con tests de persistencia SQLite, mecanismo de decline conflictivo, r
 reporte inconcluso y recuperación -> recurrencia a través de `ControlTowerService`; los claims de
 la recurrencia conservan únicamente evidencia del incidente nuevo.
 
-## D021 — Política de detección vigente: parámetros explícitos y dos carriles de volumen
+## D035 — Política de detección vigente: parámetros explícitos y dos carriles de volumen
 
 Contexto: el primer borrador del decision log dejaba como “por decidir” tamaño de ventana,
 volumen mínimo y umbral EWMA. Ya no corresponde: esos valores existen en
@@ -606,7 +846,7 @@ Tradeoff: un incidente muy abrupto sigue esperando tres minutos para ser confirm
 esa demora a publicar una alarma por una sola ventana mala. Los incidentes leves o de bajo
 volumen pueden tardar más o quedar `inconclusive`.
 
-## D022 — EWMA como detector secuencial del MVP; CUSUM queda como evolución medida
+## D036 — EWMA como detector secuencial del MVP; CUSUM queda como evolución medida
 
 Alternativas:
 1. CUSUM con slack `k` y umbral `h`.
@@ -624,7 +864,7 @@ detectar pronto una degradación de ~2 pp durante muchos minutos. Si el producto
 caso, se compararía CUSUM contra este baseline con las mismas semillas y una métrica explícita de
 falsos positivos/detección, no se reemplazaría por intuición.
 
-## D023 — El detector observa algunos 3D; el RCA solo afirma causas hasta 2D
+## D037 — El detector observa algunos 3D; el RCA solo afirma causas hasta 2D
 
 El primer documento lo resumía como “escaneo hasta 2D”. El código real separa dos preguntas:
 qué síntomas observa el detector y qué causa se anima a publicar el RCA.
@@ -645,7 +885,7 @@ Tradeoff: un problema realmente `provider × country × payment_method` puede te
 `inconclusive` aunque exista la señal 3D. Es una abstención honesta, preferible a atribuirle una
 causa 2D que parezca completa pero no lo sea.
 
-## D024 — Ventanas de un minuto fijas, no cinco minutos ni tamaño dinámico
+## D038 — Ventanas de un minuto fijas, no cinco minutos ni tamaño dinámico
 
 Alternativas:
 1. Ventanas dinámicas o de cinco minutos para concentrar volumen.
@@ -663,7 +903,7 @@ Qué perdemos: un segmento de bajo tráfico puede pasar varias ventanas sin ser 
 esa falta de información. Una ventana adaptativa o de cinco minutos sigue siendo una posible
 evolución si la telemetría real muestra demasiados segmentos descartados.
 
-## D025 — Baseline por segmento con bootstrap estable; estacionalidad y fallback son pendientes
+## D039 — Baseline por segmento con bootstrap estable; estacionalidad y fallback son pendientes
 
 Alternativas:
 1. Actualizar el baseline continuamente con todas las ventanas, incluyendo las incidentadas.
@@ -682,7 +922,7 @@ con una tarde puede ser injusto si el bootstrap no representa ambas. Esto reempl
 anterior de que la estacionalidad ya estaba implementada: está soportada por el diseño, pero
 pendiente en el código.
 
-## D026 — Mix shift informa la investigación, pero todavía no bloquea una alerta
+## D040 — Mix shift informa la investigación, pero todavía no bloquea una alerta
 
 Decisión: calcular `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una sola
 dimensión, y no usarlo aún como gate de publicación.
@@ -696,7 +936,7 @@ posterior muestre que no hubo degradación de performance. El cálculo está int
 pero falta convertirlo en filtro real antes de afirmar que el caso de mix shift puro está cerrado
 end-to-end.
 
-## D027 — Hipótesis RCA pequeñas son visibles; publicar una causa exige evidencia adicional
+## D041 — Hipótesis RCA pequeñas son visibles; publicar una causa exige evidencia adicional
 
 Decisión: separar el umbral exploratorio del umbral de publicación.
 
@@ -715,7 +955,7 @@ preferir `provider=nova_pay` frente a `provider=nova_pay × country=BR` si Brasi
 evidencia incremental. El sistema privilegia una explicación un poco más amplia pero defendible
 antes que una causa atractiva pero frágil.
 
-## D028 — Límites conocidos que siguen abiertos
+## D042 — Límites conocidos que siguen abiertos
 
 No son “por decidir” de configuración; son mejoras que todavía requieren evidencia adicional:
 
@@ -727,5 +967,122 @@ No son “por decidir” de configuración; son mejoras que todavía requieren e
 5. **Calibración por escenarios:** medir systematicamente recall, falsos positivos y tiempo de
    detección para varias seeds, severidades y tasas de tráfico.
 
-Hasta que existan esas pruebas, los valores de D021 son los defaults defendibles del MVP y las
+Hasta que existan esas pruebas, los valores de D035 son los defaults defendibles del MVP y las
 abstenciones son comportamiento esperado, no fallas silenciosas.
+## D030 — Persistir el Evidence Audit en un envelope API-local y publicar con gate fail-closed
+
+Contexto: el Evidence Auditor ya podia aprobar o rechazar un draft, pero su decision quedaba
+invisible despues de la llamada. Agregarla a `IncidentReport` hubiera cambiado una de las ocho
+entidades compartidas; descartarla impedia explicar por que una causa se publico o se retuvo.
+
+Alternativas:
+1. agregar campos de auditoria a `IncidentReport` y duplicarlos en ambos contratos;
+2. mostrar un sello calculado en frontend sin persistir la decision real;
+3. persistir una vista de auditoria junto a `StoredIncident` y exponerla solamente en el envelope
+   API-local de detalle ya existente.
+
+Decision: 3. Cada incidente guarda `EvidenceAuditView` con estado `approved`, `rejected`, `error`
+o `not_run`, checks reales, issues, conteos, revision humana obligatoria y
+`action_executed=false`. El draft auditado se valida antes de convertir la auditoria a vista;
+issues que apunten a claims inexistentes o evidencia no consultada invalidan la salida. Rechazo,
+timeout o error publican un fallback `inconclusive` sin ganador ni claims y conservan el episodio
+para un retry controlado. El modo deterministico se identifica como `not_run`: nunca puede mostrar
+`PHAROS VERIFIED`.
+
+Por que: el sello representa el gate que realmente ocurrio, no una inferencia visual. Mantiene la
+compatibilidad de las ocho entidades y de los siete endpoints, hace visible el fallo cerrado y no
+le da al Auditor tools, verdad secreta ni capacidad de modificar o ejecutar recomendaciones.
+
+Tradeoff: el detalle API agrega un modelo local que los consumidores deben conocer. Es deliberado:
+el estado de publicacion pertenece a la orquestacion/API, no al contrato compartido del reporte.
+
+## D031 — Asociar el blind trial antes del reveal y evaluarlo una sola vez con verdad revelada
+
+Contexto: puntuar automaticamente exige relacionar un `ChaosSpec` secreto con un episodio. Hacer
+esa relacion despues del reveal o comparando dimensiones permitiria elegir retrospectivamente el
+reporte que mas se parece a la respuesta. Asociar por `anomaly_id` tampoco sirve porque cambia por
+ventana y no existe en `ChaosSpec`.
+
+Alternativas:
+1. buscar el reporte mas parecido a las dimensiones secretas despues del reveal;
+2. agregar `chaos_id` a `Anomaly`/`IncidentReport` y propagarlo por los contratos;
+3. registrar un trial API-local sin dimensiones ni severidad, y cerrarlo pre-reveal usando solo
+   solapamiento temporal, fingerprints nuevos y unicidad del episodio.
+
+Decision: 3. `BlindTrialRun` conserva `chaos_id`, ventana virtual, snapshot de fingerprints
+preexistentes y tiempos monotonic de pared. Antes de investigar, una seleccion nueva se asocia
+solo si hay un unico trial y un unico episodio elegibles; los solapamientos se marcan
+`ambiguous`, nunca se resuelven con verdad. Los retries conservan el fingerprint y actualizan el
+reporte asociado sin duplicar el incidente. Recién `POST /api/chaos/reveal` entrega el
+`ChaosSpec` revelado a un evaluador puro, almacena el resultado y lo reutiliza en reveals
+repetidos.
+
+El evaluador distingue `exact`, `partial`, `over_specific`, `mixed`, `incorrect`, `inconclusive`,
+`no_report` y `ambiguous`; compara dimensiones literalmente, calcula degradacion y error en puntos
+porcentuales usando magnitudes consistentes, y mide deteccion/explicacion con reloj monotonic de
+pared. Una abstencion solo se marca `justified` cuando el runtime guardo un motivo fail-closed o
+cuando el auditor independiente aprobo explicitamente ese reporte `inconclusive`; una abstencion
+deterministica sin ese respaldo queda `unverified`. Revision humana y `action_executed=false`
+permanecen en toda evaluacion.
+
+Tradeoff: ante dos trials o episodios compatibles se pierde un score potencial y se informa
+`ambiguous`. Esa abstencion verificable es preferible a contaminar la prueba ciega con una
+asociacion elegida por similitud a la verdad.
+
+## D032 — Vercel protege Chaos Lab y reenvía solo sus POST al runtime
+
+Contexto: en producción el browser puede leer reportes y el SSE del engine mediante CORS, pero
+los tres POST de Chaos Lab necesitan `X-Control-Tower-Judge-Key`. Esa clave no puede llegar al
+browser. Un proxy público que la agregara resolvería el secreto pero permitiría a cualquier
+visitante inyectar o revelar escenarios.
+
+Alternativas:
+1. publicar la clave como `NEXT_PUBLIC_*`;
+2. dejar los POST directos y desactivar la protección del engine;
+3. proxyear todo el runtime por Next.js;
+4. conservar lecturas/SSE directos con CORS y usar un BFF mínimo, protegido, solo para los tres
+   POST de Chaos.
+
+Decisión: 4. `apps/web/app/api/chaos/[operation]/route.ts` acepta únicamente `inject`, `random`
+y `reveal`, reenvía el body y status al mismo endpoint congelado del engine y agrega el token
+solo server-side. `apps/web/proxy.ts` y el handler aplican Basic Auth de operador sobre `/chaos`
+y `/api/chaos/*`; si faltan las credenciales, fallan cerrados. Los enlaces a Chaos Lab fuerzan
+una navegación de documento para que el navegador pueda presentar el challenge Basic Auth.
+
+Tradeoff: CORS sigue siendo necesario para las lecturas y el SSE, y el operador recibe un
+challenge nativo del navegador en vez de una pantalla propia. Es un límite explícito de demo,
+no una sesión multiusuario. No agrega endpoints al contrato: conserva método, path, body y
+respuesta de los tres endpoints de Chaos ya congelados.
+
+## D033 — Alertas externas duales, por episodio y con outbox durable
+
+Contexto: la demo necesita mostrar que un incidente investigado llega realmente a un operador por
+email y WhatsApp, sin convertir al navegador en emisor ni mezclar activos de un proyecto personal.
+El detector puede publicar varias ventanas del mismo episodio y una llamada externa puede quedar
+en estado ambiguo después de salir del proceso.
+
+Alternativas:
+1. llamar a Resend y WhatsApp directamente desde el endpoint o desde el frontend;
+2. usar solo un canal para simplificar la demo;
+3. persistir un outbox SQLite local tras la publicación validada y drenarlo con un worker separado,
+   con un trabajo independiente para Resend y WhatsApp.
+
+Decisión: 3.
+
+Por qué:
+- el runtime ya consolida anomalías en episodios; una clave opaca por episodio, evento y canal evita
+  alertas repetidas en cada ventana sin confundir una recurrencia posterior;
+- el outbox registra `queued`, `sending`, `accepted`, `failed` y `unknown`. Una respuesta sin ID o
+  un timeout queda en `unknown` y no se reintenta a ciegas, porque WhatsApp no ofrece una garantía
+  equivalente de idempotencia para ese caso; Resend recibe además su `Idempotency-Key` oficial;
+- ambos jobs nacen juntos pero se consumen de forma aislada: una falla de email no cancela WhatsApp;
+- el hook ocurre solo después de validar/publicar un reporte con raíz directa y estado `probable` o
+  `confirmed`. Un `inconclusive` sigue visible dentro del producto, pero no interrumpe al operador;
+- SQLite evita una base de datos adicional para la hackathon y el worker nunca bloquea SSE,
+  detección, investigación ni la publicación del incidente. En Railway se ubica en un Volume
+  persistente con una única réplica; sin ese mount las alertas se mantienen desactivadas, porque
+  un filesystem efímero no cumpliría la promesa de outbox durable.
+
+Tradeoff: inicialmente solo sabemos que el proveedor aceptó el mensaje, no que fue entregado o
+leído. Para esos estados se agregan webhooks con una URL HTTPS y un campo acordado en el detalle de
+incidente; no se inventa una ruta nueva mientras los contratos de API sigan congelados.
