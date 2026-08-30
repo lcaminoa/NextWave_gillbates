@@ -392,34 +392,6 @@ a {
   text-transform: uppercase;
 }
 
-.metric-card {
-  min-height: 151px;
-  padding: 18px;
-}
-
-.metric-value {
-  margin-top: 8px;
-  font-size: 31px;
-  font-weight: 600;
-  letter-spacing: -0.075em;
-  line-height: 1;
-}
-
-.metric-icon {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.metric-icon-alert {
-  color: #fba1b5;
-  background: rgba(251, 113, 133, 0.08);
-}
-
 /* Height follows the globe now. The old fixed 590px was reserved whether or not a
    candidate carried a mappable country, so a quiet or offline dashboard showed a
    third of a page of empty black. */
@@ -498,67 +470,6 @@ a {
   white-space: nowrap;
 }
 
-.premium-action {
-  align-items: center;
-  gap: 2px;
-  color: #e9bae0;
-  font-size: 11px;
-  font-weight: 600;
-  transition: color 160ms ease;
-}
-
-.premium-action:hover {
-  color: #ffffff;
-}
-
-.incident-list-item {
-  display: block;
-  width: 100%;
-  padding: 11px;
-  border: 1px solid transparent;
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.022);
-  transition: 160ms ease;
-}
-
-.incident-list-item:hover {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.incident-list-item-selected {
-  border-color: rgba(224, 164, 220, 0.24);
-  background:
-    radial-gradient(circle at 10% 0%, rgba(216, 137, 211, 0.14), transparent 95%),
-    rgba(255, 255, 255, 0.047);
-}
-
-.severity-badge {
-  display: inline-flex;
-  align-items: center;
-  border-width: 1px;
-  border-radius: 999px;
-  padding: 3px 7px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.status-probable,
-.status-uncertain {
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.status-probable {
-  color: #e7b8df;
-}
-
-.status-uncertain {
-  color: #c7adf7;
-}
-
 .timeline-dot {
   position: relative;
   z-index: 1;
@@ -616,24 +527,6 @@ a {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 24px 60px rgba(0, 0, 0, 0.22);
-}
-
-.incident-status {
-  border: 1px solid rgba(225, 168, 222, 0.24);
-  border-radius: 999px;
-  padding: 4px 8px;
-  color: #e5bee3;
-  background: rgba(216, 137, 211, 0.09);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.incident-status-inconclusive {
-  border-color: rgba(167, 139, 250, 0.25);
-  color: #c9b6f5;
-  background: rgba(167, 139, 250, 0.09);
 }
 
 .incident-hero-stat {
@@ -848,9 +741,7 @@ a {
   background: rgba(17, 12, 21, 0.76);
 }
 
-.investigations-summary span,
-.investigation-facts dt,
-.investigation-card-footer span {
+.investigations-summary span {
   display: block;
   color: #9e90a5;
   font-size: 9px;
@@ -868,111 +759,11 @@ a {
   letter-spacing: -0.02em;
 }
 
-.investigation-queue-card,
 .investigations-sidecard {
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 19px;
   background: linear-gradient(135deg, rgba(33, 22, 38, 0.92), rgba(20, 15, 25, 0.95));
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.13);
-}
-
-.investigation-queue-card {
-  padding: clamp(20px, 2.2vw, 29px);
-}
-
-.queue-severity,
-.queue-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 23px;
-  padding: 0 8px;
-  border: 1px solid;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.queue-severity-medium {
-  border-color: rgba(251, 191, 36, 0.3);
-  background: rgba(251, 191, 36, 0.09);
-  color: #fbd46e;
-}
-
-.queue-status {
-  border-color: rgba(226, 177, 223, 0.2);
-  background: rgba(226, 177, 223, 0.07);
-  color: #e3b8e2;
-}
-
-.queue-status-inconclusive {
-  border-color: rgba(196, 181, 253, 0.24);
-  background: rgba(196, 181, 253, 0.08);
-  color: #d2c7ff;
-}
-
-.queue-open-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(226, 177, 223, 0.25);
-  border-radius: 10px;
-  background: rgba(226, 177, 223, 0.06);
-  color: #e7bee4;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
-}
-
-.queue-open-link:hover {
-  transform: translateY(-1px);
-  border-color: rgba(226, 177, 223, 0.45);
-  background: rgba(226, 177, 223, 0.12);
-}
-
-.investigation-facts {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  overflow: hidden;
-  margin-top: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.investigation-facts > div {
-  min-height: 73px;
-  padding: 13px;
-  background: rgba(8, 6, 11, 0.25);
-}
-
-.investigation-facts dd {
-  margin-top: 6px;
-  color: #eee6f0;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.investigation-card-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.36fr);
-  gap: 20px;
-  margin-top: 18px;
-  padding: 16px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.investigation-card-footer p {
-  margin-top: 5px;
-  color: #b8adbd;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .investigations-sidecard {
@@ -1791,18 +1582,8 @@ a {
     font-size: 12px;
   }
 
-  .investigation-queue-card,
   .investigations-sidecard {
     border-radius: 16px;
-  }
-
-  .investigation-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .investigation-card-footer {
-    grid-template-columns: 1fr;
-    gap: 13px;
   }
 
   .chaos-header {
