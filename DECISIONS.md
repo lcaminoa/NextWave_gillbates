@@ -922,7 +922,7 @@ con una tarde puede ser injusto si el bootstrap no representa ambas. Esto reempl
 anterior de que la estacionalidad ya estaba implementada: está soportada por el diseño, pero
 pendiente en el código.
 
-## D040 — Mix shift informa la investigación, pero todavía no bloquea una alerta
+## D040 — Mix shift informa la investigación, pero todavía no bloquea una alerta *(histórica; sustituida por D043)*
 
 Decisión: calcular `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una sola
 dimensión, y no usarlo aún como gate de publicación.
@@ -935,6 +935,9 @@ Tradeoff: hoy un cambio de mezcla puro puede disparar la alerta estadística aun
 posterior muestre que no hubo degradación de performance. El cálculo está integrado y probado,
 pero falta convertirlo en filtro real antes de afirmar que el caso de mix shift puro está cerrado
 end-to-end.
+
+**Estado:** esta era la decisión vigente antes del gate de publicación. D043 la sustituye con una
+regla conservadora y pruebas end-to-end.
 
 ## D041 — Hipótesis RCA pequeñas son visibles; publicar una causa exige evidencia adicional
 
@@ -960,7 +963,8 @@ antes que una causa atractiva pero frágil.
 No son “por decidir” de configuración; son mejoras que todavía requieren evidencia adicional:
 
 1. **Estacionalidad efectiva y fallback jerárquico:** hora/día y herencia entre segmentos.
-2. **Mix shift como gate:** suprimir o reclasificar incidentes explicados totalmente por mezcla.
+2. **Evento visible de composición:** D043 ya evita abrir un incidente por mix shift puro; queda
+   como mejora publicar una observación `composition_shift` separada, sin inventar una alerta.
 3. **Eventos fuera de orden:** el agregador hoy los rechaza; falta una política de watermark.
 4. **Cobertura 3D:** decidir si más historia/volumen justifica ampliar RCA, en vez de aumentar
    dimensiones por ambición.
@@ -969,6 +973,58 @@ No son “por decidir” de configuración; son mejoras que todavía requieren e
 
 Hasta que existan esas pruebas, los valores de D035 son los defaults defendibles del MVP y las
 abstenciones son comportamiento esperado, no fallas silenciosas.
+
+## D043 — Gate de publicación de mix shift dentro del segmento
+
+Contexto: D040 dejaba la descomposición de mezcla como información para el investigador. Eso era
+insuficiente: un cambio de composición puede hacer caer la conversión global y también los
+agregados de provider, método, banco o merchant aunque ninguno se haya degradado internamente.
+Abrir RCA para esos síntomas sería un falso incidente.
+
+Alternativas:
+
+1. Mantener la descomposición como dato informativo solamente.
+2. Suprimir únicamente la anomalía global cuando la mezcla global explica la caída.
+3. Para cada anomalía, restringir la comparación a sus dimensiones ya fijas y buscar una
+   partición comparable entre las dimensiones que quedan libres.
+
+Decisión: 3.
+
+Implementación: antes de generar candidatos RCA, `DetectionPipeline` aplica el gate. Por ejemplo,
+para `provider=nova_pay` compara la mezcla de países, métodos, bancos o merchants **dentro de
+Nova Pay**, no la mezcla global. Solo se permite suprimir la publicación si una de esas
+particiones cumple todas estas condiciones:
+
+- al menos dos categorías actuales y cada una con `min_volume` transacciones;
+- todas las categorías actuales existían en la historia sana y cada una tenía también
+  `min_volume` observaciones históricas;
+- el efecto de mezcla es adverso al menos `1.0 pp`;
+- la degradación de performance interna no supera `1.0 pp`.
+
+Cuando se suprime una señal, se reinician su EWMA y persistencia. Así, una caída real de la
+ventana siguiente debe volver a demostrar sus propias tres ventanas y no hereda antigüedad de un
+cambio de composición ya descartado.
+
+Por qué: una comparación global para una anomalía de provider respondería otra pregunta y podría
+ocultar una caída real de ese provider. Hacer la descomposición dentro del segmento distingue
+correctamente “entró más tráfico de una población que ya convertía peor” de “esa población empezó
+a convertir peor”. Los checks de cobertura hacen que, ante datos insuficientes o categorías nuevas,
+el sistema prefiera investigar antes que ocultar una degradación.
+
+Tradeoff: es deliberadamente conservador. Un mix shift puro con categorías nuevas o poco volumen
+puede seguir apareciendo como incidente, y todavía no publicamos un evento informativo separado de
+`composition_shift`. Además, `performance_effect_pp` es un efecto neto ponderado: una caída muy
+pequeña dentro de una categoría podría quedar diluida; ese segmento mantiene su propia detección,
+pero el control por categoría individual es una mejora futura. A cambio, no usamos una conclusión
+de mezcla sin baseline como excusa para silenciar un posible incidente real.
+
+Verificado con `tests/detection/test_pipeline.py`:
+
+1. cambio puro de mezcla BR/MX: existe una señal estadística cruda, pero no se publica incidente;
+2. cambio de mezcla más una caída real de MX: MX sí se publica;
+3. categoría nueva AR sin baseline y categoría con historia escasa: no se suprime la alerta;
+4. tras una supresión, una caída nueva vuelve a requerir persistencia propia.
+
 ## D030 — Persistir el Evidence Audit en un envelope API-local y publicar con gate fail-closed
 
 Contexto: el Evidence Auditor ya podia aprobar o rechazar un draft, pero su decision quedaba

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import unittest
 
 from engine.detection import mock_generator
+from engine.detection.anomaly import DetectionState, detect
 from engine.detection.config import DetectionConfig
 from engine.detection.pipeline import DetectionPipeline
 from tests.detection.helpers import approval_history, transaction
@@ -89,6 +90,273 @@ class TwoSimultaneousIncidentsTests(unittest.TestCase):
         self.assertTrue(all(eid in nova_evidence_ids for c in nova.candidates for eid in c.evidence_ids))
         stripe_evidence_ids = {e.evidence_id for e in stripe.evidence}
         self.assertTrue(all(eid in stripe_evidence_ids for c in stripe.candidates for eid in c.evidence_ids))
+
+
+class MixShiftPublicationTests(unittest.TestCase):
+    """El gate se prueba contra ventanas reales, no solo contra la formula decompose()."""
+
+    start = datetime(2026, 8, 29, 14, 0, 0)
+
+    def _country_window(
+        self,
+        window_start: datetime,
+        *,
+        br_total: int,
+        br_approved: int,
+        mx_total: int,
+        mx_approved: int,
+    ) -> list:
+        """Crea una ventana ordenada sin derramar transacciones a otro minuto."""
+        br = [
+            transaction(
+                window_start + timedelta(microseconds=index),
+                index < br_approved,
+                provider="nova_pay",
+                country="BR",
+                payment_method="card",
+                issuing_bank="itau",
+                merchant="VuelaYa",
+            )
+            for index in range(br_total)
+        ]
+        mx = [
+            transaction(
+                window_start + timedelta(microseconds=br_total + index),
+                index < mx_approved,
+                provider="nova_pay",
+                country="MX",
+                payment_method="card",
+                issuing_bank="itau",
+                merchant="VuelaYa",
+            )
+            for index in range(mx_total)
+        ]
+        return br + mx
+
+    def _run_pipeline(
+        self,
+        history: list,
+        windows: list[list],
+        config: DetectionConfig,
+    ) -> list:
+        pipeline = DetectionPipeline(history=history, config=config)
+        results = []
+        for window in windows:
+            for txn in window:
+                results.extend(pipeline.ingest(txn))
+        final = pipeline.flush()
+        if final is not None:
+            results.append(final)
+        return results
+
+    def test_pure_country_mix_shift_does_not_publish_an_incident(self) -> None:
+        """La conversion global cae 15 pp, pero BR y MX conservan sus propias tasas.
+
+        El detector crudo ve la caida sostenida. El pipeline la reclasifica como composicion
+        porque dentro de cada segmento no hay degradacion de performance, y por ende no abre
+        RCA ni incidente publicable.
+        """
+        history = self._country_window(
+            self.start - timedelta(days=1),
+            br_total=80,
+            br_approved=76,
+            mx_total=20,
+            mx_approved=14,
+        )
+        windows = [
+            self._country_window(
+                self.start + timedelta(minutes=minute),
+                br_total=20,
+                br_approved=19,
+                mx_total=80,
+                mx_approved=56,
+            )
+            for minute in range(4)
+        ]
+        config = DetectionConfig(min_volume=20, persistence_windows=3)
+
+        state = DetectionState()
+        raw_anomalies = []
+        for minute, window in enumerate(windows):
+            window_start = self.start + timedelta(minutes=minute)
+            raw_anomalies = detect(
+                history,
+                window,
+                window_start,
+                window_start + timedelta(minutes=1),
+                state,
+                config,
+            )
+        self.assertIn("global", {anomaly.dimension_key for anomaly in raw_anomalies})
+
+        results = self._run_pipeline(history, windows, config)
+        diagnoses = [diagnosis for result in results for diagnosis in result.diagnoses]
+        self.assertEqual(diagnoses, [])
+
+    def test_mix_shift_plus_real_performance_drop_still_publishes_the_segment(self) -> None:
+        """El cambio de mezcla no puede ocultar una baja real dentro de MX."""
+        history = self._country_window(
+            self.start - timedelta(days=1),
+            br_total=80,
+            br_approved=76,
+            mx_total=20,
+            mx_approved=14,
+        )
+        windows = [
+            self._country_window(
+                self.start + timedelta(minutes=minute),
+                br_total=20,
+                br_approved=19,
+                mx_total=80,
+                # 40% queda claramente por debajo del intervalo creible de MX. Con 50%
+                # y solo 20 observaciones historicas, la prueba podia no ser significativa.
+                mx_approved=32,
+            )
+            for minute in range(3)
+        ]
+        config = DetectionConfig(min_volume=20, persistence_windows=3)
+
+        results = self._run_pipeline(history, windows, config)
+        diagnoses_by_key = {
+            diagnosis.anomaly.dimension_key
+            for result in results
+            for diagnosis in result.diagnoses
+        }
+
+        self.assertIn("country=MX", diagnoses_by_key)
+
+    def test_new_mix_category_never_suppresses_an_incident(self) -> None:
+        """Sin una tasa historica para una categoria, el gate debe ser conservador.
+
+        AR cambia el mix global, pero no existia en la historia. No se puede concluir que su
+        baja aprobacion sea una propiedad normal de composicion: el incidente sigue publicado
+        para que RCA lo investigue.
+        """
+        history = self._country_window(
+            self.start - timedelta(days=1),
+            br_total=80,
+            br_approved=76,
+            mx_total=20,
+            mx_approved=14,
+        )
+        windows = []
+        for minute in range(3):
+            window_start = self.start + timedelta(minutes=minute)
+            known_countries = self._country_window(
+                window_start,
+                br_total=20,
+                br_approved=19,
+                mx_total=20,
+                mx_approved=14,
+            )
+            new_country = [
+                transaction(
+                    window_start + timedelta(microseconds=40 + index),
+                    False,
+                    provider="nova_pay",
+                    country="AR",
+                    payment_method="card",
+                    issuing_bank="itau",
+                    merchant="VuelaYa",
+                )
+                for index in range(60)
+            ]
+            windows.append(known_countries + new_country)
+
+        results = self._run_pipeline(
+            history,
+            windows,
+            DetectionConfig(min_volume=20, persistence_windows=3),
+        )
+        diagnoses_by_key = {
+            diagnosis.anomaly.dimension_key
+            for result in results
+            for diagnosis in result.diagnoses
+        }
+
+        self.assertIn("global", diagnoses_by_key)
+
+    def test_sparse_baseline_category_never_suppresses_an_incident(self) -> None:
+        """Una categoria vista solo unas pocas veces tampoco es baseline suficiente."""
+        history = self._country_window(
+            self.start - timedelta(days=1),
+            br_total=95,
+            br_approved=95,
+            mx_total=5,
+            mx_approved=0,
+        )
+        windows = [
+            self._country_window(
+                self.start + timedelta(minutes=minute),
+                br_total=20,
+                br_approved=20,
+                mx_total=80,
+                mx_approved=0,
+            )
+            for minute in range(3)
+        ]
+
+        results = self._run_pipeline(
+            history,
+            windows,
+            DetectionConfig(min_volume=20, persistence_windows=3),
+        )
+        diagnoses_by_key = {
+            diagnosis.anomaly.dimension_key
+            for result in results
+            for diagnosis in result.diagnoses
+        }
+
+        self.assertIn("global", diagnoses_by_key)
+
+    def test_suppressed_mix_shift_does_not_lend_persistence_to_later_drop(self) -> None:
+        """Tras descartar mezcla pura, una caida nueva vuelve a requerir tres ventanas."""
+        history = self._country_window(
+            self.start - timedelta(days=1),
+            br_total=80,
+            br_approved=76,
+            mx_total=20,
+            mx_approved=14,
+        )
+        pure_mix_windows = [
+            self._country_window(
+                self.start + timedelta(minutes=minute),
+                br_total=20,
+                br_approved=19,
+                mx_total=80,
+                mx_approved=56,
+            )
+            # Con este gap global, el EWMA cruza su umbral en la segunda ventana; la cuarta
+            # es la primera que el detector llega a publicar y el gate puede suprimir/resetear.
+            for minute in range(4)
+        ]
+        real_drop_windows = [
+            self._country_window(
+                self.start + timedelta(minutes=minute),
+                br_total=20,
+                br_approved=19,
+                mx_total=80,
+                mx_approved=32,
+            )
+            for minute in range(4, 7)
+        ]
+
+        results = self._run_pipeline(
+            history,
+            pure_mix_windows + real_drop_windows,
+            DetectionConfig(min_volume=20, persistence_windows=3),
+        )
+        diagnoses_by_window = {
+            result.window_start: {diagnosis.anomaly.dimension_key for diagnosis in result.diagnoses}
+            for result in results
+        }
+
+        self.assertEqual(diagnoses_by_window[self.start + timedelta(minutes=4)], set())
+        self.assertEqual(diagnoses_by_window[self.start + timedelta(minutes=5)], set())
+        self.assertIn(
+            "country=MX",
+            diagnoses_by_window[self.start + timedelta(minutes=6)],
+        )
 
 
 class ProductionDefaultsLongStreamTests(unittest.TestCase):

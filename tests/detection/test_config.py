@@ -15,6 +15,8 @@ class DetectionConfigTests(unittest.TestCase):
         self.assertEqual(config.credible_interval, 0.95)
         self.assertEqual(config.ewma_lambda, 0.3)
         self.assertEqual(config.ewma_threshold, -0.05)
+        self.assertEqual(config.mix_shift_min_effect_pp, 1.0)
+        self.assertEqual(config.mix_shift_max_performance_degradation_pp, 1.0)
 
     def test_rejects_invalid_statistical_parameters(self) -> None:
         with self.assertRaises(ValueError):
@@ -23,3 +25,7 @@ class DetectionConfigTests(unittest.TestCase):
             DetectionConfig(ewma_lambda=0)
         with self.assertRaises(ValueError):
             DetectionConfig(persistence_windows=0)
+        with self.assertRaises(ValueError):
+            DetectionConfig(mix_shift_min_effect_pp=0)
+        with self.assertRaises(ValueError):
+            DetectionConfig(mix_shift_max_performance_degradation_pp=0)

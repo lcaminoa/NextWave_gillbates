@@ -28,9 +28,9 @@ pero nunca redirige tráfico ni escribe en sistemas externos.
 | Datos sintéticos | ✅ | `simulator/` (Stream A, mergeado a main) genera transacciones y aplica `ChaosSpec` manual y `random_unknown` con reveal. Probado en integracion directa con `DetectionPipeline`, incluida la recuperacion al vencer el chaos. | -- |
 | Agregación | ✅ | `WindowAggregator` agrupa transacciones por ventanas y segmentos; está conectado a `DetectionPipeline` y al runtime API. | -- |
 | Baseline / detección | 🟡 | Beta-Binomial, intervalo creíble, volumen mínimo, EWMA, persistencia y segmentos `provider × country`; defaults calibrados contra stream continuo. | Estacionalidad efectiva y fallback jerárquico. |
-| Mix shift | 🟡 | El pipeline calcula `mix_shift_effect_pp` y `performance_effect_pp` para anomalías de una dimensión. | Usarlo como filtro real antes de abrir un incidente; hoy informa, pero no bloquea alertas. |
+| Mix shift | ✅ | Antes de RCA, el pipeline descarta una señal si una partición comparable dentro de su propio segmento demuestra que la caída es solo cambio de composición. | Emitir en el futuro un evento visible de `composition_shift`, sin convertirlo en incidente. |
 | RCA / evidencia | 🟡 | Pipeline automático, candidatos 1D/2D, score, impacto por hora, distribución de decline codes y contrafácticos; D011 separa candidatos/evidencia por anomalía concurrente. | Priorización global en UI y casos de cobertura residual más complejos. |
-| Tests | 🟡 | 106 tests: Stream A/B/C, API, caos oculto, asociación pre-reveal, scoreboard, dedupe, abstención, retries, fallos seguros y auditoría OpenAI mockeada. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`), completar P1 y evaluar OpenAI auditado con key real. |
+| Tests | 🟡 | 135 tests Python: Stream A/B/C, API, caos oculto, asociación pre-reveal, scoreboard, dedupe, abstención, retries, fallos seguros, auditoría OpenAI mockeada y gate de mix shift. | Agregar una suite frontend real (`apps/web` aún no define `pnpm test`) y evaluar OpenAI auditado con key real. |
 | Investigador OpenAI | 🟡 | Modo `deterministic` por defecto y modo `audited_openai` con tools de solo lectura, Structured Outputs, validadores, Evidence Auditor, fallo cerrado y reintento seguro. | Configurar key/modelo solo en el entorno del engine y hacer el primer smoke auditado real. |
 | API / stream | ✅ | FastAPI `engine.main`, siete rutas congeladas, SSE compartido, caos seguro, store, deduplicación y CORS con allowlist explícita. | -- |
 | Dashboard / Chaos Console | 🟡 | PHAROS en Next.js: landing, Control Room, cola, detalle, SSE, Evidence Audit Seal y Blind Trial Scoreboard contra el runtime real. | Corregir Chaos manual: la UI envía `canonical_decline_code`, dimensión que el simulador no puede matchear; además restringir combinaciones de dimensiones incompatibles. La API aún no expone `Anomaly`/`BaselinePoint`; no se debe inventar ese gráfico hasta que exista el contrato. |
@@ -47,7 +47,7 @@ completas.
 
 - [x] Conectar `DetectionEngine` al mix-shift (`engine/detection/pipeline.py`).
   - Completa `Anomaly.mix_shift_effect_pp` y `performance_effect_pp` automaticamente para anomalias de 1 dimension (ver DECISIONS.md D011 para el caso de 2+ dimensiones / global, que no aplica).
-  - Pendiente: usarlo como filtro para NO abrir incidente si el mix-shift explica la caida (hoy solo se informa, no se usa como gate).
+  - Antes de RCA aplica un gate conservador: dentro del segmento de cada anomalia prueba las dimensiones que quedan libres y solo suprime la publicacion si hay al menos dos categorias comparables, volumen suficiente, ninguna categoria nueva y mezcla adversa sin degradacion interna material (D043). Si la señal se suprime, su EWMA/persistencia se reinicia para no prestarle antigüedad a una caída posterior.
 - [x] Orquestador creado en `engine/detection/pipeline.py` (`DetectionPipeline`), no en `engine/rootcause/` -- envuelve `DetectionEngine` y llama a `generate_candidates()` sin tocarlo. `Anomaly + history + ventana -> IncidentCandidate[] + Evidence[]`, expuesto como `WindowResult`/`AnomalyDiagnosis` por ventana. D011 filtra candidatos y evidencia para que cada anomalía concurrente reciba solo los propios.
 - [x] `candidates.py` agrega `Evidence(source="decline_code_distribution", ...)` por candidato (que % de los rechazos son del codigo dominante), ademas del campo `dominant_decline_code`.
 - [x] Definir el criterio determinista para `confirmed`, `probable` e `inconclusive`.
@@ -118,14 +118,14 @@ Implementar como tests automatizados o escenarios reproducibles antes del code f
 - [x] Tráfico normal: no alerta por ruido.
 - [x] Bajo volumen: no alerta.
 - [x] Caída sostenida: alerta después de persistencia.
-- [x] Mix shift puro: la fórmula identifica efecto de performance cero.
+- [x] Mix shift puro: la fórmula identifica efecto de performance cero y el pipeline no publica incidente.
 - [x] `provider × country`: detectado como segmento explícito.
 - [ ] Caída global de provider.
 - [ ] `provider × issuing_bank`.
 - [ ] Regresión de un merchant.
 - [ ] Caída de issuing bank a través de proveedores.
 - [x] Surge de decline code como evidencia visible.
-- [ ] Mix shift + degradación real: reportar ambos efectos.
+- [x] Mix shift + degradación real: el gate conserva el incidente del segmento degradado y no oculta el efecto de performance.
 - [ ] Dos incidentes simultáneos: separar, rankear y no mezclar evidencia.
   - Parcial verificado de punta a punta: API separa los episodios y Stream B no mezcla
     candidatos/evidencia. Falta definir y mostrar una priorización global en UI.
@@ -142,11 +142,12 @@ Esta sección traduce la checklist compartida por el equipo en trabajo verificab
   estado real, prerequisitos, `uv sync`, `pnpm install`, comandos de demo y flujo completo.
 - [ ] **Demo end-to-end desde cero.** Un único comando o runbook inicia backend, stream, frontend
   y datos bootstrap sin tocar el teclado durante el incidente.
-- [ ] **Diagrama de arquitectura en PDF/PNG.** Existe `docs/ARCHITECTURE.md`; falta el artefacto
-  visual exportable para repo/deck.
+- [x] **Diagrama de arquitectura en PDF/PNG.** `docs/flow diagram pipeline.png` acompaña el
+  diagrama fuente `docs/ARCHITECTURE.mmd`; el deck está en `docs/PHAROS_pitch.pdf`.
 - [x] **Decision log con al menos tres trade-offs.** `DECISIONS.md` contiene D001–D029.
-- [ ] **Casos feos manejados explícitamente.** Ruido, bajo volumen, incertidumbre,
-  `inconclusive`, recuperación y doble incidente están cubiertos; falta usar mix-shift como gate.
+- [x] **Casos feos manejados explícitamente.** Ruido, bajo volumen, incertidumbre,
+  `inconclusive`, recuperación, doble incidente, mix shift puro y categorías nuevas o con
+  historia insuficiente tienen pruebas explícitas.
 - [ ] **Trial by fire ensayado.** La Chaos Console ya pasó un smoke a ciegas desde la UI con
   `random_unknown`, reveal, reporte y detalle live. Falta activar el modo OpenAI auditado con
   credenciales de entorno y repetir la corrida.
@@ -182,7 +183,7 @@ No duplicar endpoints ni crear otra consola de caos. Trabajo paralelo útil:
 - [x] Publicar el primer flujo FastAPI contra simulador, pipeline e investigador determinista.
 - [x] Implementar el Investigator OpenAI y el Evidence Auditor con tests mockeados.
 - [x] Conectar dashboard y Chaos Console a los siete endpoints congelados.
-- [ ] Crear el diagrama de arquitectura exportable (PNG/PDF) para la checklist y el deck.
+- [x] Crear el diagrama de arquitectura exportable (PNG/PDF) para la checklist y el deck.
 - [ ] Dejar un runbook de demo: stream sano, inyección, espera de persistencia, RCA, reveal y
   recuperación usando SSE y los endpoints reales.
 
@@ -190,9 +191,9 @@ No duplicar endpoints ni crear otra consola de caos. Trabajo paralelo útil:
 
 1. Corregir Chaos manual y restringir dimensiones incompatibles para que cada escenario aceptado afecte realmente el stream.
 2. Configurar el entorno del engine para `audited_openai` y hacer el primer smoke real con el Evidence Audit Seal ya integrado.
-3. Completar mix-shift como gate y la priorización global de incidentes.
+3. Definir la priorización global de incidentes en UI.
 4. Ejecutar un smoke real auditado y repetir el trial a ciegas desde la UI.
-5. Agregar una suite frontend real para que `pnpm test` sea una validación útil; terminar README, runbook, diagrama exportable, slides, deploy y ensayo del pitch.
+5. Agregar una suite frontend real para que `pnpm test` sea una validación útil; terminar README, runbook, deploy y ensayo del pitch.
 
 ## Regla para cortar alcance
 

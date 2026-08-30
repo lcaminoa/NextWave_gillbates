@@ -28,6 +28,12 @@ class DetectionConfig:
     ewma_lambda: float = 0.3
     ewma_threshold: float = -0.05
 
+    # Gate de cambio de mezcla. Ambos valores estan en puntos porcentuales positivos:
+    # una caida se puede reclasificar como composicion solo si el efecto de mezcla es
+    # material y no hay degradacion interna mayor a esta tolerancia.
+    mix_shift_min_effect_pp: float = 1.0
+    mix_shift_max_performance_degradation_pp: float = 1.0
+
     # Root-cause analysis.
     rca_min_segment_volume: int = 5
     rca_max_dimensions: int = 2
@@ -48,6 +54,12 @@ class DetectionConfig:
             raise ValueError("ewma_lambda debe estar entre 0 y 1")
         if self.ewma_threshold >= 0:
             raise ValueError("ewma_threshold debe ser negativo para detectar caidas")
+        if self.mix_shift_min_effect_pp <= 0:
+            raise ValueError("mix_shift_min_effect_pp debe ser mayor a cero")
+        if self.mix_shift_max_performance_degradation_pp <= 0:
+            raise ValueError(
+                "mix_shift_max_performance_degradation_pp debe ser mayor a cero"
+            )
         if self.rca_min_segment_volume <= 0:
             raise ValueError("rca_min_segment_volume debe ser mayor a cero")
         if self.rca_max_dimensions <= 0:

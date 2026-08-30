@@ -11,6 +11,7 @@ contrato oficial, eso se decide y se suma a schemas.py explicitamente, no al rev
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -21,10 +22,15 @@ from engine.detection.engine import DetectionEngine
 from engine.detection.mix_shift import decompose
 from engine.rootcause.candidates import generate_candidates
 
-# decompose() explica UNA dimension a la vez (Sec 9.3). Una anomalia de "global" o de 2+
-# dimensiones combinadas no tiene una unica dimension que decomponer -- ahi se deja
-# mix_shift_effect_pp/performance_effect_pp en None en vez de inventar a cual aplicarselo.
-MIX_SHIFT_DIMENSIONS = {"provider", "country", "payment_method", "issuing_bank", "merchant"}
+# decompose() explica UNA dimension a la vez (Sec 9.3). El orden estable hace reproducible la
+# eleccion de un diagnostico de mezcla cuando mas de una particion es comparable.
+MIX_SHIFT_DIMENSIONS = (
+    "provider",
+    "country",
+    "payment_method",
+    "issuing_bank",
+    "merchant",
+)
 
 
 @dataclass(frozen=True)
@@ -74,6 +80,92 @@ def _with_mix_shift(
         "mix_shift_effect_pp": mix_pp,
         "performance_effect_pp": performance_pp,
     })
+
+
+def _scope_transactions(
+    transactions: list[Transaction], fixed_dimensions: dict[str, str],
+) -> list[Transaction]:
+    """Restringe una descomposicion al segmento de la anomalia.
+
+    Ejemplo: para una anomalia ``provider=nova_pay`` se compara la mezcla de paises,
+    metodos, bancos o merchants *dentro de Nova Pay*. No se debe usar la mezcla global por
+    provider: eso responderia otra pregunta y podria ocultar una caida real del provider.
+    """
+    return [
+        transaction
+        for transaction in transactions
+        if all(getattr(transaction, key, None) == value for key, value in fixed_dimensions.items())
+    ]
+
+
+def _is_comparable_mix_partition(
+    baseline: list[Transaction],
+    current_window: list[Transaction],
+    dimension: str,
+    minimum_volume: int,
+) -> bool:
+    """Exige una comparacion de mezcla conservadora antes de permitir una supresion.
+
+    Una categoria nueva no tiene tasa historica comparable; y categorias con muy poco
+    trafico pueden aparentar una mezcla perfecta por azar. En esos casos preferimos seguir
+    investigando la anomalia antes que esconder una degradacion real.
+    """
+    current_counts = Counter(getattr(transaction, dimension, None) for transaction in current_window)
+    current_counts.pop(None, None)
+    if len(current_counts) < 2:
+        return False
+
+    baseline_counts = Counter(getattr(transaction, dimension, None) for transaction in baseline)
+    baseline_counts.pop(None, None)
+    if not set(current_counts).issubset(baseline_counts):
+        return False
+
+    return all(
+        current_volume >= minimum_volume and baseline_counts[value] >= minimum_volume
+        for value, current_volume in current_counts.items()
+    )
+
+
+def _is_explained_by_mix_shift(
+    anomaly: Anomaly,
+    baseline: list[Transaction],
+    current_window: list[Transaction],
+    config: DetectionConfig,
+) -> bool:
+    """True solo si la caida del segmento es explicable por composicion, no performance.
+
+    Se prueba cada dimension que queda libre dentro del segmento alertado. Basta una
+    particion con soporte suficiente donde el efecto de mezcla sea adverso y la degradacion
+    interna sea insignificante. La deteccion estadistica ya exigio una caida sostenida; este
+    gate decide si esa caida merece abrir un incidente de pagos.
+    """
+    fixed_dimensions = _dims_in_key(anomaly.dimension_key)
+    scoped_baseline = _scope_transactions(baseline, fixed_dimensions)
+    scoped_current = _scope_transactions(current_window, fixed_dimensions)
+
+    for dimension in MIX_SHIFT_DIMENSIONS:
+        if dimension in fixed_dimensions:
+            continue
+        if not _is_comparable_mix_partition(
+            scoped_baseline,
+            scoped_current,
+            dimension,
+            config.min_volume,
+        ):
+            continue
+
+        mix_effect_pp, performance_effect_pp = decompose(
+            scoped_baseline,
+            scoped_current,
+            dimension=dimension,
+        )
+        if (
+            mix_effect_pp <= -config.mix_shift_min_effect_pp
+            and performance_effect_pp >= -config.mix_shift_max_performance_degradation_pp
+        ):
+            return True
+
+    return False
 
 
 def _owns_candidate(candidate_dims: dict, anomaly_dims: dict) -> bool:
@@ -136,6 +228,16 @@ class DetectionPipeline:
         batch = self._engine.aggregator.flush()
         return self._diagnose(batch) if batch is not None else None
 
+    def _reset_suppressed_signal(self, anomaly: Anomaly) -> None:
+        """Evita que una composicion ya descartada preste su persistencia a otro incidente.
+
+        El gate corre despues de que DetectionEngine actualiza EWMA y persistencia. Si una
+        señal se descarta por mezcla, conservar ese estado haria que una degradacion real de
+        la ventana siguiente parezca tener tres minutos de persistencia que no le pertenecen.
+        """
+        self._engine.state.persistence.pop(anomaly.dimension_key, None)
+        self._engine.state.ewma.pop(anomaly.dimension_key, None)
+
     def _diagnose(self, batch: WindowBatch) -> WindowResult:
         anomalies = self._engine.process_batch(batch)
         current_window = list(batch.transactions)
@@ -144,6 +246,17 @@ class DetectionPipeline:
         diagnoses: list[AnomalyDiagnosis] = []
         for anomaly in anomalies:
             enriched = _with_mix_shift(anomaly, self.history, current_window)
+            if _is_explained_by_mix_shift(
+                enriched,
+                self.history,
+                current_window,
+                self.config,
+            ):
+                # La señal estadistica existio, pero esta explicada por la composicion del
+                # trafico dentro de su propio segmento. No se genera RCA ni incidente, y su
+                # EWMA/persistencia no se reutiliza como evidencia de una caida posterior.
+                self._reset_suppressed_signal(enriched)
+                continue
             all_candidates, all_evidence = generate_candidates(
                 anomaly_id=enriched.anomaly_id,
                 history=self.history,
