@@ -721,11 +721,30 @@ a {
   margin-top: 7px;
 }
 
+/* Clamped so one verbose summary cannot make a toast tall enough to become a
+   panel. The full text is one click away in the investigation. */
 .alert-toast-summary {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 12px 0 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--pharos-ink);
   font-size: var(--text-caption);
   line-height: 1.55;
+}
+
+.alert-toast-overflow {
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--pharos-surface);
+  box-shadow: var(--shadow-elev-3);
+  color: var(--pharos-muted);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-align: center;
 }
 
 .alert-toast-impact {
@@ -1093,7 +1112,7 @@ a {
 .control-canvas {
   min-height: 100vh;
   /* Extra bottom room so the fixed incident alert never sits on top of content. */
-  padding: clamp(12px, 1.4vw, 28px) var(--gutter) 150px;
+  padding: clamp(12px, 1.4vw, 28px) var(--gutter) 120px;
   color: var(--pharos-ink);
 }
 
@@ -2171,19 +2190,6 @@ a {
   color: var(--signal-warning-ink);
 }
 
-.persistent-alert {
-  position: fixed;
-  z-index: 20;
-  right: clamp(16px, 4vw, 62px);
-  bottom: 22px;
-  width: min(365px, calc(100vw - 32px));
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--signal-critical) 27%, transparent);
-  border-radius: var(--radius-card);
-  background:
-    var(--surface-alert);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 0 32px color-mix(in srgb, var(--signal-critical) 8%, transparent);
-}
 
 /* Presentation mode used to be a no-op: max-width was already none and the padding
    moved by ~8px. It now does what the spec asks — drops the supporting panels and
@@ -2192,8 +2198,7 @@ a {
 /* Presentation mode used to be a no-op: it only widened a max-width that was
    already none. It now drops the supporting panels and scales the story elements
    so the screen reads from across a room. */
-.presentation-mode .globe-stage,
-.presentation-mode .persistent-alert {
+.presentation-mode .globe-stage {
   display: none;
 }
 

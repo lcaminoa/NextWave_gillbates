@@ -14,7 +14,6 @@ import {
   SearchCheck,
   ShieldCheck,
   Waves,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IncidentCard } from "@/components/incidents/incident-card";
@@ -45,7 +44,6 @@ export function ControlTowerDashboard() {
   const { transactions, status: streamStatus } = useTransactionStream();
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [presentationMode, setPresentationMode] = useState(false);
-  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
 
   const selectedReport = reports.find((report) => report.incident_id === selectedIncidentId) ?? null;
   const activeReport = selectedReport ?? reports[0] ?? null;
@@ -376,38 +374,6 @@ export function ControlTowerDashboard() {
           </section>
       </main>
 
-      {/* Persistent by design — it never times out on its own — but dismissible, so it
-          cannot permanently cover the panel behind it. A different incident brings it
-          back, because dismissal is keyed to the incident it announced. */}
-      {activeReport && dismissedAlertId !== activeReport.incident_id ? (
-        <aside className="persistent-alert" aria-live="polite">
-          <button
-            type="button"
-            onClick={() => setDismissedAlertId(activeReport.incident_id)}
-            aria-label="Dismiss this alert"
-            className="absolute top-2 right-2 grid size-6 place-items-center rounded-full text-pharos-faint transition hover:bg-white/10 hover:text-pharos-ink"
-          >
-            <X className="size-3.5" aria-hidden="true" />
-          </button>
-          <div className="flex gap-3">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-signal-critical/30 bg-signal-critical/10 text-signal-critical">
-              <ShieldCheck className="size-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-micro font-bold tracking-[0.1em] text-signal-critical uppercase">
-                Active payment investigation
-              </p>
-              <p className="mt-1 line-clamp-2 text-xs font-medium text-pharos-ink">{activeReport.summary}</p>
-              <Link
-                href={`/incidents/${activeReport.incident_id}`}
-                className="mt-2 inline-flex items-center gap-1 text-micro font-semibold text-pharos-accent"
-              >
-                Review evidence <ChevronRight className="size-3" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-        </aside>
-      ) : null}
     </div>
   );
 }
