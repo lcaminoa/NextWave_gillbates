@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Check, CircleAlert, CircleCheck, Clock3, Eye, EyeOff, FlaskConical, Gauge, Link2, LoaderCircle, LockKeyhole, Play, RotateCcw, Sparkles, TimerReset } from "lucide-react";
 import { injectChaos, injectRandomChaos, revealChaos } from "@/lib/api/control-tower";
 import { useIncidentReports } from "@/lib/api/use-control-tower";
@@ -25,6 +25,28 @@ const dimensionLabels: Array<{ key: DimensionField; label: string }> = [
   { key: "merchant", label: "Merchant" }, { key: "provider", label: "Provider" }, { key: "payment_method", label: "Payment method" }, { key: "country", label: "Country" }, { key: "issuing_bank", label: "Issuing bank" }, { key: "canonical_decline_code", label: "Decline code" },
 ];
 
+const CHAOS_RUN_STORAGE_KEY = "pharos.active-chaos-run";
+
+function restoreChaosRun(): ChaosSpec | null {
+  try {
+    const raw = window.sessionStorage.getItem(CHAOS_RUN_STORAGE_KEY);
+    if (!raw) return null;
+    const run = JSON.parse(raw) as Partial<ChaosSpec>;
+    if (
+      typeof run.chaos_id !== "string"
+      || (run.mode !== "manual" && run.mode !== "random_unknown")
+      || typeof run.revealed !== "boolean"
+    ) {
+      window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
+      return null;
+    }
+    return run as ChaosSpec;
+  } catch {
+    window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
+    return null;
+  }
+}
+
 function elapsedLabel(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 }
@@ -47,11 +69,33 @@ export function ChaosConsole() {
   const [runSpec, setRunSpec] = useState<ChaosSpec | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [restoredRunState, setRestoredRunState] = useState(false);
   const { reports, status: reportsStatus } = useIncidentReports(5_000);
 
   const controlsLocked = !["ready", "confirming", "failed"].includes(phase);
   const isRandom = mode === "random_unknown";
   const isRunning = ["submitting", "active", "revealing"].includes(phase);
+
+  useEffect(() => {
+    const restored = restoreChaosRun();
+    startTransition(() => {
+      if (restored) {
+        setRunSpec(restored);
+        setMode(restored.mode);
+        setPhase(restored.revealed ? "revealed" : "active");
+      }
+      setRestoredRunState(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!restoredRunState) return;
+    if (runSpec) {
+      window.sessionStorage.setItem(CHAOS_RUN_STORAGE_KEY, JSON.stringify(runSpec));
+    } else {
+      window.sessionStorage.removeItem(CHAOS_RUN_STORAGE_KEY);
+    }
+  }, [restoredRunState, runSpec]);
 
   useEffect(() => {
     if (!runSpec || !isRunning) return;
