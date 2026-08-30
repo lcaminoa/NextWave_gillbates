@@ -101,6 +101,10 @@ export function ChaosConsole() {
       if (restored) {
         setRunSpec(restored.runSpec);
         setMode(restored.runSpec.mode);
+        setSeverity(restored.runSpec.severity_pp);
+        if (typeof restored.runSpec.duration_minutes === "number") {
+          setDuration(restored.runSpec.duration_minutes);
+        }
         setPhase(restored.runSpec.revealed ? "revealed" : "active");
         setClientStartedAtMs(restored.clientStartedAtMs);
         if (restored.clientStartedAtMs !== null) {
@@ -145,6 +149,10 @@ export function ChaosConsole() {
         ? await injectChaos({ chaos_id: `chaos_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`, mode: "manual", dimensions, severity_pp: severity, started_at: new Date().toISOString(), duration_minutes: duration, revealed: true })
         : await injectRandomChaos({ severity_pp: severity, duration_minutes: duration });
       setRunSpec(nextSpec);
+      setSeverity(nextSpec.severity_pp);
+      if (typeof nextSpec.duration_minutes === "number") {
+        setDuration(nextSpec.duration_minutes);
+      }
       setClientStartedAtMs(Date.now());
       setElapsedSeconds(0);
       setPhase("active");
